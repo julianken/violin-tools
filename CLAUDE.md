@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## What this is
-Violin Tools — a dark web app of focused practice tools for violinists. Its first tool is **Scales**, a whole-neck fingerboard note map.
+Violin Tools — a web app of focused practice tools for violinists. Its first tool is **Scales**, a whole-neck fingerboard note map.
 
 ## Repo identity
 Local folder `violin-scales/`; GitHub slug `julianken/violin-tools` — they differ, so pass the slug to `gh`. Default branch `main`.
