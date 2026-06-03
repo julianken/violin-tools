@@ -15,7 +15,7 @@ Local folder `violin-scales/`; GitHub slug `julianken/violin-tools` — they dif
 - **Review:** dispatch the `reviewing-as-julianken-bot` subagent (never `gh pr review` from the main session); for design-surface changes, also run a design-system review pass before approving. Cycle to approval, then squash-merge.
 
 ## Disclosure & sensitivity
-Personal open-source project — no compliance, regulatory, or auditability requirement. The git / PR / commit trail is a courtesy to people reading the project, not a mandate: commit messages and PR descriptions may be terse, and design deliberation lives in working chat/notes, not git. Terse is fine; **false is not** — never misrepresent what a change did, rubber-stamp a review, or rewrite history to hide that something changed.
+Personal open-source project — no compliance, regulatory, or auditability requirement. The git / PR / commit trail is a courtesy to people reading the project, not a mandate: commit messages and PR descriptions may be terse — the *why* still goes in the commit body (per Conventions), but the deliberation behind it stays in working chat/notes, not git. Terse is fine; **false is not** — never misrepresent what a change did, rubber-stamp a review, or rewrite history to hide that something changed.
 
 When unsure whether something is sensitive, treat it as sensitive and keep it out of the repo. Sensitivity levels:
 
