@@ -8,7 +8,9 @@
 #   2. the bare `@AGENTS.md` import line dropped (severs Claude from the SoT).
 #   3. the import fenced in a code block — Claude does not honor a fenced import,
 #      so the shim is forbidden any code fence at all (it legitimately has none).
-#   4. universal guidance pasted back in under ANY heading (whitelist, not blacklist).
+#   4. universal guidance under any ATX heading (H2+) other than the lone allowed
+#      '## Claude Code only' (whitelist, not blacklist; setext-underline headings
+#      aren't matched here but are bounded by the size ceiling).
 #   5. heading-less prose dumped in (caught by the line-count ceiling).
 #
 # Run from anywhere inside the repo. Exit 0 = intact, exit 1 = drift detected.
@@ -45,11 +47,13 @@ if grep -qE '^[[:space:]]*```' "$f"; then
   fail=1
 fi
 
-# 4. Whitelist the single legal H2. ANY other H2 means universal guidance leaked
-#    back in (robust to wording — '## Security', '## Sensitivity', etc. all fail).
-stray="$(grep -E '^## ' "$f" | grep -vx '## Claude Code only' || true)"
+# 4. Whitelist the single legal heading. Any ATX heading at H2 or deeper other
+#    than '## Claude Code only' means universal guidance leaked back in (robust to
+#    wording — '## Security', '### Notes', etc. all fail). Setext-underline
+#    headings aren't matched here but are bounded by the size ceiling (check 5).
+stray="$(grep -E '^#{2,} ' "$f" | grep -vx '## Claude Code only' || true)"
 if [ -n "$stray" ]; then
-  echo "FAIL: unexpected H2 heading(s) in the shim — universal guidance belongs in AGENTS.md:"
+  echo "FAIL: unexpected heading(s) in the shim — universal guidance belongs in AGENTS.md:"
   printf '  %s\n' "$stray"
   fail=1
 fi
