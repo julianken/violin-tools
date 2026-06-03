@@ -1,18 +1,19 @@
 # CLAUDE.md
 
-## What this is
-Violin Tools — a dark web app of focused practice tools for violinists. Its first tool is **Scales**, a whole-neck fingerboard note map.
+<!-- DO NOT ADD UNIVERSAL/PROJECT GUIDANCE HERE. The source of truth is AGENTS.md.
+This file is a hand-maintained Claude-only shim: the line below imports AGENTS.md
+in full, then a single "## Claude Code only" tail holds Claude-product mechanics.
+Do NOT run /init or revise-claude-md against this file blindly — they re-fold
+AGENTS.md content back in and can drop the import line. Keep this file tiny; the
+shape is enforced by scripts/check-claude-shim.sh (run in the review pass). -->
 
-## Repo identity
-Local folder `violin-scales/`; GitHub slug `julianken/violin-tools` — they differ, so pass the slug to `gh`. Default branch `main`.
+@AGENTS.md
 
-## Design source of truth
-`DESIGN.md` (repo root) is the single source of truth and **wins on any conflict** — read it before any UI, token, or motion work. It also holds the note-map's pitch-classification model (§12.5). Don't restate any of it elsewhere.
+## Claude Code only
 
-## Conventions
-- **Commits:** Conventional Commits; bodies explain *why*. No git trailer is configured, so append `Co-Authored-By: Claude <model> <noreply@anthropic.com>` by hand, matching the active session model.
-- **PRs:** follow `.github/PULL_REQUEST_TEMPLATE.md` (diagram-first). Screenshots via the `pr-screenshots-via-user-attachments` skill — never commit image files.
-- **Review:** dispatch the `reviewing-as-julianken-bot` subagent (never `gh pr review` from the main session); for design-surface changes, also run a design-system review pass before approving. Cycle to approval, then squash-merge.
+Applies only to Claude Code; other tools should ignore this section. These are Claude-product mechanics, not new rules — the binding rules (review integrity, agent guardrails, sensitivity) live in AGENTS.md.
 
-## Working in the tree
-Run `git status` / `ls` for current state — don't trust a snapshot here. Build/test commands, the package manager, and architecture notes get added to this file once they actually exist.
+- **Review:** Claude Code performs reviews by dispatching the `reviewing-as-julianken-bot` subagent — never `gh pr review` from the main session. For design-surface changes, also run a design-system review pass before approving.
+- **Screenshots:** use the `pr-screenshots-via-user-attachments` skill — never commit image files.
+- **Commit trailer:** append `Co-Authored-By:` matching the active session model by hand (the universal commit convention is in AGENTS.md).
+- **Shim integrity:** any PR touching CLAUDE.md or AGENTS.md must pass `scripts/check-claude-shim.sh` (not a symlink, import line intact, no leaked sections, stays tiny).
