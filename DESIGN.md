@@ -10,12 +10,13 @@
 
 The authoritative source of truth for every value. The prose below references these tokens by name and never repeats a raw hex.
 
-Tokens are **three-tier**: a **primitive** holds the raw literal; a **semantic** token aliases a primitive and names its job in the system; a **component** token aliases a semantic and names where it is used. Aliases are written `{token}`. To recolor the product, edit one primitive and the change flows down every chain — you never hunt individual call sites. One complete chain, end to end:
+Tokens are **three-tier**: a **primitive** holds the raw literal; a **semantic** token aliases a primitive and names its job in the system; a **component** token aliases a semantic and names where it is used. Aliases are written `{token}`. To recolor the product, edit one primitive and the change flows down every chain — you never hunt individual call sites. Two deliberate, documented departures from the strict chain (both tagged at their declaration so they are not silent): (a) some semantic tokens alias a primitive directly when no component layer exists for that role (e.g. `canvas`); (b) the 15 single-use note-map SVG component tokens alias an `ink-*` **primitive** directly — `[ink→primitive]` in the manifest — because each has exactly one SVG call site and no system-wide job, so a semantic middle tier would be empty indirection (see TIER 3 note). Everything else follows component → semantic → primitive. Three chains, end to end:
 
 ```
 # component        → semantic   → primitive  → literal
-fingerboard-plate   {panel}       {gray-940}   #141417
-canvas (page)       {gray-950}    —            #0a0a0a    (semantic aliases primitive directly)
+fingerboard-plate   {panel}       {gray-930}   #141417    (full three-tier chain)
+canvas (page)       {gray-950}    —            #0a0a0a    (semantic aliases primitive directly — case a)
+scale-label         —             {ink-scale-lbl} #ffffff  (component aliases primitive directly — case b, [ink→primitive])
 root-dot fill       {mint}        {mint-500}   #00d4a4
 ```
 
@@ -31,24 +32,29 @@ meta:
 # TIER 1 — PRIMITIVES. Raw literals. The only place a hex is written.
 # ─────────────────────────────────────────────────────────────────────────
 primitive:
-  # near-black surface ramp (steps UP in lightness)
-  gray-950: "#0a0a0a"
-  gray-945: "#0c0c0d"
-  gray-940: "#141417"
-  gray-935: "#0f0f11"
-  gray-925: "#161618"
-  gray-915: "#1c1c1f"
+  # Near-black grey ramp. INVARIANT: the numeric suffix tracks WCAG relative
+  # luminance MONOTONICALLY — a HIGHER suffix is DARKER (lower luminance), a
+  # LOWER suffix is lighter. So gray-950 (L≈0.0030) is the darkest surface and
+  # gray-100 (L≈0.847) the lightest text; reading suffixes top-to-bottom walks
+  # luminance strictly upward. Every entry below is in ascending-luminance order
+  # and its trailing comment gives the measured L. Never insert a value whose
+  # suffix would break this ordering.
+  gray-950: "#0a0a0a"   # L≈0.0030 — darkest (page canvas)
+  gray-945: "#0c0c0d"   # L≈0.0037
+  gray-935: "#0f0f11"   # L≈0.0048
+  gray-930: "#141417"   # L≈0.0071 — note-map plate (formerly gray-940; absorbs the 1-bit-identical gray-905, see note)
+  gray-925: "#161618"   # L≈0.0081
+  gray-915: "#1c1c1f"   # L≈0.0118
   # line greys
-  gray-900: "#1f1f1f"
-  gray-880: "#26262b"
-  gray-870: "#28282c"
-  gray-820: "#3a3a40"
-  gray-905: "#141416"
+  gray-900: "#1f1f1f"   # L≈0.0137
+  gray-880: "#26262b"   # L≈0.0197
+  gray-870: "#28282c"   # L≈0.0215
+  gray-820: "#3a3a40"   # L≈0.0430
   # text greys
-  gray-100: "#ededed"
-  gray-300: "#9a9aa2"
-  gray-500: "#6a6a72"
-  gray-600: "#4a4a52"
+  gray-600: "#4a4a52"   # L≈0.0696
+  gray-500: "#6a6a72"   # L≈0.1459
+  gray-300: "#9a9aa2"   # L≈0.3259
+  gray-100: "#ededed"   # L≈0.8469 — lightest (primary text)
   # accents
   mint-500:  "#00d4a4"
   mint-600:  "#00b48a"
@@ -86,13 +92,13 @@ color:
   sidebar:       "{gray-945}"   # left rail
   surface:       "{gray-925}"   # raised card / palette body
   raised:        "{gray-915}"   # active/hover-selected interactive surface
-  panel:         "{gray-940}"   # inner note-map plate
+  panel:         "{gray-930}"   # inner note-map plate
   panel-bd:      "{gray-880}"   # note-map plate border
   panelcard-bg:  "{gray-935}"   # frame wrapping the plate
   hairline:      "{gray-900}"   # primary dividers
   hairline2:     "{gray-870}"   # secondary / resting-interactive borders
   hairline3:     "{gray-820}"   # hover border on pills + search; breadcrumb "/"
-  nav-hover-bg:  "{gray-905}"   # nav item hover fill
+  nav-hover-bg:  "{gray-930}"   # nav item hover fill (was gray-905 #141416 — 1 blue-bit off gray-930 #141417; merged)
   text:          "{gray-100}"   # primary
   text2:         "{gray-300}"   # secondary
   text3:         "{gray-500}"   # tertiary / placeholder
@@ -107,44 +113,55 @@ color:
   success:       "{mint}"       # in-tune / success === the acoustic anchor; NO separate token
   danger:        "{red-500}"    # RESERVED error role — unbound in v1 (do not apply yet)
 
-color-alpha:                    # semantic RGBA, inline in build
-  in-scale-fill:    "rgba(0,212,164,.13)"   # in-scale dot ( = mint @ 13% )
-  in-scale-swatch:  "rgba(0,212,164,.14)"   # legend swatch
-  pill-active-wash: "rgba(0,212,164,.12)"   # active default pill bg
-  root-glow:        "rgba(0,212,164,.28)"   # root ring — value the STATEFUL build writes
-  root-glow-snappy: "rgba(0,212,164,.25)"   # root ring — value the SNAPPY build writes in its :root (overrides root-glow)
-  tape-pill-wash:   "rgba(202,164,95,.14)"  # active tape pill bg
-  tape-swatch:      "rgba(202,164,95,.30)"  # legend swatch
-  tape-band:        "rgba(202,164,95,0.16)" # tape band in note map
-  land-pill-wash:   "rgba(42,157,143,.16)"  # active landmark pill bg
-  heel-band:        "rgba(124,92,191,0.30)" # violet heel band
-  octave-band:      "rgba(42,157,143,0.34)" # teal octave band
-  overlay-scrim:    "rgba(0,0,0,.55)"       # palette backdrop (blur 2px)
+color-alpha:                    # semantic translucents, inline as rgba() in the build.
+                                # Each is its base PRIMITIVE at an opacity — written
+                                # "{primitive} @ N%" so a re-theme of the base hue flows
+                                # here too; the resolved rgba() literal the build emits is
+                                # in the trailing comment (it is derived, never hand-keyed).
+  in-scale-fill:    "{mint-500} @ 13%"      # rgba(0,212,164,.13)   in-scale dot fill
+  in-scale-swatch:  "{mint-500} @ 14%"      # rgba(0,212,164,.14)   legend swatch
+  pill-active-wash: "{mint-500} @ 12%"      # rgba(0,212,164,.12)   active default pill bg
+  root-glow:        "{mint-500} @ 28%"      # rgba(0,212,164,.28)   root ring — value the STATEFUL build writes
+  root-glow-snappy: "{mint-500} @ 25%"      # rgba(0,212,164,.25)   root ring — value the SNAPPY build writes in its :root (overrides root-glow)
+  tape-pill-wash:   "{amber-400} @ 14%"     # rgba(202,164,95,.14)  active tape pill bg
+  tape-swatch:      "{amber-400} @ 30%"     # rgba(202,164,95,.30)  legend swatch
+  tape-band:        "{amber-400} @ 16%"     # rgba(202,164,95,.16)  tape band in note map
+  land-pill-wash:   "{teal-500} @ 16%"      # rgba(42,157,143,.16)  active landmark pill bg
+  octave-band:      "{teal-500} @ 34%"      # rgba(42,157,143,.34)  teal octave band
+  heel-band:        "{violet-500} @ 30%"    # rgba(124,92,191,.30)  violet heel band
+  overlay-scrim:    "black @ 55%"           # rgba(0,0,0,.55)       palette backdrop (blur 2px) — pure black, the one non-brand-hue translucent
 
 # ─────────────────────────────────────────────────────────────────────────
-# TIER 3 — COMPONENT. Each aliases a SEMANTIC (or alpha) token.
-# An agent recoloring "the note-map plate" edits the chain, not a literal.
-# ─────────────────────────────────────────────────────────────────────────
+# TIER 3 — COMPONENT. Names WHERE a color is used.
+# INVARIANT: a component token aliases a SEMANTIC (or color-alpha) token —
+# EXCEPT the single-use note-map SVG literals, which alias an `ink-*` PRIMITIVE
+# directly BY DESIGN (tagged `[ink→primitive]` below). Those ink colors are
+# consumed by exactly one <text>/<line>/<circle> in the SVG and carry no
+# system-wide "job," so minting a semantic alias for each would be 15 tokens of
+# pure indirection with one caller apiece; the primitive is the honest tier. The
+# remaining component tokens (untagged) DO alias a semantic, so recoloring "the
+# note-map plate" edits the chain, not a literal. (Re-theming an ink color is a
+# one-line primitive edit; see §14.)
 component-color:
-  fingerboard-plate: "{panel}"        # the SVG plate ( → gray-940 → #141417 )
-  fingerboard-frame: "{panelcard-bg}" # frame around it
-  fingerboard-edge:  "{panel-bd}"     # hairline between them
-  string-line:       "{ink-string}"   # 4 string lines + nut rect
-  guide-line:        "{ink-guide}"    # vertical position guides
-  off-fill:          "{ink-off-fill}" # off-state dot
-  off-stroke:        "{ink-off-edge}" # off-state dot ring
-  root-label:        "{ink-root-lbl}" # text inside root dot (never overridden)
-  scale-label:       "{ink-scale-lbl}"# text on in-scale dot
-  string-name:       "{ink-strname}"  # string labels + palette row text
+  # ── alias a SEMANTIC token ──
+  fingerboard-plate: "{panel}"        # the SVG plate ( → gray-930 → #141417 )
   open-label:        "{text3}"        # "open" label ( = gray-500 )
-  tape-num:          "{ink-tape-num}"
-  heel-dash:         "{ink-heel-dash}"
-  heel-label:        "{ink-heel-lbl}"
-  octave-label:      "{ink-oct-lbl}"
-  pos-label:         "{ink-pos-lbl}"
-  tape-pill-fg:      "{ink-tape-fg}"
-  land-pill-fg:      "{ink-land-fg}"
-  palette-soon:      "{ink-pal-soon}"
+  # ── [ink→primitive] single-use SVG literals: alias an `ink-*` PRIMITIVE directly ──
+  string-line:       "{ink-string}"   # [ink→primitive] 4 string lines + nut rect
+  guide-line:        "{ink-guide}"    # [ink→primitive] vertical position guides
+  off-fill:          "{ink-off-fill}" # [ink→primitive] off-state dot
+  off-stroke:        "{ink-off-edge}" # [ink→primitive] off-state dot ring
+  root-label:        "{ink-root-lbl}" # [ink→primitive] text inside root dot (never overridden)
+  scale-label:       "{ink-scale-lbl}"# [ink→primitive] text on in-scale dot
+  string-name:       "{ink-strname}"  # [ink→primitive] string labels + palette row text
+  tape-num:          "{ink-tape-num}" # [ink→primitive]
+  heel-dash:         "{ink-heel-dash}"# [ink→primitive]
+  heel-label:        "{ink-heel-lbl}" # [ink→primitive]
+  octave-label:      "{ink-oct-lbl}"  # [ink→primitive]
+  pos-label:         "{ink-pos-lbl}"  # [ink→primitive]
+  tape-pill-fg:      "{ink-tape-fg}"  # [ink→primitive]
+  land-pill-fg:      "{ink-land-fg}"  # [ink→primitive]
+  palette-soon:      "{ink-pal-soon}" # [ink→primitive]
 
 type:
   family-ui:   "'Inter', -apple-system, sans-serif"          # all human language
@@ -295,6 +312,14 @@ icon:
 > **`mint-deep` scope.** `mint-deep` (→ `mint-600` → `#00b48a`) is declared in the **snappy build's `:root` only**; the stateful build's `:root` does not declare it at all, and it is not applied in visible markup in either. Its role is reserved, not yet assigned.
 >
 > **Build-specific root-glow.** `root-glow` (`.28`) is the value the **stateful** build writes; `root-glow-snappy` (`.25`) is the value the **snappy** build writes in its `:root`, overriding it. Both are real primitives so each build's literal is explicit — emit the one that matches the build you are generating (§7.2).
+>
+> **Grey-ramp ordering (INVARIANT).** The `gray-*` suffix tracks WCAG relative luminance **monotonically: higher suffix = darker** (`gray-950` darkest surface, `gray-100` lightest text). The primitive list is printed in ascending-luminance order with each measured `L` in-comment; a new grey must be inserted at the suffix its luminance demands, never appended out of order. (An earlier draft mis-described this as "steps up in lightness" and had `gray-940` filed lighter-than-but-numbered-above `gray-935`; both are corrected here.)
+>
+> **`gray-905` merged.** A former `gray-905` (`#141416`) differed from `gray-930` (`#141417`, formerly `gray-940`) by a single bit in the blue channel (B 22 vs 23) — visually identical and within one channel bit — and was mis-filed under "line greys" while actually used as the `nav-hover-bg` surface fill. It has been **merged into `gray-930`**; `nav-hover-bg` now aliases `gray-930`. There is no `gray-905` and no `gray-940` token anymore.
+>
+> **Non-token symbols referenced by prose.** Two identifiers the prose cites are **build logic / constants, not color or layout tokens**, so they have no entry in the tiers above: **`spell()`** — the deterministic root-spelling function (flat set when the root name carries a flat or is `F`, else sharp; defined in §13 and applied in §9.1); and **`NMAX = 15`** — the per-string column count that fixes the node grid (1 open + 14 stopped columns; operationalized in §12.1). They are named here so a reader does not hunt for them among the tokens.
+>
+> **Tiers without a component layer (known, not omissions).** `radius`, `space`, `motion`, `elevation`, and `layout` are primitive scales consumed by name directly at call sites — they have **no component tier** by design (a `card`-radius, a `space-400` gap, and a `52px` topbar are used as-is, not aliased per component). `radius` specifically is flagged in §16 Known Gaps so its missing component tier is explicit rather than silently implied by the three-tier framing, which is a *color*-system rule.
 
 ---
 
@@ -368,33 +393,35 @@ The three functional accents are mutually exclusive in meaning and each appears 
 
 A second solid-mint anchor, or any functional accent used for something other than its one assigned job, is a design-review violation.
 
-### 2.5 Contrast pairs (measured)
+### 2.5 Contrast pairs (computed)
 
-Every load-bearing background+foreground combination, with its measured ratio and WCAG level. A new surface must clear the same bar; check a new pairing against this table before shipping it. Large text = ≥18.66px bold or ≥24px (AA 3:1); everything else uses the normal-text bar (AA 4.5:1).
+Every load-bearing background+foreground combination, with its computed ratio and WCAG level. A new surface must clear the same bar; check a new pairing against this table before shipping it. Large text = ≥18.66px bold or ≥24px (AA 3:1); everything else uses the normal-text bar (AA 4.5:1).
+
+All ratios below are **computed** (WCAG 2.x relative-luminance formula; translucent fills first composited over their backing surface, then measured). They are accurate to the hundredth, not eyeballed; an earlier draft's "measured" column ran 15–30% conservative and is replaced.
 
 | Background | Foreground | Ratio | Level |
 |---|---|---|---|
-| `{canvas}` | `{text}` | ~14.6:1 | ✓ AAA |
-| `{canvas}` | `{text2}` | ~7.0:1 | ✓ AAA |
-| `{surface}` | `{text}` | ~13.6:1 | ✓ AAA |
-| `{surface}` | `{text2}` | ~6.5:1 | ✓ AA |
-| `{surface}` | `{text3}` | ~3.4:1 | ✓ AA large / placeholder only |
-| `{sidebar}` | `{text2}` (nav item) | ~6.8:1 | ✓ AAA |
-| `{sidebar}` | `{muted}` (`.ni.soon` text + icon) | ~2.2:1 | Intentional — disabled-only (WCAG 1.4.3 exempts disabled UI components; "soon" nav items are never enabled) |
-| `{raised}` | `{text}` (active nav item) | ~12.4:1 | ✓ AAA |
-| `{panel}` | `scale-label` (`#ffffff`) | ~15:1 | ✓ AAA |
-| `{panel}` | `pos-label` (`#b9a7e8`) | ~8.2:1 | ✓ AAA |
-| `in-scale-fill` on `{panel}` | `scale-label` | ~5:1 | ✓ AA |
-| `{mint}` (solid root dot) | `root-label` (`#08130f`) | ~10.3:1 | ✓ AAA |
-| `{panel}` | `string-name` (`#cfcfd4`) | ~10.7:1 | ✓ AAA |
-| `{panel}` | `tape-num` (`#d6b878`) | ~7.2:1 | ✓ AA |
-| `{panel}` | `octave-label` (`#5ecabb`) | ~7.5:1 | ✓ AA |
-| `{panel}` | `heel-label` (`#a99fc4`) | ~7.4:1 | ✓ AA |
-| `pill-active-wash` on `{surface}` | `{text}` | ~12:1 | ✓ AAA |
-| `tape-pill-wash` on `{surface}` | `tape-pill-fg` (`#f0e2c4`) | ~11:1 | ✓ AAA |
-| `land-pill-wash` on `{surface}` | `land-pill-fg` (`#bfeae3`) | ~10:1 | ✓ AAA |
+| `{canvas}` | `{text}` | 16.91:1 | ✓ AAA |
+| `{canvas}` | `{text2}` | 7.09:1 | ✓ AAA |
+| `{surface}` | `{text}` | 15.44:1 | ✓ AAA |
+| `{surface}` | `{text2}` | 6.47:1 | ✓ AA |
+| `{surface}` | `{text3}` | 3.37:1 | ✓ AA large / placeholder only |
+| `{sidebar}` | `{text2}` (nav item) | 7.00:1 | ✓ AAA |
+| `{sidebar}` | `{muted}` (`.ni.soon` text + icon) | 2.23:1 | Intentional — disabled-only (WCAG 1.4.3 exempts disabled UI components; "soon" nav items are never enabled) |
+| `{raised}` | `{text}` (active nav item) | 14.52:1 | ✓ AAA |
+| `{panel}` | `scale-label` (`#ffffff`) | 18.39:1 | ✓ AAA |
+| `{panel}` | `pos-label` (`#b9a7e8`) | 8.54:1 | ✓ AAA |
+| `in-scale-fill` on `{panel}` (composited `#112d29`) | `scale-label` | 14.67:1 | ✓ AAA |
+| `{mint}` (solid root dot) | `root-label` (`#08130f`) | 9.86:1 | ✓ AAA |
+| `{panel}` | `string-name` (`#cfcfd4`) | 11.84:1 | ✓ AAA |
+| `{panel}` | `tape-num` (`#d6b878`) | 9.62:1 | ✓ AAA |
+| `{panel}` | `octave-label` (`#5ecabb`) | 9.32:1 | ✓ AAA |
+| `{panel}` | `heel-label` (`#a99fc4`) | 7.39:1 | ✓ AAA |
+| `pill-active-wash` on `{surface}` (composited `#132d29`) | `{text}` | 12.50:1 | ✓ AAA |
+| `tape-pill-wash` on `{surface}` (composited `#2f2a22`) | `tape-pill-fg` (`#f0e2c4`) | 11.10:1 | ✓ AAA |
+| `land-pill-wash` on `{surface}` (composited `#192c2b`) | `land-pill-fg` (`#bfeae3`) | 11.20:1 | ✓ AAA |
 
-`{text3}` on `{surface}` is the one sub-4.5:1 pairing and is allowed **only** as placeholder/section-header/meta text, never as body copy that must be read to operate the tool. The root-dot and non-root-label pairings are P0 invariants (§11.2).
+`{text3}` on `{surface}` (3.37:1) is the one sub-4.5:1 pairing and is allowed **only** as placeholder/section-header/meta text, never as body copy that must be read to operate the tool. The root-dot and non-root-label pairings are P0 invariants (§11.2). Note the in-scale label clears AAA, not merely AA: `in-scale-fill` is a low-opacity mint over the near-black `{panel}`, so it composites to a very dark teal (`#112d29`) against which white sits ≈14.7:1 — the AA-floor concern (§11.2) is the *fill staying dark enough*, and it does so with wide margin.
 
 ### 2.6 Semantic / status colors
 
@@ -407,7 +434,7 @@ The functional accents in §2.4 (`{tape}`/`{teal}`/`{violet}`) cover **reference
 | **Warning** | — (no token) | — | **Out of scope in v1.** No amber-on-different-surface warning role exists, and `{tape}` (amber) is **off-limits** for it — `{tape}` means "beginner tape overlay" and nothing else (§2.4). If a warning is ever needed, it requires a *new* primitive distinct from `{amber-400}`, decided then. | `{tape}`/`{amber-400}` repurposed as a warning tint |
 | **Info** | — (no token) | — | **Out of scope in v1.** No info/notice (blue) role exists. Teaching copy is plain `{text2}` prose (§13), not a colored callout, so no info color is required yet. | inventing a blue; recoloring `{teal}` (which means "octave landmark") into a notice tint |
 
-**When error/danger ships, it must clear contrast like everything else (§2.5):** `{red-500}` (`#e5644e`) on `{surface}` (`#161618`) measures ≈5.4:1 — clears AA for normal text as a foreground/border accent — and it must **not** be placed where it could be mistaken for an in-scale or root dot. Until then, `{danger}` stays declared-but-unapplied, exactly like `mint-deep` (§0).
+**When error/danger ships, it must clear contrast like everything else (§2.5):** `{red-500}` (`#e5644e`) on `{surface}` (`#161618`) computes to **5.39:1** — clears AA for normal text as a foreground/border accent — and it must **not** be placed where it could be mistaken for an in-scale or root dot. Until then, `{danger}` stays declared-but-unapplied, exactly like `mint-deep` (§0).
 
 ---
 
@@ -623,7 +650,9 @@ The dominant pattern is the **Update** column: most state change here is an in-p
 
 ## 8. Components
 
-Per-component contracts. Each block resolves `background`, `border`, `text`, `radius`, `height`, and `padding` to tokens; hover/active are given as deltas; focus is a literal ring. Where the build has no explicit hover/focus rule, the spec states the intended one and marks it so. **Focus ring (global default):** `2px solid {mint}` at `2px` offset (or an equivalent `box-shadow: 0 0 0 2px {mint}` on rounded chrome), never removed without a visible replacement.
+Per-component contracts. Each block resolves `background`, `border`, `text`, `radius`, `height`, and `padding` to tokens; hover/active are given as deltas; focus is a literal ring. Where the build has no explicit hover/focus rule, the spec states the intended one and marks it so.
+
+**Focus ring — built value is authoritative.** Under this document's governing rule (*"where an earlier draft and the working build disagreed, the build wins"*, top of file), the focus indicator that actually ships in v1 is the **browser's native (UA) focus ring** — no custom focus CSS is emitted on the interactive chrome (pills, nav items, search trigger, ghost button, theme toggle). That UA ring is therefore the **authoritative current behavior**, and it is never suppressed (no `outline:none` without a replacement). The **specified target** — the design's intended end state — is a **global `2px solid {mint}` ring at `2px` offset** (or the equivalent `box-shadow: 0 0 0 2px {mint}` on rounded chrome). Per-component "focus — global `{mint}` ring" rows below describe that *target*; until the custom ring is implemented, reproduce the UA ring (the build), and treat the `{mint}` ring as the documented next step (§16 Known Gaps). Either way the invariant holds: **a visible focus indicator always exists.**
 
 ### 8.1 Pill (`.pill`)
 
@@ -736,6 +765,10 @@ The "☾ Dark" control at the foot of the sidebar. It shares the nav item's `rad
 
 **Do / Don't.** Don't *fill* the toggle or accent its border to make it look active — at rest its background is transparent and its border is the quiet `1px {hairline}`, not an accent. Do keep it visually quiet (`{text2}` text, `{hairline}` border, `nav-hover-bg` hover) and gate any real toggle behavior on a light theme actually shipping.
 
+### 8.9 Transport bar (playback controls) — DEFERRED
+
+**Not built in v1; this header exists so the references to it resolve, not because the component is specified.** Playback/transport UI (play-pause, tempo, audio on/off) is unbuilt (§16 Known Gaps), so its component contract — background, controls, layout, focus, the play/pause toggle states — is **intentionally deferred** to the release that ships audio. What *is* already specified, and must be honored when this bar is built, is the dot-level **sounding** state (§12.2) and the playback accessibility contract (§11.1–§11.4: the static heavier `{mint}` stroke as the motion-free sounding cue, the `polite` live regions, and the reduced-motion gating). When implemented, the transport bar must reuse existing tokens (no new accent) and obey the focus-ring rule above. Until then there is nothing further to reproduce here.
+
 ---
 
 ## 9. App Shell & Layout
@@ -833,7 +866,7 @@ The shell is designed desktop-first; the documented floor is one breakpoint and 
 | Page H1 (32px scale name) | **Unchanged — stays 32px `lh-tight`.** No type step-down is defined; do not drop it to 24px on a guess. If it overflows a very narrow column it wraps at `lh-tight`. |
 | Topbar (52px) | **Height unchanged at 52px.** The breadcrumb may truncate before the `{ghost}` button wraps; the bar does not shrink vertically. |
 
-**Touch targets.** Any pointer target meets the WCAG 2.5.5 minimum of **44×44px**. Pills (30px) and nav items (32px) are below this at their visual box; on touch viewports they must carry transparent hit-padding to reach 44px (the controls remain visually compact while the tap area grows).
+**Touch targets.** The WCAG 2.5.5 target is **44×44px** for any pointer target. Pills (30px) and nav items (32px) are below this at their visual box; on touch viewports they are **specified** to carry transparent hit-padding that grows the tap area to 44px while the control stays visually compact. **This hit-padding is intent, not yet built in v1** — it is a documented gap (§16), not a shipped behavior; reproduce the compact visual box now and add the expansion when touch support is implemented.
 
 **Known-gap note.** A genuine narrow reflow — a collapsing sidebar, a stepped-down H1, fewer semitone columns, scaled column width, or restacked controls — is **not** specified. Every "unchanged" above is a deliberate placeholder, not a final decision. Until a mobile design exists, "horizontal-scroll the plate, reflow everything else to full width, change nothing else" is the entire contract below 760px.
 
@@ -855,8 +888,8 @@ Accessibility is structural. Two commitments are load-bearing: **non-color redun
 
 ### 11.2 Contrast (WCAG 1.4.3) — load-bearing
 
-- **Label text on a non-root dot** must clear **AA at small sizes**: light label (`scale-label`) on `in-scale-fill` over `{panel}` sits ≈5:1 (§2.5). An earlier draft used a lighter dot background that failed here; that regression must not return.
-- **Text inside the root dot** is fixed at `root-label` (`#08130f`), giving ≈10.3:1 on the `{mint}` fill (§2.5). This color is **never** overridden to white.
+- **Label text on a non-root dot** must clear **AA at small sizes**: light label (`scale-label`, `#ffffff`) on `in-scale-fill` composited over `{panel}` measures **14.67:1** (§2.5) — comfortably AAA. The invariant being protected is that the dot fill stays *dark*: `in-scale-fill` is low-opacity mint over near-black, so it composites to `#112d29`. An earlier draft used a *lighter* dot background that dropped this pairing below the AA floor; that regression must not return — keep the fill at `{mint-500} @ 13%` over `{panel}`.
+- **Text inside the root dot** is fixed at `root-label` (`#08130f`), giving **9.86:1** on the solid `{mint}` fill (§2.5). This color is **never** overridden to white.
 - **Any guide/landmark number that conveys meaning** clears ≥4.5:1 against its background; purely decorative guide lines do not, and are marked `aria-hidden` when implemented.
 
 Treat shipping an uncorrected lighter dot background as a P0 blocker — it would fail 1.4.3 on the tool's central visual.
@@ -881,7 +914,7 @@ Motion is opt-in: the default honors the OS setting, and every transition and ke
 
 ## 12. The Fingerboard Note Map (signature component)
 
-This is the product's heart and its hardest-working surface. It is a single inline **SVG** that renders the **whole neck**: four strings as horizontal lines, semitone positions as columns, and a note dot at every string × position. Dots morph between three states (off / in-scale / root); the sounding state adds a heavier stroke during playback. Optional `{tape}` tape bands and `{teal}`/`{violet}` landmark bands sit behind the dots and toggle independently.
+This is the product's heart and its hardest-working surface. It is a single inline **SVG** that renders the **whole neck**: four strings as horizontal lines, semitone positions as columns, and a note dot at every string × position. Dots morph between three states (off / in-scale / root); the sounding state adds a heavier stroke during playback. Optional `{tape}` tape bands and `{teal}`/`{violet}` landmark bands sit behind the dots and toggle independently. **The geometry is in §12.1, the dot visuals in §12.2, and the pitch model + the exact off/in-scale/root classification rule in §12.5 — together they let the whole 60-dot map be rebuilt from this file alone, with no outside scale reference.**
 
 ### 12.1 Canvas & coordinate system
 
@@ -896,11 +929,11 @@ This is the product's heart and its hardest-working surface. It is a single inli
   | G3 | 7 | 206 |
 
 - **Nut** — `rect x=58 y=62 width=5 height=150 fill=string-line` (no radius).
-- **Position-column x** — open string at `x = 42`; stopped position `o` (1…14) at `x = 96 + (o − 1) × 44`. Reproduce this formula exactly; the band rects and labels all key off it.
+- **Position-column x** — the **column index `o` runs `0 … NMAX − 1`** (`NMAX = 15`): `o = 0` is the **open string** at `x = 42`; the **14 stopped columns** are `o = 1 … 14` at `x = 96 + (o − 1) × 44`. So each string has `1 open + 14 stopped = 15` columns, and `NMAX` *is* that per-string column count, **not** a separate higher bound than the `o`-range — the apparent ambiguity is resolved here: `o`'s maximum stopped value is `NMAX − 1 = 14`. Reproduce both formulae exactly; the band rects and labels all key off them.
 - **Position guide lines** — one vertical per stopped column, `y1:62 → y2:212`, stroke `guide-line`, width `1` (1px hairline, no radius).
 - **String-name labels** — Inter 11px/600 `string-name` at `x=24`, **`y = S.y + 4`**, `text-anchor:middle` (the build uses a +4px optical-center offset on `y`, **not** `dominant-baseline`; do not add `dominant-baseline:middle` or the label will sit too high). **"open" label** — Inter 10px/400 `open-label` at `(42, 252)`.
 
-The map holds **60 persistent note nodes** (4 strings × 15 columns, `NMAX = 15`). On a scale change each node is re-classified and morphs in place — never destroyed and rebuilt (§7).
+The map holds **60 persistent note nodes** — `4 strings × NMAX columns = 4 × 15 = 60`, where the 15 columns are the 1 open + 14 stopped of the formula above. On a scale change each node is re-classified and morphs in place — never destroyed and rebuilt (§7).
 
 ### 12.2 Dot states
 
@@ -947,6 +980,53 @@ Five swatches + labels below the map (Inter 12px `{text2}`; swatch→label gap 7
 | beginner tape | 13×16 rect, radius 3px | `background tape-swatch` |
 | landmark | 13×16 rect, radius 3px | `background linear-gradient(180deg, {teal}, {violet})` |
 
+### 12.5 Pitch model & dot classification (self-deriving)
+
+This subsection is what makes the note map **reproducible from this file alone**: it gives the data and the single rule that decides whether each of the 60 dots renders **off**, **in-scale**, or **root** (§12.2). Nothing here depends on an outside table.
+
+**Pitch classes are integers 0–11**, C = 0 ascending by semitone: `C=0, C♯/D♭=1, D=2, D♯/E♭=3, E=4, F=5, F♯/G♭=6, G=7, G♯/A♭=8, A=9, A♯/B♭=10, B=11`. (Spelling — which letter name a pitch class is *shown* as — is a separate, letter-correct concern handled by §13; classification uses the integer only.)
+
+**(a) Scale types → semitone-interval sets.** Each scale is a set of semitone offsets from its own root (root = 0). These seven are the entire scale vocabulary (the §9.1 Scale row, in the same order):
+
+| Scale type | Pill (§9.1) | Interval set (semitones from root) |
+|---|---|---|
+| Major | `Major` | `{0, 2, 4, 5, 7, 9, 11}` |
+| Natural Minor | `Nat. minor` | `{0, 2, 3, 5, 7, 8, 10}` |
+| Harmonic Minor | `Harm. minor` | `{0, 2, 3, 5, 7, 8, 11}` |
+| Melodic Minor (ascending) | `Mel. minor` | `{0, 2, 3, 5, 7, 9, 11}` |
+| Major Pentatonic | `Major Pent.` | `{0, 2, 4, 7, 9}` |
+| Minor Pentatonic | `Minor Pent.` | `{0, 3, 5, 7, 10}` |
+| Chromatic | `Chromatic` | `{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}` |
+
+> Melodic minor uses the **ascending** form (raised 6 and 7); v1 does not render a separate descending (= natural-minor) form. Chromatic contains every pitch class, so under the rule below **no** node is ever *off* in Chromatic — every non-root dot is in-scale.
+
+**(b) Roots → pitch-class integers.** The 12 Root pills (§9.1), each as a pitch-class integer (the *displayed* spelling, e.g. `Bb` vs `A#`, is §13's `spell()`; the integer is what classifies):
+
+| Root pill | pc | Root pill | pc | Root pill | pc | Root pill | pc |
+|---|---|---|---|---|---|---|---|
+| `C`  | 0 | `E`  | 4 | `Ab` | 8  | — | — |
+| `Db` | 1 | `F`  | 5 | `A`  | 9  | — | — |
+| `D`  | 2 | `F#` | 6 | `Bb` | 10 | — | — |
+| `Eb` | 3 | `G`  | 7 | `B`  | 11 | — | — |
+
+**(c) Each node's own pitch class.** A node sits at (string, columnIndex). The four open strings carry the pitch classes already given in §12.1 (`E5 = 4, A4 = 9, D4 = 2, G3 = 7`), and **each column adds one semitone** (`columnIndex` is the semitone count from the open string: `o = 0` open … `o = 14` the 14th stopped semitone, §12.1). So:
+
+```
+nodePc = (openStringPc + columnIndex) mod 12
+```
+
+**(d) Classification rule (the whole of it).** Given a node of pitch class `nodePc`, the selected root's pitch class `rootPc`, and the selected scale's interval set `scaleSet`:
+
+```
+if   nodePc == rootPc                       → root      (solid {mint} dot, r=15, + root glow ring)
+elif ((nodePc − rootPc) mod 12) in scaleSet → in-scale  (in-scale-fill dot, {mint} stroke, r=14, note name)
+else                                        → off       (off-fill dot, off-stroke ring, r=6, no label)
+```
+
+`mod` is the non-negative remainder (`((nodePc − rootPc) % 12 + 12) % 12` in languages where `%` can go negative). The interval-degree `(nodePc − rootPc) mod 12` is identical for a pitch class whether it appears on an open string or any stopped column, which is exactly why **the open string participates in classification with no special-casing** (§12.2): an open string is just the node whose `columnIndex = 0`.
+
+**Worked check (A Major, `rootPc = 9`, `scaleSet = {0,2,4,5,7,9,11}`).** Open A4 (`pc 9`) → `root`. Open E5 (`pc 4`): `(4−9) mod 12 = 7 ∈ set` → `in-scale`. Open D4 (`pc 2`): `(2−9) mod 12 = 5 ∈ set` → `in-scale`. Open G3 (`pc 7`): `(7−9) mod 12 = 10 ∉ set` → `off` (G♮ is not in A major; the scale's G is G♯) — so the G string's open dot renders **off**, matching §12.2. Reading the in-scale degrees back out as letters gives **A B C♯ D E F♯ G♯** (§13). This is the complete derivation; the 60-dot render is a pure function of `(root, scale)` through (c)+(d).
+
 ---
 
 ## 13. Voice & Tone
@@ -973,8 +1053,8 @@ Each prohibition is paired with the sanctioned move. These exist to override the
 - **Don't** rebuild the note dots on a scale change. → **Do** re-classify the 60 persistent nodes and let radius/fill/label tween in place (§7.1).
 - **Don't** add spring/bounce to chrome or overshoot a button. → **Do** keep the press a flat `translateY(1px) scale(.97)`; reserve `ease-spring` for the dot-radius morph and `ease-spring-2` for the tape slide only.
 - **Don't** override the root-dot label color to white. → **Do** keep it `root-label` (`#08130f`); it is the only value that clears contrast on a solid `{mint}` fill (§11.2).
-- **Don't** invent intermediate greys. → **Do** use the four text steps and the named surfaces/hairlines as-is.
-- **Don't** edit a hex anywhere but the `primitive` tier. → **Do** change one primitive and let the semantic/component aliases carry it (§0).
+- **Don't** invent intermediate greys. → **Do** use the four text steps and the named surfaces/hairlines as-is. When adding a grey, place it at the suffix its measured luminance demands (higher suffix = darker), never out of order (§0).
+- **Don't** edit a hex anywhere but the `primitive` tier — and that includes the `color-alpha` translucents: they are now written `{primitive} @ N%`, so re-theming a base hue flows through them automatically and there is **no** raw RGBA brand literal to chase. The resolved `rgba()` in each `color-alpha` comment is *generated output*, not a second source of truth — never hand-edit it. → **Do** change one primitive and let the semantic / component / alpha aliases carry it (§0). The sole sanctioned exception is the 15 single-use note-map `ink-*` primitives (`[ink→primitive]`, §0): a one-line edit to the `ink-*` primitive itself is correct and re-themes that SVG mark — that is still the primitive tier, not a call-site hex.
 - **Don't** imply the neck has fixed pitch divisions — in words or visuals — or draw fixed dividers across the fingerboard. → **Do** say "position", "semitone column", "fingerboard", and render guides as `{tape}`/landmark *homing bands*, never as fixed pitch markers.
 - **Don't** gate legibility on animation. → **Do** keep every state distinguishable when motion is off; the static heavier stroke is the sole sounding indicator under `reduce`.
 
@@ -1038,7 +1118,10 @@ The chrome counterpart to §15.1: one selected row in the command palette's resu
 - `mint-deep` is declared (snappy build's `:root` only) but unused; its role is reserved, not yet assigned.
 - **Status colors** are deliberately incomplete (§2.6): success reuses `{mint}` (no own token); `{danger}` (`{red-500}`) is declared-but-unapplied, reserved for the first error surface; **warning and info have no token and are out of scope** — do not invent one, and do not repurpose `{tape}`/`{teal}` for them.
 - The **theme toggle's toggled/active behavior** is unspecified (§8.8): its resting + hover visuals are defined, but with no light mode there is no switch behavior, checked state, or theme swap yet.
-- Playback / transport UI (play-pause, tempo, audio on/off) is **not yet implemented in v1** — it is not "shipped but unspecced," it is unbuilt. The dot-level **sounding** state (§12.2) and the playback accessibility contract (§11.1–11.4) are specified now so they are ready whenever a transport bar ships; the transport bar's own component spec (a §8.9) is deferred until it is built.
+- Playback / transport UI (play-pause, tempo, audio on/off) is **not yet implemented in v1** — it is not "shipped but unspecced," it is unbuilt. The dot-level **sounding** state (§12.2) and the playback accessibility contract (§11.1–11.4) are specified now so they are ready whenever a transport bar ships; the transport bar's own component spec is the **deferred §8.9 header** — present so references resolve, but unspecified until the bar is built.
+- **Focus ring — UA now, `{mint}` ring is the target.** The shipped v1 focus indicator is the browser's native ring (the build wins, §8); the custom global `2px {mint}` ring at `2px` offset is specified but **not yet implemented** on the interactive chrome. Until it is, reproduce the UA ring; never ship `outline:none` without a visible replacement.
+- **`radius` has no component tier (by design, flagged here so it is not silent).** The three-tier alias model (§0) is a *color*-system rule. `radius` — like `space`, `motion`, `elevation`, `layout` — is a primitive scale used by name directly (`card`, `pill`, `chip` …) with no per-component aliases; there is intentionally no `controls-card-radius` → `card` indirection. This is a deliberate scope boundary, not an omission: a future component-radius tier would be a spec change, not a tweak.
+- **Touch-target remediation is intent-only in v1.** §10 requires every pointer target to reach the WCAG 2.5.5 44×44px floor via transparent hit-padding, but pills (30px) and nav items (32px) ship at their visual box and the **hit-padding is specified, not yet implemented**. Treat the 44px expansion as a documented next step for touch viewports; the visual box stays compact.
 - The "soon" tools (Intonation, Vibrato, Tuner) are nav stubs only; their surfaces are unspecified.
 - The **enharmonic dual-spelling sub-label** for the two ambiguous root pills (`F#`⇄`Gb`, `Bb`⇄`A#`) is specified (§9.1, §13) but **not yet in the v1 build** — the mock renders the single default glyph per pill. Reproducing v1 shows defaults only; the secondary sub-label is the documented next step.
 - Audio on/off, tempo, and any settings panel are not yet captured.
