@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+build/
+
+# Misc
+.DS_Store
+*.log
+.env*.local
+
+# Session tooling (not part of the app)
+.remember/
+.superpowers/
+.playwright-mcp/
