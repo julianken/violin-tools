@@ -1,13 +1,13 @@
 # CLAUDE.md
 
 ## What this is
-Violin Tools — a dark web app of focused practice tools for violinists. The current tool is **Scales**, a whole-neck fingerboard note map.
+Violin Tools — a dark web app of focused practice tools for violinists. Its first tool is **Scales**, a whole-neck fingerboard note map.
 
 ## Repo identity
 Local folder `violin-scales/`; GitHub slug `julianken/violin-tools` — they differ, so pass the slug to `gh`. Default branch `main`.
 
 ## Design source of truth
-`DESIGN.md` (repo root) is the canonical design language and **wins on any conflict** — read it before any UI, token, or motion work. The architecture, data model, routing, and music-engine algorithm live in the design spec under `docs/` — consult it when scaffolding code; don't restate the stack here.
+`DESIGN.md` (repo root) is the single source of truth and **wins on any conflict** — read it before any UI, token, or motion work. It also holds the note-map's pitch-classification model (§12.5). Don't restate any of it elsewhere.
 
 ## Self-containment / continuous-pitch rule
 Don't reference any other instrument, music app, website, or external inspiration anywhere in the repo — code, comments, copy, or PRs. The violin fingerboard is unmarked, with no fixed pitch divisions: name locations `fingerboard`, `neck`, `position`, `semitone column`. See `DESIGN.md §0/§1`. This is a correctness rule, not a style note — violations are review findings.
