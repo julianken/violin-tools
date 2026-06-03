@@ -2,12 +2,14 @@
 # Verify CLAUDE.md is still a thin Claude-only shim that imports AGENTS.md.
 #
 # AGENTS.md is the single source of truth; CLAUDE.md must stay tiny and only
-# import it (plus one "## Claude Code only" tail). This guard catches the four
+# import it (plus one "## Claude Code only" tail). This guard catches the five
 # real drift modes:
 #   1. CLAUDE.md turned into a symlink (breaks on Windows / core.symlinks=false).
-#   2. the `@AGENTS.md` import line dropped or fenced (severs Claude from the SoT).
-#   3. universal guidance pasted back in under ANY heading (whitelist, not blacklist).
-#   4. heading-less prose dumped in (caught by the line-count ceiling).
+#   2. the bare `@AGENTS.md` import line dropped (severs Claude from the SoT).
+#   3. the import fenced in a code block — Claude does not honor a fenced import,
+#      so the shim is forbidden any code fence at all (it legitimately has none).
+#   4. universal guidance pasted back in under ANY heading (whitelist, not blacklist).
+#   5. heading-less prose dumped in (caught by the line-count ceiling).
 #
 # Run from anywhere inside the repo. Exit 0 = intact, exit 1 = drift detected.
 set -euo pipefail
@@ -31,11 +33,19 @@ fi
 # 2. The import line must be present on its own line. Whitespace-tolerant,
 #    dot escaped so e.g. @AGENTSXmd does not false-positive.
 if ! grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$' "$f"; then
-  echo "FAIL: missing bare '@AGENTS.md' import line (dropped or fenced?)."
+  echo "FAIL: missing bare '@AGENTS.md' import line (dropped?)."
   fail=1
 fi
 
-# 3. Whitelist the single legal H2. ANY other H2 means universal guidance leaked
+# 3. No code fences. A fenced @AGENTS.md would satisfy check 2 yet NOT be honored
+#    by Claude Code — a silent severance. The shim has no fenced blocks, so forbid
+#    them outright to close that gap.
+if grep -qE '^[[:space:]]*```' "$f"; then
+  echo "FAIL: code fence in CLAUDE.md — the shim must contain no fenced blocks (a fenced @AGENTS.md import is not honored by Claude Code)."
+  fail=1
+fi
+
+# 4. Whitelist the single legal H2. ANY other H2 means universal guidance leaked
 #    back in (robust to wording — '## Security', '## Sensitivity', etc. all fail).
 stray="$(grep -E '^## ' "$f" | grep -vx '## Claude Code only' || true)"
 if [ -n "$stray" ]; then
@@ -44,7 +54,7 @@ if [ -n "$stray" ]; then
   fail=1
 fi
 
-# 4. Size ceiling catches heading-less prose dumps the H2 whitelist would miss.
+# 5. Size ceiling catches heading-less prose dumps the H2 whitelist would miss.
 lines="$(wc -l < "$f" | tr -d ' ')"
 if [ "$lines" -gt "$max_lines" ]; then
   echo "FAIL: CLAUDE.md is $lines lines (>$max_lines). The shim must stay tiny — move content to AGENTS.md."
