@@ -1,0 +1,37 @@
+# Mergify merge-queue config for julianken/violin-tools.
+#
+# Adapted from bird-sight-system but RIGHT-SIZED for a pre-code repo: this repo
+# has no CI yet, so the queue gates on the approving review only. The CI gates are
+# left commented below — uncomment them (and add the matching required status
+# checks to the branch ruleset) as each workflow lands, mirroring bird-sight-system.
+#
+# Three invariants kept (load-bearing once strict required-checks exist):
+#   merge_queue.max_parallel_checks: 1 · queue_rules[].batch_size: 1 ·
+#   a single queue_conditions block (no separate merge_conditions).
+#
+# Inert until the Mergify GitHub App is granted access to this repo. To merge a
+# queued PR, post `@Mergifyio queue` as a STANDALONE comment whose body is exactly
+# those 16 characters — Mergify literal-matches the whole body; prose around it is
+# silently skipped. Never `gh pr merge` once Mergify is live.
+merge_queue:
+  max_parallel_checks: 1
+
+queue_rules:
+  - name: default
+    merge_method: squash
+    update_method: merge
+    batch_size: 1
+    queue_conditions:
+      # 1 approving review (any approver). In this repo that can only be
+      # @julianken-bot — the sole non-author reviewer collaborator — since the
+      # owner authors the PRs and can't self-approve. Not bot-enforced; tighten
+      # to `approved-reviews-by = julianken-bot` if other collaborators are added.
+      - "#approved-reviews-by >= 1"
+      - base = main
+      - -draft
+      - -conflict
+      # CI gates — uncomment as workflows land (mirrors bird-sight-system):
+      # - "check-success = lint"
+      # - "check-success = build"
+      # - "check-success = test"
+      # - "check-success = e2e"

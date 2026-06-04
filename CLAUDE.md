@@ -13,7 +13,7 @@ shape is enforced by scripts/check-claude-shim.sh (run in the review pass). -->
 
 Applies only to Claude Code; other tools should ignore this section. These are Claude-product mechanics, not new rules — the binding rules (review integrity, agent guardrails, sensitivity) live in AGENTS.md.
 
-- **Review:** Claude Code performs reviews by dispatching the `reviewing-as-julianken-bot` subagent — never `gh pr review` from the main session. For design-surface changes, also run a design-system review pass before approving.
+- **Review:** Claude Code performs reviews by dispatching the `reviewing-as-julianken-bot` subagent — never `gh pr review` from the main session. For design-surface changes, also dispatch the design-system review pass (`.claude/agents/design-reviewer.md`) before approving.
 - **Screenshots:** use the `pr-screenshots-via-user-attachments` skill — never commit image files.
 - **Commit trailer:** append `Co-Authored-By:` matching the active session model by hand (the universal commit convention is in AGENTS.md).
 - **Shim integrity:** any PR touching CLAUDE.md or AGENTS.md must pass `scripts/check-claude-shim.sh` (not a symlink, import line intact, no leaked sections, stays tiny).
