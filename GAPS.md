@@ -21,21 +21,3 @@ Sibling repos referenced: `detached-node` (the blog, `julianken/detached-node`) 
 | `.claude/settings.json` (committed, minimal) | There's a hook or plugin worth sharing repo-wide | A committed settings file with nothing in it is clutter. The paired per-developer ignore (`.claude/settings.local.json`) is being added now, in this batch, since it can stand alone before any committed settings exist. Modeled on `bird-watch`'s per-developer `settings.local.json` (which is gitignored there, not committed). |
 | More repo agents/skills + an `agents/_patterns` crosswalk + a scoped sub-agent mode (e.g. a Dependabot reviewer) | Those agents/skills actually exist | The design-reviewer is the *first* agent; a patterns crosswalk and a Dependabot mode are premature with one agent and no deps. Both modeled on `bird-watch`'s local `.claude` scaffolding (`agents/_patterns.md`, `agents/dependabot.md` — gitignored there). |
 
----
-
-## Already done (so the ledger shows the whole picture)
-
-Not gaps — pointers to what's in place, so this file reads as a map and not a wish-list.
-
-- **`SECURITY.md`** — private-reporting policy, scope, and the public-≠-auditable stance.
-- **`LICENSE`** — MIT.
-- **`AGENTS.md` + `CLAUDE.md` shim** — single source of truth + thin Claude-only shim, guarded by `scripts/check-claude-shim.sh` (run in review).
-- **Doc-currency convention** — the `AGENTS.md` “Keeping docs and drift-prone files current” section + its Update Triggers table (this very file is one of its dependents).
-- **`README.md`** — public-facing entry point (added alongside this ledger).
-- **`.claude/agents/design-reviewer.md`** — the repo's first agent, grounded in `DESIGN.md`; indexed by `.claude/agents/README.md`.
-- **`.claude/skills/pr-workflow/SKILL.md`** — repo-local PR/review/merge process for worktree-isolated subagents.
-
-No spec is committed to the repo yet (the brainstorm scratch under `docs/` is working/internal, not tracked), so the AGENTS.md Update Triggers “behavior described by a spec” row stays gated as `(when specs exist)`. `DESIGN.md` remains the committed source of truth for design.
-
-_Reconcile this list against `ls` / `git status`, per `AGENTS.md` “Working in the tree” — not against this sentence._
-
