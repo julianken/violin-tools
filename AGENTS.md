@@ -26,9 +26,10 @@ Docs drift silently; updating them in the same PR is cheaper than catching it la
 | ------------------------------------------------ | ----------------------------------------------------------------------- |
 | design tokens, motion, layout, or any UI surface | `DESIGN.md` (it wins on design conflicts) — reconcile it in the same PR  |
 | a process, convention, or agent rule             | this file (`AGENTS.md`); then re-check the `CLAUDE.md` shim still passes |
-| public-facing claims, setup, or security posture | `README.md` (when one exists) and/or `SECURITY.md`                       |
+| public-facing claims, setup, or security posture | `README.md` and/or `SECURITY.md`                                        |
 | the PR process itself                            | `.github/PULL_REQUEST_TEMPLATE.md`                                       |
 | behavior described by a spec                     | that spec (when specs exist)                                            |
+| a process change, or a deferred-item trigger firing/retiring | `GAPS.md` (the deferred-with-trigger ledger) — reconcile it in the same PR |
 | `AGENTS.md` or `CLAUDE.md` (any edit)            | run `scripts/check-claude-shim.sh` and confirm it passes                 |
 
 The table lists only what exists today; grow it (code, deps, CI rows) when those land — never reference a file the repo doesn't have.
@@ -36,6 +37,15 @@ The table lists only what exists today; grow it (code, deps, CI rows) when those
 **Reviewer:** verify the PR updated every drift-prone file its diff implies (per the table), or that the author wrote `No doc updates needed` / justified leaving a specific doc stale. A change that alters behavior, a convention, or the design surface but leaves the matching file untouched is a finding. If the diff touched `AGENTS.md` or `CLAUDE.md`, confirm `scripts/check-claude-shim.sh` passes. **This is never a merge blocker** — a spec can be wrong while the PR is right. Raise it as an IMPORTANT finding with an escape hatch: a one-line note (and, if it should be tracked, a `drift:docs` follow-up issue) is enough.
 
 _(This is a repo convention the reviewing subagent reads from this file. Adding the same check to the shared user-level review skill would affect every repo and is a separate decision — deliberately not made here.)_
+
+## Skill ownership
+
+The PR/review/merge knowledge lives in two places; this says which one wins so the copies don't silently drift.
+
+- **User-level (shared across all of Julian's repos):** the skills `creating-prs`, `reviewing-as-julianken-bot`, and `pr-screenshots-via-user-attachments` own the general method — five-section discipline, the anti-slop review rubric + bot credentials + merge mechanics (`merge-flow.md`), the user-attachments paste flow. `mergify-merge-workflow` is user-level too but **does not apply here** — this repo has no Mergify.
+- **Repo-local:** `.claude/skills/pr-workflow/SKILL.md` is the entry point worktree-isolated subagents and non-Claude tools read (they don't load this file or `CLAUDE.md`), so it restates only the violin-tools-specific facts: the bot-approval-per-HEAD ruleset, squash-merge, no Mergify, and the doc-currency checkbox.
+- **On conflict:** the repo-local skill wins for anything violin-tools-specific (the ruleset, what's in our template); the user-level skills win for the shared method itself.
+- **No-drift rule:** a change to either copy must update the other in the **same PR**, and the PR Summary must say so. Don't fix the skill and leave this ledger (or the user-level skill) stale.
 
 ## Agent guardrails (all tools)
 These bind every agent working in this repo, whatever the tool.
