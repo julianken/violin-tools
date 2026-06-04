@@ -1,7 +1,7 @@
 # Mergify merge-queue config for julianken/violin-tools.
 #
 # Adapted from bird-sight-system but RIGHT-SIZED for a pre-code repo: this repo
-# has no CI yet, so the queue gates on the bot approval only. The CI gates are
+# has no CI yet, so the queue gates on the approving review only. The CI gates are
 # left commented below — uncomment them (and add the matching required status
 # checks to the branch ruleset) as each workflow lands, mirroring bird-sight-system.
 #
@@ -22,6 +22,10 @@ queue_rules:
     update_method: merge
     batch_size: 1
     queue_conditions:
+      # 1 approving review (any approver). In this repo that can only be
+      # @julianken-bot — the sole non-author reviewer collaborator — since the
+      # owner authors the PRs and can't self-approve. Not bot-enforced; tighten
+      # to `approved-reviews-by = julianken-bot` if other collaborators are added.
       - "#approved-reviews-by >= 1"
       - base = main
       - -draft
