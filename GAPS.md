@@ -52,7 +52,8 @@ Not gaps — pointers to what's in place, so this file reads as a map and not a 
 - **`README.md`** — public-facing entry point (added alongside this ledger).
 - **`.claude/agents/design-reviewer.md`** — the repo's first agent, grounded in `DESIGN.md`; indexed by `.claude/agents/README.md`.
 - **`.claude/skills/pr-workflow/SKILL.md`** — repo-local PR/review/merge process for worktree-isolated subagents.
-- **The v1 design spec** — `docs/superpowers/specs/2026-06-02-violin-scales-design.md` exists and is marked v1-final, so the AGENTS.md Update Triggers “behavior described by a spec” row is now live (its `(when specs exist)` caveat is dropped in the same batch as this ledger). `DESIGN.md` still wins on any design conflict.
+
+No spec is committed to the repo yet (the brainstorm scratch under `docs/` is working/internal, not tracked), so the AGENTS.md Update Triggers “behavior described by a spec” row stays gated as `(when specs exist)`. `DESIGN.md` remains the committed source of truth for design.
 
 _Reconcile this list against `ls` / `git status`, per `AGENTS.md` “Working in the tree” — not against this sentence._
 
