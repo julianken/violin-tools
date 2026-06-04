@@ -1111,7 +1111,7 @@ The chrome counterpart to §15.1: one selected row in the command palette's resu
 4. Re-run the contrast check (§2.5 / §11.2) on any color touch before merge; the root-dot and non-root-label pairings are P0.
 5. Keep the two type families partitioned (§3); adding a third typeface is a spec change, not a tweak.
 6. Preserve "morph, never flash" (§7) and the `prefers-reduced-motion` fallback on any new animation.
-7. Gate visual PRs on updating this file: if the build and this document disagree, that is the bug.
+7. Gate visual PRs on updating this file: if the build and this document disagree, that is the bug — this is the same currency duty AGENTS.md states under "Keeping docs and drift-prone files current".
 
 **Known gaps (specified surfaces stop here):**
 - Light mode — does not exist and is out of scope; the product is dark-native.
