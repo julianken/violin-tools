@@ -1,0 +1,8 @@
+# Code owners for julianken/violin-tools.
+#
+# A code owner's review carries decision-making authority. A PR or issue comment
+# prefixed `HIL:` from a code owner is binding on agents — see AGENTS.md
+# "Human-in-the-loop (HIL) comments". Authority comes from the verified GitHub
+# author being listed here, not from the `HIL:` prefix alone.
+
+* @julianken
