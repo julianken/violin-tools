@@ -49,6 +49,10 @@ on a ready-to-merge PR. Mark any line `N/A — <reason>` when it doesn't apply
 - [ ] New unit / integration tests added (if behavior changed)
 - [ ] New Playwright e2e spec added (if user-visible behavior changed)
 - [ ] `npm run build` — clean production build
+- [ ] Updated every drift-prone doc this change affects — `AGENTS.md` /
+      `CLAUDE.md` / `README.md` / `SECURITY.md` / `DESIGN.md` / this template /
+      specs — or `N/A — <reason>`. (If `CLAUDE.md` or `AGENTS.md` changed:
+      `scripts/check-claude-shim.sh` passes.)
 - [ ] (UI only) Playwright MCP smoke — ran `npm run dev`, drove the feature via
       `mcp__plugin_playwright_playwright__browser_*` at ≥1 mobile (390×844) and
       ≥1 desktop (1440×900) viewport, `browser_console_messages` returns no
