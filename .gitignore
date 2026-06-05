@@ -24,4 +24,3 @@ build/
 # Cursor: commit shared config (rules/agents/commands) if ever added; ignore per-developer state.
 # Do NOT blanket-ignore .cursor/ — that would hide a future committed pointer/config.
 .cursor/mcp.json
-.cursorignore.local
