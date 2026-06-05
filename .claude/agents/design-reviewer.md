@@ -19,7 +19,7 @@ description: >-
   <commentary>A built UI exists, so the screenshot pass activates; pre-UI it would
   review only the diff and defer the pass.</commentary>
   </example>
-tools: Read, Glob, Grep, mcp__plugin_playwright_playwright__browser_navigate, mcp__plugin_playwright_playwright__browser_snapshot, mcp__plugin_playwright_playwright__browser_take_screenshot, mcp__plugin_playwright_playwright__browser_resize, mcp__plugin_playwright_playwright__browser_console_messages
+tools: Read, Glob, Grep, mcp__plugin_playwright_playwright__browser_navigate, mcp__plugin_playwright_playwright__browser_snapshot, mcp__plugin_playwright_playwright__browser_take_screenshot, mcp__plugin_playwright_playwright__browser_resize, mcp__plugin_playwright_playwright__browser_console_messages, mcp__plugin_figma_figma__get_metadata, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__get_design_context
 model: opus
 ---
 
@@ -217,4 +217,24 @@ dev server is provided and the tools are available:
 
 Report screenshots and the a11y snapshot as evidence for each rendered-UI finding —
 never assert a visual defect you did not capture.
+
+## Figma cross-check — read-only, optional
+
+The design system lives in Figma (file `HWmo5hCeSXWtkSBiO1msIF`). When the diff changes a
+surface that maps to a canonical screen, you MAY pull Figma as **corroborating reference** —
+but `DESIGN.md` stays the binding grade: authority is build > `DESIGN.md` > Figma, so cite
+the `DESIGN.md` §X in every finding and use Figma only as supporting evidence, never as the
+rule. A live Figma value that disagrees with `DESIGN.md` is *drift to flag*, not a finding
+against the PR.
+
+- Screens (nodeId form): A Major `45:2` · A Harmonic Minor `23:2` · A Chromatic `23:408` ·
+  ⌘K Command Palette `25:2`; Foundations `1:2`, Components `1:3`. A URL `?node-id=45-2`
+  becomes `nodeId: 45:2` (hyphen → colon).
+- Use only `get_metadata` (scope a subtree) → `get_design_context` (reference code +
+  screenshot) and `get_screenshot` (visual). Do **not** use `get_variable_defs` (returns
+  `{}` on this file today), Code Connect (errors on the current plan), or any Figma **write**
+  tool — agents read Figma; a human edits it.
+- If the figma `get_*` tools aren't available in this dispatch, say so and fall back to
+  `DESIGN.md`-only review (as with the Playwright pass) — never claim a Figma finding you
+  couldn't capture.
 
