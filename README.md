@@ -2,9 +2,9 @@
 
 A web app of focused practice tools for violinists. The first tool is **Scales** — a whole-neck fingerboard note map that shows where every note of a scale falls across the entire fingerboard at a glance.
 
-## Status: in design, no app code yet
+## Status: in development — builds and runs locally, not yet deployed
 
-There is nothing to install or run here today. This repo is in the design phase: [`DESIGN.md`](./DESIGN.md) is the spec for the whole thing — token system, color and contrast, typography, motion, components, accessibility, and the fingerboard note-map model — and the app gets built against it. When build and run commands exist, they'll be documented in [`AGENTS.md`](./AGENTS.md), not invented here ahead of time.
+The foundation is in place: a Turborepo + pnpm-workspaces monorepo whose `apps/web` is a React + Vite + TypeScript app that builds to static assets, gated in CI by `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build`. You can install and run it locally — see [`AGENTS.md`](./AGENTS.md) → "Working in the tree" for the commands. The product UI is still being built against [`DESIGN.md`](./DESIGN.md) (the spec for the whole thing — token system, color and contrast, typography, motion, components, accessibility, and the fingerboard note-map model), and nothing is **deployed** yet — hosting lands in a later item.
 
 It's a client-side static web app: no backend, no accounts, no personal data, no analytics.
 
