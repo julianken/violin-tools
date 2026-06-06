@@ -43,26 +43,26 @@ and survive branch deletion. Do NOT commit PNGs to the repo and do NOT use
 
 <!-- Checklist of the verifications you ran. Reviewers expect all boxes checked
 on a ready-to-merge PR. Mark any line `N/A — <reason>` when it doesn't apply
-(e.g. a docs-only change). The `npm run *` lines below are placeholders for the
-future stack — they are `not configured` until a `package.json` lands; until
-then run whatever checks the change actually has (e.g.
-`scripts/check-claude-shim.sh`) and mark the npm lines `N/A — pre-code`. -->
+(e.g. a docs-only change). The `pnpm …` lines below run the real four gates
+(typecheck / lint / test / build) wired through `turbo.json` and CI
+(`.github/workflows/ci.yml`); for a docs-only change run whatever checks the
+change actually has (e.g. `scripts/check-claude-shim.sh`) and mark the others
+`N/A — <reason>`. -->
 
-- [ ] `npm run typecheck && npm run test` (not configured — pre-code) — green, or `N/A — pre-code`
+- [ ] `pnpm typecheck && pnpm lint && pnpm test` — green, or `N/A — <reason>`
 - [ ] New unit / integration tests added (if behavior changed)
 - [ ] New Playwright e2e spec added (if user-visible behavior changed)
-- [ ] `npm run build` (not configured — pre-code) — clean production build, or `N/A — pre-code`
+- [ ] `pnpm build` — clean production build (static assets under `apps/web/dist/`), or `N/A — <reason>`
 - [ ] Updated every drift-prone doc this change affects — `AGENTS.md` /
       `CLAUDE.md` / `README.md` / `SECURITY.md` / `DESIGN.md` / this template /
       specs — or `N/A — <reason>`. (If `CLAUDE.md` or `AGENTS.md` changed:
       `scripts/check-claude-shim.sh` passes.)
-- [ ] (UI only) Playwright MCP smoke — ran `npm run dev` (not configured —
-      pre-code; mark `N/A — pre-code` until a `package.json` lands), drove the
+- [ ] (UI only) Playwright MCP smoke — ran `pnpm dev`, drove the
       feature via `mcp__plugin_playwright_playwright__browser_*` at ≥1 mobile
       (390×844) and ≥1 desktop (1440×900) viewport, `browser_console_messages`
       returns no errors/warnings, and the Screenshots section was captured from
       those runs. Reviewers repeat the drive + console check via
-      `gh pr checkout <N>` + `npm run dev` (not configured — pre-code) against
+      `gh pr checkout <N>` + `pnpm dev` against
       the PR head SHA before approving.
 
 ## Plan / issue reference

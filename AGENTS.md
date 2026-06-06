@@ -91,4 +91,12 @@ When unsure whether something is sensitive, treat it as sensitive and keep it ou
 | **Public** | The code, design, and docs themselves | This *is* the project — commit it openly. |
 
 ## Working in the tree
-Run `git status` / `ls` for current state — don't trust a snapshot here. Build/test commands, the package manager, and architecture notes get added to THIS file (AGENTS.md) once they actually exist. Until they do, don't claim they exist — the binding rule is **Agent guardrails** → anti-invention (above); the current lifecycle phase is `INSTANCE.md` → "Status".
+Run `git status` / `ls` for current state — don't trust a snapshot here. The stack is a **Turborepo + pnpm-workspaces monorepo**: `apps/web` is the React + Vite + TypeScript app (the only real workspace today); `packages/*` and `infra/` are reserved for later items. The package manager is **pnpm** (pinned via `packageManager` in the root `package.json`); the four gates run through `turbo.json`. The real commands:
+
+- `pnpm install` — install workspace deps (CI uses `pnpm install --frozen-lockfile` against the committed `pnpm-lock.yaml`).
+- `pnpm typecheck` — `turbo run typecheck` (TypeScript `tsc --noEmit`).
+- `pnpm lint` — `turbo run lint` (ESLint flat config, `eslint.config.js`).
+- `pnpm test` — `turbo run test` (Vitest).
+- `pnpm build` — `turbo run build` (emits static assets under `apps/web/dist/`).
+
+These run in CI via `.github/workflows/ci.yml` on every PR and on push to `main`. Add new commands here as they land — never claim one that isn't wired (the binding rule is **Agent guardrails** → anti-invention above); the current lifecycle phase is `INSTANCE.md` → "Status".

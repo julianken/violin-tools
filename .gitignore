@@ -1,10 +1,15 @@
 # Dependencies
 node_modules/
 
-# Next.js
+# Build output (static assets) — committed lockfile stays, but dist never does
+dist/
 .next/
 out/
 build/
+
+# Turborepo task cache + Vitest coverage
+.turbo/
+coverage/
 
 # Misc
 .DS_Store

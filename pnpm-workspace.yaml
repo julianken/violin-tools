@@ -1,0 +1,6 @@
+# pnpm workspaces for the Violin Tools monorepo.
+# apps/web is the only real workspace today; packages/* is reserved for later
+# items (shared theory engine, design tokens) and infra/ is reserved for S11.
+packages:
+  - "apps/*"
+  - "packages/*"
