@@ -7,7 +7,7 @@ description: Use when reviewing an implementation issue or plan spec before work
 
 **Announce at start:** *"I'm using the issue-plan-review skill to review this issue spec against the anti-slop rubric (plan soundness, not a code diff)."*
 
-Local folder is `violin-scales/`; GitHub slug is `julianken/violin-tools`. Post comments as **@julianken-bot** via Keychain PAT — never as `@julianken` from the main session.
+Local folder is `violin-scales/`; GitHub slug is `julianken/violin-tools`. Post comments as **@julianken-bot** (credential loaded per the user-level `reviewing-as-julianken-bot` skill) — never as `@julianken` from the main session.
 
 ## What this skill does
 
@@ -97,19 +97,19 @@ Verdict: APPROVE | REQUEST_CHANGES
 
 ## How to post (bot identity)
 
+Load the bot credential using the **Credential loading** procedure in the user-level `reviewing-as-julianken-bot` skill — it owns the credential mechanics; this repo carries none — and scope the token to the single `gh` call. Then post to the **issue-comment** endpoint:
+
 ```bash
 REPO=julianken/violin-tools
 ISSUE=N
 BODY_FILE=/tmp/plan-review-$$.md
-# write comment body to $BODY_FILE
-
-GH_TOKEN=$(security find-generic-password -w -s 'julianken-bot@github.com' -a 'token') \
-  gh api "repos/$REPO/issues/$ISSUE/comments" \
-    -f body="$(cat "$BODY_FILE")"
+# write comment body to $BODY_FILE, then (token loaded per the user-level skill, scoped to this one call):
+<bot-token-from-user-level-skill> gh api "repos/$REPO/issues/$ISSUE/comments" \
+  -f body="$(cat "$BODY_FILE")"
 rm "$BODY_FILE"
 ```
 
-Never `export GH_TOKEN`. Never post plan-review APPROVE from the main session's default `gh` auth if the goal is a `@julianken-bot` gate comment.
+Never `export` the token. Never post a plan-review APPROVE from the main session's default `gh` auth if the goal is a `@julianken-bot` gate comment — that authenticates as `@julianken`, not the bot.
 
 ## Tripwires
 

@@ -44,7 +44,7 @@ skill (via your harness's skill loader). If dispatched for an **issue**, follow
 ## Hard constraints (worktree dispatch skips AGENTS.md)
 
 - Fresh context — read the PR or issue yourself; never trust the dispatcher's narrative.
-- Post as **@julianken-bot** using Keychain PAT (`julianken-bot@github.com` / `token`).
+- Post as **@julianken-bot** — load the bot credential per the **Credential loading** section of the user-level `reviewing-as-julianken-bot` skill (it owns the mechanics; this repo carries no credential coordinates).
 - Never rubber-stamp; never batch identical APPROVE templates without per-artifact verification.
 - Never modify code files.
 
