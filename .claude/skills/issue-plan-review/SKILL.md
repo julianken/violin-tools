@@ -1,6 +1,6 @@
 ---
 name: issue-plan-review
-description: Use when reviewing an implementation issue or plan spec before work starts, posting as @julianken-bot. Triggers on "approve the issue spec", "plan review", "review issue #N", "bot review on the issue", or any request to gate an issue body before implementation. Self-contained — worktree-isolated subagents do NOT load AGENTS.md. Exemplar shape issue #10 on julianken/violin-tools.
+description: Use when reviewing an implementation issue or plan spec before work starts, posting as @julianken-bot. Triggers on "approve the issue spec", "plan review", "review issue #N", "bot review on the issue", or any request to gate an issue body before implementation. Self-contained — worktree-isolated subagents do NOT load AGENTS.md.
 ---
 
 # Issue plan review (julianken/violin-tools)
@@ -13,14 +13,14 @@ Local folder is `violin-scales/`; GitHub slug is `julianken/violin-tools`. Post 
 
 Reviews an **issue body / implementation plan** before coding starts. Same rigor as PR review (fresh context, verify claims, ≤3 findings) but the artifact is plan soundness — scope, acceptance criteria, cited paths, dependency order, drift from repo conventions — not a diff.
 
-**Exemplar:** [issue #10 plan review](https://github.com/julianken/violin-tools/issues/10) — verification ledger, assessment prose, SUGGESTION findings on APPROVE, explicit verdict.
+**Exemplar shape:** verification ledger, assessment prose, SUGGESTION findings on APPROVE, explicit verdict.
 
 **Not this skill:** PR code review → user-level `reviewing-as-julianken-bot` + `.claude/skills/pr-workflow/SKILL.md`.
 
 ## When to use
 
 - A new implementation issue is ready; user asks for bot approval before work starts
-- Template-prep or planning issues (#15–#23 class) need spec gating
+- Template-prep or planning issues need spec gating
 - Parent session must **not** author the issue and review it in one pass without dispatching fresh context
 
 ## Workflow
@@ -90,7 +90,7 @@ Verdict: APPROVE | REQUEST_CHANGES
 **Authoring quality (REQUEST_CHANGES if failed):**
 - Every cited path exists on `main` (no `research/` or other uncommitted-only paths).
 - Acceptance criteria are atomic — one verifiable fact each.
-- **Approach** section present; Depends/Blocks use explicit issue numbers.
+- **Approach** section present; Depends/Blocks use explicit dependency IDs.
 - Shape matches `.claude/skills/issue-authoring/SKILL.md`.
 
 **Skip PR-only rules:** inline `file:line` REST review API, mermaid render check, R13–R16.

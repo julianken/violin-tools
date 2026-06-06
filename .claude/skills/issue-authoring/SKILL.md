@@ -1,6 +1,6 @@
 ---
 name: issue-authoring
-description: Use when opening or rewriting a GitHub implementation issue or plan spec on julianken/violin-tools. Triggers on "create issue", "write the issue", "issue spec", "implementation plan issue", or batch prep/planning work. Exemplar issue body #10; anti-pattern issues #15–#23 (pre-rewrite). Self-contained for worktree dispatch.
+description: Use when opening or rewriting an implementation issue or plan spec on julianken/violin-tools. Triggers on "create issue", "write the issue", "issue spec", "implementation plan issue", or batch prep/planning work. Self-contained for worktree dispatch.
 ---
 
 # Issue authoring (julianken/violin-tools)
@@ -9,15 +9,15 @@ description: Use when opening or rewriting a GitHub implementation issue or plan
 
 GitHub slug: `julianken/violin-tools`. After the issue is posted, **dispatch `issue-plan-review`** — the author must not self-approve in the same pass.
 
-## Exemplar vs anti-pattern
+## Quality bar vs anti-pattern
 
-| | Good ([#10](https://github.com/julianken/violin-tools/issues/10)) | Bad (#15–#23 pre-rewrite) |
+| | Good | Bad |
 | --- | --- | --- |
 | Context | Grounded in **current repo facts** with links to committed files | "Bucket A prep" + `research/*.md` paths **not on main** |
 | Approach | Explains *why* this shape; names alternatives rejected | Jumps straight to bullet lists |
 | Plan | Numbered steps or matrix; right-sized for solo pre-code repo | Thin Scope In/Out with no rationale |
 | ACs | Atomic, independently verifiable | Bundled checkboxes ("find PR method" = many files) |
-| Dependencies | `#15` as full issue links; clear Blocks | Vague "Issues for skills" without numbers |
+| Dependencies | Explicit dependency IDs from your tracker; clear Blocks | Vague "issues for skills" without concrete IDs |
 | Review | Fresh-context plan review before implementation | Batch `gh issue create` + immediate rubber-stamp |
 
 ## Required issue body sections
@@ -48,8 +48,8 @@ Numbered steps or Scope **In** / **Out** with **rationale per bucket**. Cite rea
 
 ### 5. Depends on / Blocks
 
-- Full issue links: `julianken/violin-tools#15` or `#15`.
-- **Blocks** must name specific issue numbers, not categories.
+- Use concrete dependency IDs from your tracker.
+- **Blocks** must name specific IDs, not categories.
 
 ## Workflow
 
@@ -70,4 +70,4 @@ Numbered steps or Scope **In** / **Out** with **rationale per bucket**. Cite rea
 
 ## Program doc
 
-[`docs/plans/template-prep.md`](docs/plans/template-prep.md) — dependency graph and A1–A9 ↔ GitHub issue map. Individual specs: GitHub issues #15–#23.
+[`docs/plans/template-prep.md`](docs/plans/template-prep.md) — dependency graph and portable plan IDs (`T1`-`T9`).

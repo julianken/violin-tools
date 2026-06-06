@@ -22,7 +22,7 @@ The design system lives in Figma (file `HWmo5hCeSXWtkSBiO1msIF`). Read it via th
 
 ## Conventions
 - **Commits:** Conventional Commits; bodies explain *why*. No git trailer is configured, so append `Co-Authored-By: <model> <noreply@anthropic.com>` by hand, matching the authoring agent/model.
-- **PRs / issues:** PRs follow `.github/PULL_REQUEST_TEMPLATE.md` (diagram-first); implementation issues follow `.claude/skills/issue-authoring/SKILL.md` (exemplar: [#10](https://github.com/julianken/violin-tools/issues/10)).
+- **PRs / issues:** PRs follow `.github/PULL_REQUEST_TEMPLATE.md` (diagram-first); implementation issues follow `.claude/skills/issue-authoring/SKILL.md`.
 - **Review:** every PR and every implementation-issue spec gets a real review before merge or coding — never rubber-stamp. See **Review dispatch (all tools)** below.
 
 ## Review dispatch (all tools)
@@ -30,7 +30,7 @@ The design system lives in Figma (file `HWmo5hCeSXWtkSBiO1msIF`). Read it via th
 These rules bind **every harness** (Claude Code, Cursor, CLI, etc.). Tool-specific dispatch mechanics that duplicate this section belong only in thin pointer config (e.g. `.cursor/rules/`, `CLAUDE.md` tail) — not a second copy of the rubric.
 
 - **PR code review:** Dispatch a **fresh-context** reviewer; post as `@julianken-bot`; never `gh pr review` from the main session (that posts as `@julianken` and fails branch protection). Repo entry: `.claude/skills/pr-workflow/SKILL.md`. Shared method: user-level `reviewing-as-julianken-bot` skill until a repo-local `reviewing` skill lands.
-- **Issue / plan review:** Before implementation starts, post a plan review comment as `@julianken-bot`. Repo skill: `.claude/skills/issue-plan-review/SKILL.md`. Exemplar: [issue #10 plan review](https://github.com/julianken/violin-tools/issues/10). Apply the same anti-slop discipline (verification ledger, cited files read this turn, assessment prose, ≤3 findings, explicit verdict). **Boilerplate APPROVE templates without this-turn verification are forbidden.**
+- **Issue / plan review:** Before implementation starts, post a plan review comment as `@julianken-bot`. Repo skill: `.claude/skills/issue-plan-review/SKILL.md`. Apply the same anti-slop discipline (verification ledger, cited files read this turn, assessment prose, ≤3 findings, explicit verdict). **Boilerplate APPROVE templates without this-turn verification are forbidden.**
 - **Separation:** The session that authored an issue or PR must **not** define review criteria and execute the review in the same pass without dispatching a fresh-context subagent.
 - **Cursor:** `.cursor/rules/review-dispatch.mdc` points here — do not fork these rules into `.cursor/rules` prose.
 
@@ -65,7 +65,7 @@ _(This is a repo convention the reviewing subagent reads from this file. Adding 
 The PR/review/merge knowledge lives in two places; this says which one wins so the copies don't silently drift.
 
 - **User-level (shared across all of Julian's repos):** the skills `creating-prs`, `reviewing-as-julianken-bot`, and `pr-screenshots-via-user-attachments` own the general method — five-section discipline, the anti-slop review rubric + bot credentials + merge mechanics (`merge-flow.md`), the user-attachments paste flow. `mergify-merge-workflow` is user-level and **governs merges here** — this repo uses Mergify (`.mergify.yml`); a queued PR merges via a standalone `@Mergifyio queue` comment.
-- **Repo-local:** `.claude/skills/pr-workflow/SKILL.md` (PR open/review/merge), `.claude/skills/issue-authoring/SKILL.md` (implementation issue shape), `.claude/skills/issue-plan-review/SKILL.md` (issue spec gating before implementation), and `.claude/agents/julianken-bot.md` (dispatch discoverability shim). Worktree-isolated subagents and non-Claude tools that don't load this file read those skills directly; they restate violin-tools-specific facts: the per-HEAD 1-review ruleset (satisfiable only by `@julianken-bot`, the sole non-author reviewer), the `@Mergifyio queue` (Mergify) squash-merge, doc-currency checkbox, and plan-review shape (exemplar: issue #10).
+- **Repo-local:** `.claude/skills/pr-workflow/SKILL.md` (PR open/review/merge), `.claude/skills/issue-authoring/SKILL.md` (implementation issue shape), `.claude/skills/issue-plan-review/SKILL.md` (issue spec gating before implementation), and `.claude/agents/julianken-bot.md` (dispatch discoverability shim). Worktree-isolated subagents and non-Claude tools that don't load this file read those skills directly; they restate violin-tools-specific facts: the per-HEAD 1-review ruleset (satisfiable only by `@julianken-bot`, the sole non-author reviewer), the `@Mergifyio queue` (Mergify) squash-merge, doc-currency checkbox, and plan-review shape.
 - **On conflict:** the repo-local skill wins for anything violin-tools-specific (the ruleset, what's in our template); the user-level skills win for the shared method itself.
 - **No-drift rule:** a change to either copy must update the other in the **same PR**, and the PR Summary must say so. Don't fix the skill and leave this ledger (or the user-level skill) stale.
 
