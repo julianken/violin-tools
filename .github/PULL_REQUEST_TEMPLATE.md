@@ -43,22 +43,27 @@ and survive branch deletion. Do NOT commit PNGs to the repo and do NOT use
 
 <!-- Checklist of the verifications you ran. Reviewers expect all boxes checked
 on a ready-to-merge PR. Mark any line `N/A — <reason>` when it doesn't apply
-(e.g. a docs-only change). -->
+(e.g. a docs-only change). The `npm run *` lines below are placeholders for the
+future stack — they are `not configured` until a `package.json` lands; until
+then run whatever checks the change actually has (e.g.
+`scripts/check-claude-shim.sh`) and mark the npm lines `N/A — pre-code`. -->
 
-- [ ] `npm run typecheck && npm run test` — green
+- [ ] `npm run typecheck && npm run test` (not configured — pre-code) — green, or `N/A — pre-code`
 - [ ] New unit / integration tests added (if behavior changed)
 - [ ] New Playwright e2e spec added (if user-visible behavior changed)
-- [ ] `npm run build` — clean production build
+- [ ] `npm run build` (not configured — pre-code) — clean production build, or `N/A — pre-code`
 - [ ] Updated every drift-prone doc this change affects — `AGENTS.md` /
       `CLAUDE.md` / `README.md` / `SECURITY.md` / `DESIGN.md` / this template /
       specs — or `N/A — <reason>`. (If `CLAUDE.md` or `AGENTS.md` changed:
       `scripts/check-claude-shim.sh` passes.)
-- [ ] (UI only) Playwright MCP smoke — ran `npm run dev`, drove the feature via
-      `mcp__plugin_playwright_playwright__browser_*` at ≥1 mobile (390×844) and
-      ≥1 desktop (1440×900) viewport, `browser_console_messages` returns no
-      errors/warnings, and the Screenshots section was captured from those runs.
-      Reviewers repeat the drive + console check via `gh pr checkout <N>` +
-      `npm run dev` against the PR head SHA before approving.
+- [ ] (UI only) Playwright MCP smoke — ran `npm run dev` (not configured —
+      pre-code; mark `N/A — pre-code` until a `package.json` lands), drove the
+      feature via `mcp__plugin_playwright_playwright__browser_*` at ≥1 mobile
+      (390×844) and ≥1 desktop (1440×900) viewport, `browser_console_messages`
+      returns no errors/warnings, and the Screenshots section was captured from
+      those runs. Reviewers repeat the drive + console check via
+      `gh pr checkout <N>` + `npm run dev` (not configured — pre-code) against
+      the PR head SHA before approving.
 
 ## Plan / issue reference
 
