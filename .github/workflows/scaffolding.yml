@@ -1,0 +1,30 @@
+name: scaffolding
+
+# Validate the repo's committed scaffolding invariants (process/config skeleton,
+# not the still-absent app). This is the repo's first CI job — it gates the
+# single-source-of-truth shim and the required process/skill/adapter files via
+# scripts/validate-scaffolding.sh (which itself runs scripts/check-claude-shim.sh).
+# It deliberately does NOT run app lint/test/build: the repo is pre-code.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A later push to the same ref supersedes an in-flight run.
+concurrency:
+  group: scaffolding-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate scaffolding invariants
+        run: bash scripts/validate-scaffolding.sh
