@@ -2,23 +2,11 @@
 
 <!-- SINGLE SOURCE OF TRUTH for all project + process + agent guidance. Edit project guidance HERE, not in CLAUDE.md. CLAUDE.md is a thin Claude-only shim that imports this file via `@AGENTS.md`. DESIGN.md remains the source of truth for design (see "Design source of truth"). -->
 
-## What this is
-Violin Tools — a web app of focused practice tools for violinists. Its first tool is **Scales**, a whole-neck fingerboard note map. Client-side static web app, built largely by AI coding agents through reviewed, squash-merged PRs.
-
-## Repo identity
-Local folder `violin-scales/`; GitHub slug `julianken/violin-tools` — they differ, so pass the slug to `gh`. Default branch `main`.
+## Instance facts
+This file is **process-only** — how agents work, portable across products. The instance facts (what this product is, its GitHub slug, its Figma design file, its Mergify/review infra) live in `INSTANCE.md`. Read `INSTANCE.md` for the product one-liner, the local-folder-vs-`gh`-slug identity, and the Figma file ID + node map. Process prose below may name an instance literal where it's load-bearing (a `gh` example, the bot reviewer's role); the *catalogue* of instance facts is `INSTANCE.md`.
 
 ## Design source of truth
-`DESIGN.md` (repo root) is the source of truth for design and **wins on any design conflict** — read it before any UI, token, or motion work. It also holds the note-map's pitch-classification model (§12.5). Don't restate any of it elsewhere. (This file, AGENTS.md, is the source of truth for project/process/agent guidance; DESIGN.md outranks it on anything about design.)
-
-### Design / Figma (read-only)
-The design system lives in Figma (file `HWmo5hCeSXWtkSBiO1msIF`). Read it via the Figma MCP **read tools only** — `get_metadata`, `get_design_context`, `get_screenshot`, `get_variable_defs`, `get_code_connect_map`, `get_libraries`, `search_design_system`, `whoami`. **Never** call a write tool (`use_figma`, `create_new_file`, `generate_figma_design`, `generate_diagram`, `upload_assets`, `add_code_connect_map`): agents read Figma; a human edits it.
-
-**Authority:** shipped build > `DESIGN.md` > Figma. `DESIGN.md` wins on any design conflict (above); a live Figma value that disagrees with it does **not** bind the build — it's *drift to reconcile into `DESIGN.md` §0 in a PR*. Never build straight from a live Figma node, and don't paste its raw hexes/Tailwind — translate to `DESIGN.md` tokens. The two do not auto-sync.
-
-**Flow:** for a known node call `get_design_context` directly; for a large/unknown subtree call `get_metadata(<node>)` first to scope, then `get_design_context`; use `get_screenshot` for visual reference. A URL's `?node-id=45-2` is tool `nodeId: 45:2` (hyphen → colon).
-
-**Node map** — URL form `https://figma.com/design/HWmo5hCeSXWtkSBiO1msIF/?node-id=<n-n>`. Pages: Foundations `1-2` · Components `1-3` · Screens `1-4` · States `1-5` · Motion `1-6` · Annotations `1-7` · Colors/Dark specimen `30-4`. Screens: A Major `45-2` · A Harmonic Minor `23-2` · A Chromatic `23-408` · ⌘K Command Palette `25-2`. **MCP quirk:** `get_metadata` with no node-id lists only the Cover, so always pass an explicit node-id from this map. Node-ids are drift-prone (a frame rename/reorder can renumber them) — the Update-Triggers row, not the ids, is the safety net. Live Variable reads and Code Connect are unavailable on the current Figma plan (`get_variable_defs` → `{}`); treat Figma as visual reference, not a token feed.
+`DESIGN.md` (repo root) is the source of truth for design and **wins on any design conflict** — read it before any UI, token, or motion work. It also holds the note-map's pitch-classification model (§12.5). Don't restate any of it elsewhere. (This file, AGENTS.md, is the source of truth for project/process/agent guidance; DESIGN.md outranks it on anything about design.) The instance's Figma design file (file ID, node map, read-only-MCP rule) is an instance fact — see `INSTANCE.md` → "Design / Figma (read-only)"; the authority ranking is **shipped build > `DESIGN.md` > Figma** (a live Figma value that disagrees with `DESIGN.md` is drift to reconcile into `DESIGN.md` §0 in a PR, not a binding source).
 
 ## Conventions
 - **Commits:** Conventional Commits; bodies explain *why*. No git trailer is configured, so append `Co-Authored-By: <model> <noreply@anthropic.com>` by hand, matching the authoring agent/model.
@@ -43,7 +31,8 @@ Docs drift silently; updating them in the same PR is cheaper than catching it la
 | If your change touches…                          | Update…                                                                 |
 | ------------------------------------------------ | ----------------------------------------------------------------------- |
 | design tokens, motion, layout, or any UI surface | `DESIGN.md` (it wins on design conflicts) — reconcile it in the same PR  |
-| the Figma file's page or screen node-ids change   | the Design/Figma node map in this file — reconcile it in the same PR     |
+| the product identity, GitHub slug, Figma file/node map, or merge/review infra | `INSTANCE.md` (the instance source of truth) — reconcile it in the same PR |
+| the Figma file's page or screen node-ids change   | the Design/Figma node map in `INSTANCE.md` — reconcile it in the same PR  |
 | a process, convention, or agent rule             | this file (`AGENTS.md`); then re-check the `CLAUDE.md` shim still passes |
 | public-facing claims, setup, or security posture | `README.md` and/or `SECURITY.md`                                        |
 | the PR / merge process                           | `.github/PULL_REQUEST_TEMPLATE.md`, `.mergify.yml`, `.claude/skills/pr-workflow/` |

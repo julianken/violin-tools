@@ -5,7 +5,7 @@ description: Use when creating a PR, dispatching a review, or merging on `julian
 
 # PR workflow (julianken/violin-tools)
 
-Local folder is `violin-scales/`; the GitHub slug is `julianken/violin-tools` — pass the **slug** to `gh`. Default branch `main`.
+Local folder is `violin-scales/`; the GitHub slug is `julianken/violin-tools` — pass the **slug** to `gh`. Default branch `main`. (These literals are restated here, and used directly in the `gh` commands below, on purpose: a worktree-isolated subagent can't open `INSTANCE.md`. When you *can* read the repo, `INSTANCE.md` is the canonical catalogue of instance facts — slug, product, Figma file, merge/review infra.)
 
 Direct push to `main` is blocked by a GitHub **ruleset** that requires **1 fresh approving review from a non-author collaborator** against the current HEAD (dismissed on any new push). In this repo that can only be `@julianken-bot` — the sole reviewer collaborator (the owner authors the PRs and can't self-approve) — so the bot's approval is what unblocks merge. It is not *enforced* as bot-specific; it's bot-only by virtue of the collaborator set. Every change lands via a PR that (1) fills the template's five sections, (2) earns a bot approval on the exact HEAD being merged, and (3) is **squash-merged through Mergify's queue**: once the approval lands, post `@Mergifyio queue` as a standalone comment and Mergify squash-merges. (`.mergify.yml` currently gates on the bot approval only — the CI conditions are commented out until this repo has checks — and the queue is inert until the Mergify GitHub App is granted access to the repo.)
 

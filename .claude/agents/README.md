@@ -2,7 +2,10 @@
 
 This directory holds repo-specific subagents for `julianken/violin-tools`
 (local folder `violin-scales/`). They are dispatchable via the `Task` tool from a
-session running at the repo root.
+session running at the repo root. The slug/folder are restated here on purpose —
+worktree-isolated dispatches don't load `AGENTS.md`/`INSTANCE.md`; the canonical
+catalogue of instance facts (product, slug, Figma file, merge/review infra) is
+`INSTANCE.md`.
 
 ## Agents
 
