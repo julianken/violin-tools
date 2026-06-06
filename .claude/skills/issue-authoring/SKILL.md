@@ -26,7 +26,8 @@ Use these headers (adapt titles slightly if needed; keep the information):
 
 ### 1. Context & goal
 
-- Who/what triggered this; link **`docs/plans/<plan>.md`** or a prior issue — never local-only paths.
+- Who/what triggered this; link [`docs/plans/template-prep.md`](docs/plans/template-prep.md) for program context **or** a prior issue — never local-only paths.
+- The **issue body is the spec** — do not assume a parallel committed copy under `docs/plans/issues/`.
 - State constraints from `AGENTS.md` / `GAPS.md` that bind the work.
 - One paragraph **goal** — outcome, not task list.
 
@@ -62,11 +63,11 @@ Numbered steps or Scope **In** / **Out** with **rationale per bucket**. Cite rea
 
 ## Tripwires
 
-- **Never cite `research/` or other uncommitted paths** — if the plan lives in working notes, commit `docs/plans/…` first or paste the load-bearing excerpt into the issue.
+- **Never cite `research/` or other uncommitted paths** — paste load-bearing context into the issue body, or commit a program doc under `docs/plans/` first (overview only, not per-issue duplicates).
 - **Never batch-create issues from a script** without per-issue tree verification and a plan review each.
 - **Never skip Approach** — if you cannot explain why, the issue is not ready.
 - **Never reference "bucket A" alone** — link `docs/plans/template-prep.md` (or the specific plan section).
 
 ## Program doc
 
-Template-prep issues link **`docs/plans/template-prep.md`** for dependency graph and scope boundaries.
+[`docs/plans/template-prep.md`](docs/plans/template-prep.md) — dependency graph and A1–A9 ↔ GitHub issue map. Individual specs: GitHub issues #15–#23.
