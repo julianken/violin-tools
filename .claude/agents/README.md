@@ -12,12 +12,13 @@ catalogue of instance facts (product, slug, Figma file, merge/review infra) is
 | Agent | Purpose | When to dispatch |
 |---|---|---|
 | [`design-reviewer`](design-reviewer.md) | Review a change against the DESIGN.md design system (tokens, color/contrast, type, spacing, motion, the note-map SVG, a11y); Playwright screenshot pass once a UI exists | "review the design surface", "does this match the spec", "design-system review pass" on any token/UI diff |
-| [`julianken-bot`](julianken-bot.md) | Discoverability shim for `@julianken-bot` review dispatch — routes PRs to user `reviewing-as-julianken-bot` + issues to repo `issue-plan-review` | "review the PR", "dispatch the bot", "approve the issue spec", "plan review on issue #N" |
+| [`julianken-bot`](julianken-bot.md) | Discoverability shim for `@julianken-bot` review dispatch — routes PRs to the repo `reviewing` rubric + user `reviewing-as-julianken-bot` (bot identity/credentials), issues to repo `issue-plan-review` | "review the PR", "dispatch the bot", "approve the issue spec", "plan review on issue #N" |
 
 The design-reviewer runs **alongside** the correctness review, not instead of it.
 `julianken-bot` routes to the skill that matches the artifact; it does not invent a
-third rubric. PR approval still posts via the user-level reviewing skill; issue plan
-review posts via `issue-plan-review`.
+third rubric. PR review applies the repo-local `reviewing` rubric and posts the gating
+verdict via the user-level `reviewing-as-julianken-bot` overlay (bot identity/credentials);
+issue plan review posts via `issue-plan-review`.
 
 ## How a skill or session dispatches an agent
 
