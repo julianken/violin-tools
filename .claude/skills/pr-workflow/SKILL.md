@@ -27,7 +27,7 @@ Issue spec approval **before implementation** is a different artifact from PR co
 - Posts via `gh api …/issues/{n}/comments` as `@julianken-bot` — not `pulls/…/reviews`
 - Same anti-slop spirit (fresh context, verification ledger, ≤3 findings); no inline diff comments
 
-Do **not** use this PR workflow or `reviewing-as-julianken-bot` verbatim for issue bodies. Do **not** batch identical APPROVE templates across issues.
+Do **not** use this PR workflow or `reviewing-as-julianken-bot` verbatim for issue bodies. Author issues with `.claude/skills/issue-authoring/SKILL.md`; gate with `issue-plan-review`. Do **not** batch identical APPROVE templates across issues.
 
 ## End-to-end flow
 

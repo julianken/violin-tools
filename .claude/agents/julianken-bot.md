@@ -35,6 +35,7 @@ worktree dispatches find a **repo agent named `julianken-bot`**.
 | --- | --- | --- |
 | Pull request (code diff) | User `reviewing-as-julianken-bot` + `.claude/skills/pr-workflow/SKILL.md` | `gh api …/pulls/{n}/reviews` |
 | Issue / plan spec | Repo `.claude/skills/issue-plan-review/SKILL.md` | `gh api …/issues/{n}/comments` |
+| **Authoring** issues | Repo `.claude/skills/issue-authoring/SKILL.md` | (author posts; then plan-review) |
 
 If dispatched for a **PR**, load and follow the user-level `reviewing-as-julianken-bot`
 skill (via your harness's skill loader). If dispatched for an **issue**, follow

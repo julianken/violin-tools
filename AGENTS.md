@@ -22,7 +22,7 @@ The design system lives in Figma (file `HWmo5hCeSXWtkSBiO1msIF`). Read it via th
 
 ## Conventions
 - **Commits:** Conventional Commits; bodies explain *why*. No git trailer is configured, so append `Co-Authored-By: <model> <noreply@anthropic.com>` by hand, matching the authoring agent/model.
-- **PRs:** follow `.github/PULL_REQUEST_TEMPLATE.md` (diagram-first).
+- **PRs / issues:** PRs follow `.github/PULL_REQUEST_TEMPLATE.md` (diagram-first); implementation issues follow `.claude/skills/issue-authoring/SKILL.md` (exemplar: [#10](https://github.com/julianken/violin-tools/issues/10)).
 - **Review:** every PR and every implementation-issue spec gets a real review before merge or coding — never rubber-stamp. See **Review dispatch (all tools)** below.
 
 ## Review dispatch (all tools)
@@ -48,7 +48,8 @@ Docs drift silently; updating them in the same PR is cheaper than catching it la
 | public-facing claims, setup, or security posture | `README.md` and/or `SECURITY.md`                                        |
 | the PR / merge process                           | `.github/PULL_REQUEST_TEMPLATE.md`, `.mergify.yml`, `.claude/skills/pr-workflow/` |
 | review dispatch, plan review, or bot-review parity | this file (Review dispatch section), `.claude/skills/issue-plan-review/`, `.claude/skills/pr-workflow/`, `.cursor/rules/review-dispatch.mdc`, `.claude/agents/README.md` |
-| behavior described by a spec                     | that spec (when specs exist)                                            |
+| behavior described by a spec or committed plan     | that spec or `docs/plans/` doc (reconcile in the same PR)                 |
+| implementation issue shape or plan-review gates  | `.claude/skills/issue-authoring/`, `.claude/skills/issue-plan-review/`, this file (Review dispatch) |
 | a process change, or a deferred-item trigger firing/retiring | `GAPS.md` (the deferred-with-trigger ledger) — reconcile it in the same PR |
 | who holds decision authority (code ownership)    | `.github/CODEOWNERS` (and the HIL section below)                         |
 | `AGENTS.md` or `CLAUDE.md` (any edit)            | run `scripts/check-claude-shim.sh` and confirm it passes                 |
@@ -64,7 +65,7 @@ _(This is a repo convention the reviewing subagent reads from this file. Adding 
 The PR/review/merge knowledge lives in two places; this says which one wins so the copies don't silently drift.
 
 - **User-level (shared across all of Julian's repos):** the skills `creating-prs`, `reviewing-as-julianken-bot`, and `pr-screenshots-via-user-attachments` own the general method — five-section discipline, the anti-slop review rubric + bot credentials + merge mechanics (`merge-flow.md`), the user-attachments paste flow. `mergify-merge-workflow` is user-level and **governs merges here** — this repo uses Mergify (`.mergify.yml`); a queued PR merges via a standalone `@Mergifyio queue` comment.
-- **Repo-local:** `.claude/skills/pr-workflow/SKILL.md` (PR open/review/merge), `.claude/skills/issue-plan-review/SKILL.md` (issue spec gating before implementation), and `.claude/agents/julianken-bot.md` (dispatch discoverability shim). Worktree-isolated subagents and non-Claude tools that don't load this file read those skills directly; they restate violin-tools-specific facts: the per-HEAD 1-review ruleset (satisfiable only by `@julianken-bot`, the sole non-author reviewer), the `@Mergifyio queue` (Mergify) squash-merge, doc-currency checkbox, and plan-review shape (exemplar: issue #10).
+- **Repo-local:** `.claude/skills/pr-workflow/SKILL.md` (PR open/review/merge), `.claude/skills/issue-authoring/SKILL.md` (implementation issue shape), `.claude/skills/issue-plan-review/SKILL.md` (issue spec gating before implementation), and `.claude/agents/julianken-bot.md` (dispatch discoverability shim). Worktree-isolated subagents and non-Claude tools that don't load this file read those skills directly; they restate violin-tools-specific facts: the per-HEAD 1-review ruleset (satisfiable only by `@julianken-bot`, the sole non-author reviewer), the `@Mergifyio queue` (Mergify) squash-merge, doc-currency checkbox, and plan-review shape (exemplar: issue #10).
 - **On conflict:** the repo-local skill wins for anything violin-tools-specific (the ruleset, what's in our template); the user-level skills win for the shared method itself.
 - **No-drift rule:** a change to either copy must update the other in the **same PR**, and the PR Summary must say so. Don't fix the skill and leave this ledger (or the user-level skill) stale.
 
