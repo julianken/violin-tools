@@ -4,7 +4,7 @@ Entry card for a fresh agent or human session. Read this first, then follow the 
 
 ## This is a filled instance — not an empty template
 
-This repo (`julianken/violin-tools`) is a **filled instance**: it already carries its real domain content — the violin product, the `DESIGN.md` design system, the live process docs. It is *also* the seed for a future **empty template** (a reusable scaffold with the violin specifics stripped out — bucket B in [`docs/plans/template-prep.md`](docs/plans/template-prep.md), not built yet).
+This repo (`julianken/violin-tools`) is a **filled instance**: it already carries its real domain content — the violin product, the `DESIGN.md` design system, the live process docs. It is *also* the seed for the **empty template** — a reusable scaffold with the violin specifics stripped out, realized as [`julianken/agentic-seed`](https://github.com/julianken/agentic-seed) (a GitHub _template_ repo; fill its `{{placeholders}}` to stand up a new product).
 
 The two states differ in what `INSTANCE.md`, `DESIGN.md`, and the domain docs contain — **not** in the process shape, which is identical and lives in `AGENTS.md`. When you bootstrap, you bootstrap in one of two modes:
 

@@ -26,8 +26,8 @@ Use these headers (adapt titles slightly if needed; keep the information):
 
 ### 1. Context & goal
 
-- Who/what triggered this; link [`docs/plans/template-prep.md`](docs/plans/template-prep.md) for program context **or** a prior issue — never local-only paths.
-- The **issue body is the spec** — do not assume a parallel committed copy under `docs/plans/issues/`.
+- Who/what triggered this; link the **epic issue** for program context (the tracker is the program's home) **or** a prior issue — never local-only paths or a committed `docs/plans/` file.
+- The **issue body is the spec** — there is no parallel committed copy. Plans live in the tracker (epic + child issues) and gitignored `tmp/docs/` working drafts, never under `docs/plans/`.
 - State constraints from `AGENTS.md` / `GAPS.md` that bind the work.
 - One paragraph **goal** — outcome, not task list.
 
@@ -54,7 +54,7 @@ Numbered steps or Scope **In** / **Out** with **rationale per bucket**. Cite rea
 ## Workflow
 
 ```
-1. Read current tree + any committed plan doc
+1. Read current tree + the epic issue / any `tmp/docs/` working draft
 2. Draft issue using sections above
 3. gh issue create (or edit) — one issue at a time unless independent
 4. Dispatch issue-plan-review — never self-approve in author pass
@@ -63,11 +63,11 @@ Numbered steps or Scope **In** / **Out** with **rationale per bucket**. Cite rea
 
 ## Tripwires
 
-- **Never cite `research/` or other uncommitted paths** — paste load-bearing context into the issue body, or commit a program doc under `docs/plans/` first (overview only, not per-issue duplicates).
+- **Never cite `research/`, `docs/plans/`, or other uncommitted/forbidden paths** — paste load-bearing context into the issue body, or link the epic issue (the program lives in the tracker, never a committed plan file).
 - **Never batch-create issues from a script** without per-issue tree verification and a plan review each.
 - **Never skip Approach** — if you cannot explain why, the issue is not ready.
-- **Never reference "bucket A" alone** — link `docs/plans/template-prep.md` (or the specific plan section).
+- **Never reference a program/epic by nickname alone** — link the epic issue so the context resolves for a fresh reader.
 
-## Program doc
+## Where plans live
 
-[`docs/plans/template-prep.md`](docs/plans/template-prep.md) — dependency graph and portable plan IDs (`T1`-`T9`).
+Plans are **not committed**. The program/epic lives in the **GitHub tracker** — an epic issue linking child issues; working drafts live in gitignored `tmp/docs/` (local, agent-accessible). Never cite or create a `docs/plans/` file: committed plan docs rot and mislead later agents. Link the epic issue for program context.

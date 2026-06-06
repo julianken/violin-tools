@@ -11,12 +11,12 @@ The orientation checklist a session runs to confirm this repo is coherent before
 
 ## Modes
 
-This repo is a **filled instance** that is *also* the seed for a future **empty template** (bucket B in [`docs/plans/template-prep.md`](../../../docs/plans/template-prep.md)). Bootstrapping runs in one of two modes:
+This repo is a **filled instance** that is *also* the seed for the **empty template**, realized as [`julianken/agentic-seed`](https://github.com/julianken/agentic-seed) (a GitHub template repo). Bootstrapping runs in one of two modes:
 
 | Mode | When | What it does | Status |
 | --- | --- | --- | --- |
 | **validate** | Filled instance (this repo, today) | Audit that the instance is coherent — files exist, pointers resolve, no contradictions with `DESIGN.md`. **Never** wipes or rewrites domain content. | **Implemented (this skill).** |
-| **fill** | Future empty template | Substitute placeholders (product name, slug, Figma id, design tokens) to stand up a new product from the stripped scaffold. | **Not implemented** — documented here so the mode boundary is explicit; landing it is bucket B, gated by templatization (`docs/plans/template-prep.md`). Do **not** run placeholder substitution in this repo. |
+| **fill** | The empty template (`julianken/agentic-seed`) | Substitute placeholders (product name, slug, Figma id, design tokens) to stand up a new product from the stripped scaffold. | **Not implemented as automation** — `agentic-seed` is filled by hand-editing its `{{placeholders}}`; an automated fill skill/CLI is deferred (`GAPS.md`). Do **not** run placeholder substitution in *this* repo. |
 
 In this repo you always run **validate**. Fill mode does not exist yet; do not invent it.
 
@@ -40,9 +40,5 @@ A pass means: all six items hold and the cited `§` anchors resolve. Report a on
 
 ## Scope
 
-- **Validate only.** This skill audits; it does not mutate domain content, and it does not run fill-mode substitution. There is no empty `SPEC.md` stub and no init CLI — those are bucket B (`docs/plans/template-prep.md`).
+- **Validate only.** This skill audits; it does not mutate domain content, and it does not run fill-mode substitution. There is no init CLI here — automated fill is deferred (`GAPS.md`); the empty template itself is `julianken/agentic-seed`.
 - **Don't duplicate.** This skill does not restate `INSTANCE.md`, `AGENTS.md`, or `DESIGN.md` content — it points to them. `START_HERE.md` is the only entry that links here; `AGENTS.md` is not expanded with bootstrap prose.
-
-## Program doc
-
-[`docs/plans/template-prep.md`](../../../docs/plans/template-prep.md) — this skill is **T3** (bootstrap + `START_HERE.md`); fill mode and the empty template are bucket B.
