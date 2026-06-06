@@ -1,0 +1,15 @@
+---
+description: Review dispatch for PRs and issue plan specs — read AGENTS.md and the repo skills; never boilerplate bot APPROVE.
+alwaysApply: true
+---
+
+# Review dispatch
+
+On **PR review** or **issue plan review** requests:
+
+1. Read `AGENTS.md` → **Review dispatch (all tools)**.
+2. **PR code review:** `.claude/skills/pr-workflow/SKILL.md` + user-level `reviewing-as-julianken-bot` skill. Dispatch fresh context; post as `@julianken-bot`; never `gh pr review` from the main session.
+3. **Issue / plan review:** `.claude/skills/issue-plan-review/SKILL.md`. Exemplar: GitHub issue #10 on `julianken/violin-tools`. Dispatch fresh context; verify cited files exist; no identical APPROVE templates across issues.
+4. The session that **authored** the issue or PR must **not** execute the review in the same pass without a dispatched subagent.
+
+Do not duplicate `AGENTS.md` here — this rule is a trigger pointer only.

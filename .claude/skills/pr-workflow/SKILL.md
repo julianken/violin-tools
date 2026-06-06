@@ -18,6 +18,17 @@ Direct push to `main` is blocked by a GitHub **ruleset** that requires **1 fresh
 3. **A bot approval is per-HEAD.** It applies only to the HEAD it reviewed. Any new commit pushed after approval (including a fix prompted by review) invalidates it — re-dispatch the bot on the new HEAD. Merge only when `gh pr view <N> --json reviewDecision` reads `APPROVED` against the current HEAD.
 4. **Doc-currency before the PR (and the reviewer checks it).** Before opening, update — in the same PR — every drift-prone file your change affects, per **the Update Triggers table in `AGENTS.md`** (the source of truth for which file maps to which kind of change; don't carry a second copy of that mapping here). `DESIGN.md` wins on any design conflict. If `CLAUDE.md` or `AGENTS.md` changed, confirm `scripts/check-claude-shim.sh` still passes. If nothing applies, write `No doc updates needed` in the Summary. Tick the Test-plan doc-currency box (`N/A — <reason>` is fine). A missed doc is an IMPORTANT finding with an escape hatch — **not** a merge blocker.
 
+## Issue plan review (not a PR review)
+
+Issue spec approval **before implementation** is a different artifact from PR code review:
+
+- Skill: `.claude/skills/issue-plan-review/SKILL.md`
+- Exemplar: GitHub issue #10 plan review on `julianken/violin-tools`
+- Posts via `gh api …/issues/{n}/comments` as `@julianken-bot` — not `pulls/…/reviews`
+- Same anti-slop spirit (fresh context, verification ledger, ≤3 findings); no inline diff comments
+
+Do **not** use this PR workflow or `reviewing-as-julianken-bot` verbatim for issue bodies. Do **not** batch identical APPROVE templates across issues.
+
 ## End-to-end flow
 
 ```
