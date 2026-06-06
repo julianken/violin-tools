@@ -1,9 +1,10 @@
 # Mergify merge-queue config for julianken/violin-tools.
 #
-# Adapted from bird-sight-system but RIGHT-SIZED for a pre-code repo: this repo
-# has no CI yet, so the queue gates on the approving review only. The CI gates are
-# left commented below — uncomment them (and add the matching required status
-# checks to the branch ruleset) as each workflow lands, mirroring bird-sight-system.
+# Adapted from bird-sight-system. The queue gates on the approving review AND the
+# `gates` CI check (typecheck/lint/test/build, .github/workflows/ci.yml) — the
+# branch ruleset requires the same `gates` status check (non-strict). Add further
+# check-success lines here (and to the ruleset) as new workflows land (e.g. the
+# S12 app-ci E2E/visual job), mirroring bird-sight-system.
 #
 # Three invariants kept (load-bearing once strict required-checks exist):
 #   merge_queue.max_parallel_checks: 1 · queue_rules[].batch_size: 1 ·
@@ -30,8 +31,7 @@ queue_rules:
       - base = main
       - -draft
       - -conflict
-      # CI gates — uncomment as workflows land (mirrors bird-sight-system):
-      # - "check-success = lint"
-      # - "check-success = build"
-      # - "check-success = test"
-      # - "check-success = e2e"
+      # CI gate: the single ci.yml job that runs typecheck/lint/test/build.
+      # Add more check-success lines as new workflows land (e.g. the S12
+      # app-ci E2E/visual job), mirroring bird-sight-system.
+      - "check-success = gates"

@@ -7,7 +7,7 @@ This doc is the *adopt-or-skip* narrative. It is **not** the source of truth for
 ## What's in use today
 
 - **Config:** [`.mergify.yml`](../../.mergify.yml) at the repo root.
-- **Gate:** the queue currently gates on the approving review only (`#approved-reviews-by >= 1`, `base = main`, `-draft`, `-conflict`). CI gates are commented out in the config until this repo has workflows — uncomment them as each lands, and add the matching required status checks to the branch ruleset.
+- **Gate:** the queue gates on the approving review (`#approved-reviews-by >= 1`, `base = main`, `-draft`, `-conflict`) **and** the `gates` CI check (`check-success = gates` — typecheck/lint/test/build from `.github/workflows/ci.yml`); the branch ruleset requires the same `gates` status check (non-strict). Add further `check-success` lines (and matching required checks to the ruleset) as new workflows land (e.g. the S12 app-ci E2E/visual job).
 - **Merge method:** `squash`.
 - **Trigger:** post `@Mergifyio queue` as a **standalone** comment whose body is exactly those 16 characters. Mergify literal-matches the whole comment body; any prose or markdown wrapped around it is silently skipped (no reaction, the PR sits unqueued). Never `gh pr merge` once Mergify is live — that bypasses the queue.
 
