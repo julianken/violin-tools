@@ -10,6 +10,9 @@ AGENTS.md so the process shape stays portable across products. -->
 ## What this is
 Violin Tools — a web app of focused practice tools for violinists. Its first tool is **Scales**, a whole-neck fingerboard note map. Client-side static web app, built largely by AI coding agents through reviewed, squash-merged PRs.
 
+## Status
+**Status: in design — pre-code; no `package.json`, build, or CI app checks yet.** This is the lifecycle fact for *this* repo (consistent with README §Status, "in design, no app code yet"). Build/test/run commands don't exist until they're added to `AGENTS.md` → "Working in the tree"; until then, agents must not claim them (the tool-agnostic rule is `AGENTS.md` → "Agent guardrails" → anti-invention).
+
 ## Repo identity
 Local folder `violin-scales/`; GitHub slug `julianken/violin-tools` — they differ, so pass the slug to `gh`. Default branch `main`.
 
