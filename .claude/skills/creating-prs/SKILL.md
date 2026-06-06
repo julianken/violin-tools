@@ -33,7 +33,7 @@ Before opening the PR, update — **in the same PR** — every drift-prone file 
 
 ## What this skill does NOT own
 
-- **The review** — dispatch a fresh-context reviewer; the rubric is `.claude/skills/reviewing/SKILL.md`, and the `@julianken-bot` identity + credentials are the user-level `reviewing-as-julianken-bot` skill (and the optional overlay `docs/optional/review-bot.md`). Never `gh pr review` from the main session — that posts as `@julianken` and can't satisfy the per-HEAD ruleset. (`pr-workflow` rule 2.)
+- **The review** — dispatch a fresh-context reviewer; the rubric is `.claude/skills/reviewing/SKILL.md`, and the `@julianken-bot` identity + credentials are the user-level `reviewing-as-julianken-bot` skill (`docs/optional/review-bot.md` is the adopt-or-skip explainer, which points back at that overlay). Never `gh pr review` from the main session — that posts as `@julianken` and can't satisfy the per-HEAD ruleset. (`pr-workflow` rule 2.)
 - **The merge** — `@Mergifyio queue` as a standalone exact-body comment; never `gh pr merge`. (`pr-workflow` rule, user-level `mergify-merge-workflow`.)
 - **The instance facts** — the ruleset, the Mergify slug, the `gh` repo slug: `.claude/skills/pr-workflow/SKILL.md` and `INSTANCE.md`.
 
