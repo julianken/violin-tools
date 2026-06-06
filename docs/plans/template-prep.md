@@ -1,6 +1,8 @@
 # Template prep (bucket A) — violin-tools
 
-**Status:** in progress · **Goal:** make `julianken/violin-tools` self-contained enough to templatize later without grep-and-hope.
+**Status:** complete · **Goal:** make `julianken/violin-tools` self-contained enough to templatize later without grep-and-hope.
+
+T1–T8 landed on `main`; T9 (this plan's capstone) is the battle-test PR that exercised the full scaffolding loop — branch → five-section PR → `@julianken-bot` review → Mergify queue → green scaffolding CI — end to end. Bucket A is done; the public template repo (bucket B) is the next phase.
 
 **Not in bucket A:** creating the public template repo, empty SPEC/DESIGN stubs, `package.json`, app CI, placeholder substitution scripts (bucket B — after templatization).
 
@@ -39,17 +41,17 @@ flowchart TD
 
 ## Work items
 
-| Plan ID | Deliverable |
-| --- | --- |
-| T1 | Split `INSTANCE.md` from `AGENTS.md` |
-| T2 | Add repo-local `creating-prs` and `reviewing` skills |
-| T3 | Add `project-bootstrap` (validate mode) + `START_HERE.md` |
-| T4 | Add lifecycle status + anti-invention rules |
-| T5 | Move personal infra guidance to `docs/optional/` |
-| T6 | Add multi-tool adapters (`GEMINI.md`, Copilot instructions) |
-| T7 | Add `validate-scaffolding.sh` + scaffolding CI |
-| T8 | Mark PR template test/build lines as not configured |
-| T9 | Battle-test full scaffolding PR flow |
+| Plan ID | Deliverable | Status |
+| --- | --- | --- |
+| T1 | Split `INSTANCE.md` from `AGENTS.md` | done |
+| T2 | Add repo-local `creating-prs` and `reviewing` skills | done |
+| T3 | Add `project-bootstrap` (validate mode) + `START_HERE.md` | done |
+| T4 | Add lifecycle status + anti-invention rules | done |
+| T5 | Move personal infra guidance to `docs/optional/` | done |
+| T6 | Add multi-tool adapters (`GEMINI.md`, Copilot instructions) | done |
+| T7 | Add `validate-scaffolding.sh` + scaffolding CI | done |
+| T8 | Mark PR template test/build lines as not configured | done |
+| T9 | Battle-test full scaffolding PR flow | done (this PR) |
 
 ## Tracker mapping
 
