@@ -20,7 +20,7 @@ Reviews an **issue body / implementation plan** before coding starts. Same rigor
 ## When to use
 
 - A new implementation issue is ready; user asks for bot approval before work starts
-- Template-prep or planning issues need spec gating
+- Epic or planning issues need spec gating
 - Parent session must **not** author the issue and review it in one pass without dispatching fresh context
 
 ## Workflow

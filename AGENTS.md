@@ -38,7 +38,7 @@ Docs drift silently; updating them in the same PR is cheaper than catching it la
 | the PR / merge process or the PR-body method     | `.github/PULL_REQUEST_TEMPLATE.md`, `.mergify.yml`, `.claude/skills/pr-workflow/`, `.claude/skills/creating-prs/` (+ its user-level namesake — same-PR no-drift) |
 | Mergify, the review bot, Figma, or the user-skills overlay (the personal-infra *behavior*, not just its prose) | the matching `docs/optional/` module (`mergify.md` / `review-bot.md` / `figma.md` / `user-skills.md`) — reconcile the adopt/skip explainer in the same PR; it points at the canonical source, never forks it |
 | review dispatch, the review rubric, plan review, or bot-review parity | this file (Review dispatch + Skill ownership), `.claude/skills/reviewing/` (+ user-level `reviewing-as-julianken-bot` — same-PR no-drift), `.claude/skills/issue-plan-review/`, `.claude/skills/pr-workflow/`, `.cursor/rules/review-dispatch.mdc`, `.claude/agents/README.md` |
-| behavior described by a spec or committed plan     | that spec or `docs/plans/` doc (reconcile in the same PR)                 |
+| behavior described by a committed spec, or by the epic/issue it implements | that spec, or the tracker issue — plans live in the tracker + gitignored `tmp/docs/`, never a committed `docs/plans/` file (reconcile in the same PR) |
 | implementation issue shape or plan-review gates  | `.claude/skills/issue-authoring/`, `.claude/skills/issue-plan-review/`, this file (Review dispatch) |
 | a process change, or a deferred-item trigger firing/retiring | `GAPS.md` (the deferred-with-trigger ledger) — reconcile it in the same PR |
 | who holds decision authority (code ownership)    | `.github/CODEOWNERS` (and the HIL section below)                         |
@@ -87,7 +87,7 @@ When unsure whether something is sensitive, treat it as sensitive and keep it ou
 | **Secret** | Credentials, tokens, API keys, passwords | Never commit; if exposed, rotate the value and remove it. |
 | **Private** | Personal data / PII, private third-party information | Keep out of the repo entirely. |
 | **Security-sensitive** | Exploit / vulnerability detail, infra internals that materially aid an attacker | Keep out, or handle privately. |
-| **Working / internal** | Reasoning, deliberation, scratch notes | Fine to keep out of git; no obligation to publish. |
+| **Working / internal** | Reasoning, deliberation, scratch notes, planning/plan docs | Fine to keep out of git; no obligation to publish. Plans live in gitignored `tmp/docs/` (local, agent-accessible) — never a committed `docs/plans/` file, which rots and misleads later agents. |
 | **Public** | The code, design, and docs themselves | This *is* the project — commit it openly. |
 
 ## Working in the tree

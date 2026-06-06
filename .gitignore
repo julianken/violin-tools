@@ -11,6 +11,9 @@ build/
 *.log
 .env*.local
 
+# Working / internal: plans, scratch, process artifacts — never committed (AGENTS.md → Disclosure & sensitivity)
+tmp/
+
 # Session tooling (not part of the app)
 .remember/
 .superpowers/
