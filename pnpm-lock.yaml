@@ -88,6 +88,12 @@ importers:
         specifier: 4.1.8
         version: 4.1.8(@types/node@22.19.19)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.19))
 
+  packages/theory:
+    devDependencies:
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@22.19.19)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.19))
+
 packages:
 
   '@adobe/css-tools@4.5.0':
