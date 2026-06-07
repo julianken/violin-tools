@@ -229,10 +229,17 @@ dev server is provided and the tools are available:
    the PR — not a different render only you saw. Confirm each attached image renders
    (not broken/404/placeholder), the count/viewports match the PR's claims and the
    template (≥1 mobile 390×844 + ≥1 desktop 1440×900), and the rendered UI
-   corresponds to the diff/spec at the current HEAD. A missing, broken, stale, or
-   mismatched attached screenshot is a finding (this is the design-surface half of
-   the correctness reviewer's R12 — `.claude/skills/reviewing/SKILL.md`). This is a
-   read-only fetch; you still never write files or run a mutating command.
+   corresponds to the diff/spec at the current HEAD. **State each attached image's
+   ACTUAL pixel dimensions and compare them to the target viewport** (desktop
+   ~1440×900, mobile ~390×844) — an unmeasured "viewports match" is not a
+   verification. **A mobile capture whose WIDTH exceeds the target width** (e.g. 458px
+   when the target is 390px) means the page overflows horizontally at that viewport —
+   that is a finding (a §10 narrow-screen / §16 mobile-reflow defect), NOT a "viewports
+   match"; never call a wider-than-target mobile capture clean. A missing, broken,
+   stale, mismatched, or overflowing attached screenshot is a finding (this is the
+   design-surface half of the correctness reviewer's R12 —
+   `.claude/skills/reviewing/SKILL.md`). This is a read-only fetch; you still never
+   write files or run a mutating command.
 
 Report screenshots and the a11y snapshot as evidence for each rendered-UI finding —
 never assert a visual defect you did not capture.
