@@ -1,0 +1,113 @@
+/*
+ * controls.css — the §8.1 pill visuals + §9.1 controls-row layout for the three
+ * controls rows (Root · Scale · Refs). Every color/space/radius resolves to a §0
+ * token from tokens.css; NO raw hex, and no magic px where a token exists. The
+ * bare px below are DESIGN.md's own off-scale literals (the §8.1 pill `0 12px`
+ * padding and `30px` height, the inter-pill gap). DESIGN.md wins on any conflict.
+ *
+ * S6 ships RESTING / ACTIVE / TAPE / LANDMARK / DIM pill states + the STATIC
+ * active highlight ONLY — NO motion. The `.pill-highlight` is the transitions-dev
+ * tabs-sliding (#16) element at rest: positioned by JS (offsetLeft/offsetWidth)
+ * with NO `transition` authored here — S8 adds the tween + the reduced-motion
+ * guard. No @keyframes / transition / transition-delay / stagger lives in S6
+ * (that is S8, §7). The UA focus ring is never suppressed (§8, §16).
+ */
+
+/* ── pill track — the flex row a radiogroup / group lays its pills out in ──── */
+/* Positioned so the absolute `.pill-highlight` measures against it (the #16
+ * positioned ancestor). `flex-wrap` lets a row wrap on a narrow column without
+ * the highlight breaking (its ResizeObserver re-measures, §10). */
+.pill-track {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-100); /* 4px inter-pill gap (§4.2 micro band) */
+}
+
+/* ── .pill — the §8.1 pill (default variant) ──────────────────────────────── */
+.pill {
+  position: relative; /* sit above the highlight (which is z-index 0) */
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--pill-h); /* 30px (§8.1) */
+  padding: 0 12px; /* §8.1 pill padding (off-scale literal) */
+  border-radius: var(--radius-pill); /* pill (§8.1) */
+  background: transparent; /* §8.1 default bg */
+  border: 1px solid var(--hairline2); /* §8.1 default border */
+  color: var(--text2); /* §8.1 default text */
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* hover — default variant border → {hairline3} (§8.1). Active/tape/landmark keep
+ * their accent border (overridden below). NO transition in S6. */
+.pill:hover {
+  border-color: var(--hairline3);
+}
+
+/* ── active (default — Root/Scale selected pill) (§8.1) ────────────────────── */
+.pill.is-active {
+  background: var(--pill-active-wash); /* §8.1 active bg */
+  border-color: var(--mint); /* §8.1 active 1px {mint} border */
+  color: var(--text); /* §8.1 active text */
+}
+.pill.is-active:hover {
+  border-color: var(--mint); /* active keeps its accent border on hover (§8.1) */
+}
+
+/* ── tape variant (Tapes / low 2 / 3-tape) (§8.1) ─────────────────────────── */
+/* Resting tape pills read as default pills; the {tape} accent applies when
+ * active (§8.1 "tape (active amber)"). */
+.pill.pill-tape.is-active {
+  background: var(--tape-pill-wash); /* §8.1 tape active bg */
+  border-color: var(--tape); /* §8.1 tape 1px {tape} border */
+  color: var(--tape-pill-fg); /* §8.1 tape active text */
+}
+.pill.pill-tape.is-active:hover {
+  border-color: var(--tape);
+}
+
+/* ── landmark variant (Landmarks) (§8.1) ──────────────────────────────────── */
+.pill.pill-landmark.is-active {
+  background: var(--land-pill-wash); /* §8.1 landmark active bg */
+  border-color: var(--teal); /* §8.1 landmark 1px {teal} border */
+  color: var(--land-pill-fg); /* §8.1 landmark active text */
+}
+.pill.pill-landmark.is-active:hover {
+  border-color: var(--teal);
+}
+
+/* ── dim (§8.1 / §9.1) — unavailable in the current combination ───────────── */
+/* opacity .4 + pointer-events none; never hidden (§8.1 Do/Don't). No hover/press. */
+.pill.dim {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── static active highlight (§8.1) — the #16 tabs-sliding element AT REST ──── */
+/* One per single-select row (Root + Scale only; NOT Refs). Positioned behind the
+ * pills (z-index 0) at the active pill's box, written by useActiveHighlight as
+ * `transform: translateX(offsetLeft)` + `width: offsetWidth`. NO `transition` is
+ * authored — S8 adds `transition: transform/width …` + the first-paint snap +
+ * the `prefers-reduced-motion` guard (transitions-dev #16). It is purely a
+ * positioned, transition-READY element in S6. The visual wash is the same §8.1
+ * active treatment the `.is-active` pill carries, so the two read as one. */
+.pill-highlight {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: var(--pill-h); /* 30px — matches the pill box (§8.1) */
+  width: 0; /* set inline from the active pill's offsetWidth */
+  border-radius: var(--radius-pill);
+  background: var(--pill-active-wash); /* §8.1 active wash, behind the pill */
+  transform: translateX(0); /* set inline from the active pill's offsetLeft */
+  z-index: 0;
+  pointer-events: none;
+}

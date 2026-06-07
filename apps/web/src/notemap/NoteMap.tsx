@@ -21,7 +21,12 @@
 //     glow ring is present on EVERY node and shown only on the root, via the
 //     `.note.is-root .glow` selector — S8 fades its opacity, S5 leaves it static.
 
-import { classify, SCALE_INTERVALS, type ScaleType } from '@violin-tools/theory';
+import {
+  classify,
+  nodePitchClass,
+  SCALE_INTERVALS,
+  type ScaleType,
+} from '@violin-tools/theory';
 
 import {
   COLUMN_OFFSETS,
@@ -132,9 +137,11 @@ export function NoteMap({
           COLUMN_OFFSETS.map((columnOffset) => {
             const cx = xOf(columnOffset);
             const cy = string.y;
-            // §12.5(c) nodePc = (openStringPc + columnIndex) mod 12, then
-            // §12.5(d) classify — both from the theory engine, never re-derived.
-            const nodePc = (string.pc + columnOffset) % 12;
+            // §12.5(c) nodePc via the engine's `nodePitchClass` (the canonical
+            // helper with the non-negative-remainder guard), then §12.5(d)
+            // `classify` — so all of §12.5(c)+(d) flows through @violin-tools/
+            // theory and is never re-derived inline here.
+            const nodePc = nodePitchClass(string.pc, columnOffset);
             const state = classify(rootPc, scaleSet, nodePc);
             const radius = DOT_RADIUS[state];
             const hasLabel = state !== 'off';
