@@ -5,7 +5,7 @@
 // useState initializer + a synchronous matchMedia read), so the first paint
 // already carries the correct orientation — no flash.
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 
 import {
   loadMapView,
@@ -33,23 +33,21 @@ export function useMapView(): MapViewApi {
   const [view, setView] = useState<MapView>(() => loadMapView());
   const isLandscape = useIsLandscape();
 
-  // Use the functional-update form so the callback never closes over `view`,
-  // keeping the exhaustive-deps dep array correct (no stale-closure risk).
-  const update = useCallback((updater: (prev: MapView) => MapView) => {
-    setView((prev) => {
-      const next = updater(prev);
-      storeMapView(next);
-      return next;
-    });
-  }, []);
+  // Commit a new view: update state AND persist, both outside the state updater
+  // (a state updater must stay pure — StrictMode double-invokes it). `view` is in
+  // scope, so exhaustive-deps is satisfied with no memoization to manage.
+  const commit = (next: MapView): void => {
+    setView(next);
+    storeMapView(next);
+  };
 
   return {
     mode: view.orientation,
     orientation: resolveOrientation(view.orientation, isLandscape),
     density: view.density,
     handedness: view.handedness,
-    setOrientation: (orientation) => { update((prev) => ({ ...prev, orientation })); },
-    setDensity: (density) => { update((prev) => ({ ...prev, density })); },
-    setHandedness: (handedness) => { update((prev) => ({ ...prev, handedness })); },
+    setOrientation: (orientation) => { commit({ ...view, orientation }); },
+    setDensity: (density) => { commit({ ...view, density }); },
+    setHandedness: (handedness) => { commit({ ...view, handedness }); },
   };
 }
