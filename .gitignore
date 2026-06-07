@@ -17,6 +17,19 @@ test-results/
 blob-report/
 .playwright/
 
+# Terraform (infra/): live state, provider plugins, and the populated tfvars are
+# never committed — only infra/terraform.tfvars.example is. The live
+# terraform.tfvars may hold real per-deploy values (and, if the alt Cloudflare
+# provider path is ever taken, a token), so it stays out of git.
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.auto.tfvars
+crash.log
+crash.*.log
+
 # Misc
 .DS_Store
 *.log

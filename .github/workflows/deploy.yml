@@ -1,0 +1,90 @@
+name: deploy
+
+# Continuous deploy: every merge to `main` builds apps/web and publishes the
+# static artifact to the GCS website bucket behind Cloud CDN + the HTTPS LB.
+# Auth is KEYLESS via Workload Identity Federation (no committed service-account
+# key) — see infra/wif.tf and infra/README.md. The GCP resources themselves are
+# provisioned out of band by `terraform apply` in infra/ (not by this workflow).
+
+on:
+  push:
+    branches: [main]
+
+# A later push to main supersedes an in-flight deploy. NOT cancel-in-progress at
+# the upload step's expense — but a newer build is always the one we want live,
+# so cancelling the older run is correct.
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege. id-token: write is REQUIRED for the OIDC token WIF exchanges;
+# contents: read is all the checkout needs. No other scopes.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Keyless auth: exchange the GitHub OIDC token for short-lived GCP creds by
+      # impersonating the deploy SA. No credentials_json / no key file.
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The real web build (verified in the landed tree: root `pnpm build` ->
+      # `turbo run build` -> apps/web `vite build`, emitting apps/web/dist/).
+      - name: Build web app
+        run: pnpm build
+
+      # Two-pass sync for the SPA cache split (cdn.tf uses USE_ORIGIN_HEADERS, so
+      # these per-object Cache-Control headers are what Cloud CDN honors):
+      #   1. hashed, content-addressed assets -> immutable, 1-year cache.
+      #   2. everything else (index.html, etc.) -> no-cache so deploys take
+      #      effect immediately. --delete-unmatched-destination-objects prunes
+      #      files removed from the build. The second pass overwrites index.html
+      #      with the no-cache header (the first pass set the asset headers).
+      - name: Sync hashed assets (immutable, long cache)
+        run: |
+          gcloud storage rsync apps/web/dist/assets \
+            "gs://${{ vars.GCS_BUCKET }}/assets" \
+            --recursive --delete-unmatched-destination-objects \
+            --cache-control="public, max-age=31536000, immutable"
+
+      - name: Sync shell + remaining files (no-cache)
+        run: |
+          gcloud storage rsync apps/web/dist \
+            "gs://${{ vars.GCS_BUCKET }}" \
+            --recursive --delete-unmatched-destination-objects \
+            --exclude="assets/.*" \
+            --cache-control="no-cache"
+
+      # Belt-and-suspenders flush of the shell so the new index.html is served
+      # immediately (compute.admin includes compute.urlMaps.invalidateCache).
+      - name: Invalidate CDN cache for index.html
+        run: |
+          gcloud compute url-maps invalidate-cdn-cache "${{ vars.URL_MAP }}" \
+            --path="/index.html" --async

@@ -99,7 +99,7 @@ When unsure whether something is sensitive, treat it as sensitive and keep it ou
 | **Public** | The code, design, and docs themselves | This *is* the project — commit it openly. |
 
 ## Working in the tree
-Run `git status` / `ls` for current state — don't trust a snapshot here. The stack is a **Turborepo + pnpm-workspaces monorepo**: `apps/web` is the React + Vite + TypeScript app (the only real workspace today); `packages/*` and `infra/` are reserved for later items. The package manager is **pnpm** (pinned via `packageManager` in the root `package.json`); the four gates run through `turbo.json`. The real commands:
+Run `git status` / `ls` for current state — don't trust a snapshot here. The stack is a **Turborepo + pnpm-workspaces monorepo**: `apps/web` is the React + Vite + TypeScript app; `infra/` holds the hosting Infrastructure-as-Code (Terraform — GCS + Cloud CDN + HTTPS LB + keyless-WIF deploy; see `infra/README.md`); `packages/*` holds shared workspaces. The package manager is **pnpm** (pinned via `packageManager` in the root `package.json`); the four gates run through `turbo.json`. The real commands:
 
 - `pnpm install` — install workspace deps (CI uses `pnpm install --frozen-lockfile` against the committed `pnpm-lock.yaml`).
 - `pnpm typecheck` — `turbo run typecheck` (TypeScript `tsc --noEmit`).

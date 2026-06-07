@@ -1,0 +1,12 @@
+# Real per-deploy values for the Violin Tools hosting stack.
+#
+# Copy this file to `terraform.tfvars` (gitignored) for a real `terraform plan`
+# / `terraform apply`. A cold `terraform validate` does NOT need this file — the
+# defaults in variables.tf supply every value. NOTHING here is a secret: no
+# keys, tokens, or credentials. CI auth is keyless (Workload Identity
+# Federation); the Cloudflare DNS record is created out of band (see README).
+
+project_id  = "strings-solo-prod"
+region      = "us-central1"
+bucket_name = "strings-solo-prod-web"
+domain      = "strings-solo.com"
