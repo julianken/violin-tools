@@ -39,7 +39,7 @@
   justify-content: center;
   /* The palette sits below the vertical centre — a top inset reads better for a
    * search surface than dead-centre, and keeps the input near the eye line. */
-  padding-top: 12vh;
+  padding-top: 11vh; /* §4.2 overlay padding-top 11vh */
   background: var(--overlay-scrim); /* black @ 55% (§7.5) */
   backdrop-filter: blur(2px); /* §7.3 scrim blur 2px */
   opacity: 0;
@@ -105,8 +105,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-300); /* 12px — icon→input breathing room */
-  padding: 0 var(--space-400); /* 16px horizontal */
-  height: 52px; /* a comfortable search header band */
+  padding: 15px var(--space-400); /* §4.2 palette-search padding 15px 16px */
   border-bottom: 1px solid var(--hairline); /* §8.5 section divider */
 }
 /* The leading magnifier: the shared ic-search glyph, rendered ~16px and stroked
@@ -132,7 +131,7 @@
   background: transparent;
   color: var(--text); /* typed query is primary text */
   font-family: var(--family-ui); /* human language → Inter (§8.5) */
-  font-size: 15px;
+  font-size: 16px; /* §3 palette-input is 16px (listed size, not interpolated) */
   font-weight: 400;
   line-height: var(--lh-flush);
 }
@@ -178,7 +177,7 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--text3);
-  padding: var(--space-300) 11px var(--space-100); /* group spacing (§8.5) */
+  padding: 9px 10px 4px; /* §4.2 group-header padding 9px 10px 4px */
 }
 
 /* ── .pitem — one §8.5 / §15.2 result row ───────────────────────────────────
@@ -272,7 +271,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-400); /* 16px between segments */
-  padding: var(--space-300) var(--space-400); /* 12px 16px */
+  padding: 9px 14px; /* §4.2 footer padding 9px 14px */
   border-top: 1px solid var(--hairline); /* §8.5 section divider */
   font-family: var(--family-ui);
   font-size: 11px;
