@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  axisOf,
   COLUMN_COUNT,
   COLUMN_OFFSETS,
+  crossOrder,
   OPEN_X,
   STOPPED_OFFSETS,
   STRINGS,
@@ -66,5 +68,20 @@ describe('notemap geometry (§12.1)', () => {
     expect([...STOPPED_OFFSETS]).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
     ]);
+  });
+});
+
+describe('crossOrder (§12.5 string ordering)', () => {
+  it('horizontal + right → E,A,D,G top→bottom (today)', () => {
+    expect(crossOrder('horizontal', 'right')).toEqual([0, 1, 2, 3]);
+  });
+  it("vertical + right → G,D,A,E left→right (player's-eye)", () => {
+    expect(crossOrder('vertical', 'right')).toEqual([3, 2, 1, 0]);
+  });
+  it('horizontal + left mirrors the rows', () => {
+    expect(crossOrder('horizontal', 'left')).toEqual([3, 2, 1, 0]);
+  });
+  it('vertical + left mirrors to E,A,D,G left→right', () => {
+    expect(crossOrder('vertical', 'left')).toEqual([0, 1, 2, 3]);
   });
 });

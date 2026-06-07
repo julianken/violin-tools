@@ -13,6 +13,7 @@ import {
   OPEN_STRING_PITCH_CLASS,
   type OpenString,
 } from '@violin-tools/theory';
+import type { Orientation, Handedness, Density } from './mapView';
 
 /**
  * §12.1 — the SVG canvas. `width:100%`, `height:auto`, `min-width:760px` are CSS
@@ -92,4 +93,24 @@ export const STOPPED_OFFSETS: readonly number[] = COLUMN_OFFSETS.filter(
 export function xOf(offset: number): number {
   if (offset === 0) return OPEN_X;
   return STOPPED_BASE_X + (offset - 1) * STOPPED_STEP_X;
+}
+
+/**
+ * §12.5 string ordering along the CROSS axis (slot 0 = top in horizontal, left in
+ * vertical), as STRINGS indices `[E5=0, A4=1, D4=2, G3=3]`.
+ *
+ *   horizontal + right → [0,1,2,3]  (E,A,D,G top→bottom — today's map)
+ *   vertical   + right → [3,2,1,0]  (G,D,A,E left→right — player's-eye)
+ *   horizontal + left  → [3,2,1,0]  (mirror of the rows)
+ *   vertical   + left  → [0,1,2,3]  (E,A,D,G left→right)
+ *
+ * Set DELIBERATELY per the S16 spec — never derive vertical order by rotating the
+ * E-top array (that trap puts E on the left for a right-handed player).
+ */
+export function crossOrder(
+  orientation: Orientation,
+  handedness: Handedness,
+): readonly number[] {
+  const ascending = (orientation === 'horizontal') === (handedness === 'right');
+  return ascending ? [0, 1, 2, 3] : [3, 2, 1, 0];
 }
