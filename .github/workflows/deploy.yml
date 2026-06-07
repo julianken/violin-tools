@@ -1,0 +1,86 @@
+name: deploy
+
+# Build the static site and publish it to the public-read GCS bucket on every
+# push to main. Auth is keyless via Workload Identity Federation (no SA JSON
+# key) — see infra/wif.tf. There is NO load balancer and NO Cloud CDN to
+# invalidate: Cloudflare's edge fronts the bucket (TLS + CDN + www->apex), and
+# it honours the no-cache Cache-Control we set on index.html, so a fresh deploy
+# is visible without a purge. (An explicit Cloudflare cache purge would need a
+# CF API token, deliberately omitted for the no-secrets posture; if ever needed
+# it is a manual / MCP step — see infra/README.md.)
+
+on:
+  push:
+    branches: [main]
+
+# A later push to main supersedes an in-flight deploy.
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: read the repo, and mint the OIDC token WIF exchanges.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Keyless auth: exchange the GitHub OIDC token for short-lived GCP creds.
+      # No service_account JSON key — WIF_PROVIDER / DEPLOY_SA come from
+      # `terraform output` (set as repo Actions variables in Phase C).
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOY_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static site
+        run: pnpm build
+
+      # Two-pass publish with split cache policy.
+      #
+      # Pass 1 — rsync the whole build, mirroring deletions so the bucket never
+      # accumulates stale files. This sets the long-lived immutable cache as the
+      # default; pass 2 then RE-WRITES the cache header on the entry files that
+      # must never be cached. The default here applies to the content-hashed
+      # assets/** (filename changes on every content change, so caching forever
+      # is safe). --delete-unmatched-destination-objects removes anything in the
+      # bucket no longer in the build.
+      - name: Publish build to GCS (immutable default + prune)
+        run: |
+          gcloud storage rsync apps/web/dist "gs://${{ vars.GCS_WEBSITE_BUCKET }}" \
+            --recursive \
+            --delete-unmatched-destination-objects \
+            --cache-control="public,max-age=31536000,immutable"
+
+      # Pass 2 — overwrite the cache header on the un-hashed entry files so a new
+      # deploy is picked up immediately. index.html is the SPA entry; rewriting
+      # it (and any other root-level non-hashed file) to no-cache means browsers
+      # and Cloudflare always revalidate it, which is how a deploy goes live with
+      # no CDN purge. Cloud Storage `cp` over itself updates only the metadata.
+      - name: Mark index.html no-cache
+        run: |
+          gcloud storage cp "gs://${{ vars.GCS_WEBSITE_BUCKET }}/index.html" \
+            "gs://${{ vars.GCS_WEBSITE_BUCKET }}/index.html" \
+            --cache-control="no-cache"
