@@ -71,6 +71,63 @@ describe('App shell', () => {
   });
 });
 
+// S10 — the cross-cutting a11y wiring at the shell level: the two §11.3 polite
+// live regions (sounding + map description), live-region politeness, and that the
+// map description refreshes on a scale change and the sounding region announces a
+// sounded marker. These mount the whole app so the NoteMap → AppShell live-region
+// plumbing is exercised end-to-end.
+describe('App §11.3 live regions + sounding (S10)', () => {
+  it('renders exactly two live regions, both aria-live="polite" (never assertive)', () => {
+    const { container } = render(<App />);
+    const live = Array.from(container.querySelectorAll('[aria-live]'));
+    expect(live).toHaveLength(2);
+    for (const region of live) {
+      expect(region.getAttribute('aria-live')).toBe('polite');
+    }
+    // The two specified regions exist and are distinct elements (§11.3).
+    expect(container.querySelector('[data-live="sounding"]')).not.toBeNull();
+    expect(container.querySelector('[data-live="map-description"]')).not.toBeNull();
+  });
+
+  it('the map-description region lives OUTSIDE the SVG (§11.3 — not in <desc>)', () => {
+    const { container } = render(<App />);
+    const desc = container.querySelector('[data-live="map-description"]');
+    expect(desc).not.toBeNull();
+    // It must not be inside the board SVG (SVG <desc> does not update reliably).
+    expect(desc?.closest('svg')).toBeNull();
+  });
+
+  it('the map description names the scale and refreshes on a scale change', () => {
+    const { container } = render(<App />);
+    const desc = () => container.querySelector('[data-live="map-description"]')?.textContent ?? '';
+    expect(desc().startsWith('A Major.')).toBe(true);
+    const scaleRow = screen.getByRole('radiogroup', { name: 'Scale type' });
+    fireEvent.click(within(scaleRow).getByRole('radio', { name: 'Harm. minor' }));
+    expect(desc().startsWith('A Harmonic Minor.')).toBe(true);
+  });
+
+  it('the sounding region is empty until a marker is sounded, then announces it', () => {
+    const { container } = render(<App />);
+    const sounding = () => container.querySelector('[data-live="sounding"]')?.textContent ?? '';
+    expect(sounding()).toBe('');
+    // The board's single tab stop is the root marker; Enter sounds it.
+    const tabStop = container.querySelector('g.note[tabindex="0"]');
+    if (tabStop === null) throw new Error('no map tab stop');
+    fireEvent.keyDown(tabStop, { key: 'Enter' });
+    expect(sounding()).toBe('Sounding A'); // A Major default → root A
+  });
+
+  it('the board is a group named "Full fingerboard note map" with focusable markers', () => {
+    const { container } = render(<App />);
+    const board = document.getElementById('board');
+    expect(board?.getAttribute('role')).toBe('group');
+    expect(board?.getAttribute('aria-label')).toBe('Full fingerboard note map');
+    // The markers are exposed (img role) with spoken accessible names.
+    const markers = container.querySelectorAll('g.note[role="img"][aria-label]');
+    expect(markers).toHaveLength(60);
+  });
+});
+
 // S14 — the H1 heading and the breadcrumb active segment are §13 scale-aware: they
 // spell the selected key letter-correct (the same `spell()` engine the map labels
 // use). These mount the WHOLE app, change the selection, and assert all three

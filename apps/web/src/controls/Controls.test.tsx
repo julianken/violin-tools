@@ -15,7 +15,9 @@ import { useControls } from '../state/useControls.ts';
 
 function ContentHarness() {
   const controls = useControls();
-  return <Content controls={controls} />;
+  // onSoundNote is the §11.3 live-region announce callback; these tests exercise
+  // the controls → map wiring, not sounding, so a no-op satisfies the prop.
+  return <Content controls={controls} onSoundNote={() => undefined} />;
 }
 
 function setup() {

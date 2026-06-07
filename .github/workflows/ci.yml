@@ -87,3 +87,43 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report
           retention-days: 7
+
+  # SOFT-LAUNCH (S10): the axe / Playwright accessibility suite (e2e/a11y.spec.ts).
+  # A SEPARATE job from `gates` — deliberately NOT in the branch ruleset's required
+  # checks nor in .mergify.yml `check-success`, following the same GAPS.md
+  # soft-launch ritual as the `e2e` job above: it ships SOFT now (a real browser
+  # axe scan can flake or surface a new advisory rule), to be promoted to a
+  # required check at the S13 capstone once stable. It runs the SAME Playwright
+  # config as `e2e` but FILTERS to the a11y spec, so the two suites report
+  # independently. `gates` and its required status are unchanged.
+  a11y:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @violin-tools/web exec playwright install --with-deps chromium
+
+      - name: Run a11y (axe + Playwright)
+        run: pnpm --filter @violin-tools/web exec playwright test a11y.spec.ts
+
+      - name: Upload a11y Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7

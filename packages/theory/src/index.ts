@@ -18,3 +18,6 @@ export {
 } from './classify.ts';
 // §13 letter-correct note spelling — names what §12.5 classification placed.
 export { spell } from './spell.ts';
+// §13 / §11.3 spoken note names — the plain-speech (AT) form of a note name and
+// the per-marker accessible name ("C sharp, root") the roving note map exposes.
+export { spokenName, noteMarkerName } from './speech.ts';

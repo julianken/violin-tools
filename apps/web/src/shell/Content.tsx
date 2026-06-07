@@ -21,6 +21,11 @@ import { type ControlsApi } from '../state/useControls';
 interface ContentProps {
   /** The shared controls api, owned by AppShell so the palette can write it too. */
   controls: ControlsApi;
+  /**
+   * Announce a sounded note's spoken name (§11.3) up to the shell's polite live
+   * region — threaded into the note map's Enter/Space sounding handler.
+   */
+  onSoundNote: (spokenNoteName: string) => void;
 }
 
 /**
@@ -36,7 +41,7 @@ function resolveMotionBuild(): MotionBuild {
     : 'stateful';
 }
 
-export function Content({ controls }: ContentProps) {
+export function Content({ controls, onSoundNote }: ContentProps) {
   // Pure derivation of the selected root's pitch class through the theory engine
   // (§12.5(b)) — never re-derived here. The map takes (rootPc, scale) and
   // classifies each node via `classify()` (it resolves the §12.5(a) interval set
@@ -78,8 +83,13 @@ export function Content({ controls }: ContentProps) {
             id="board"
             className="board"
             viewBox="0 0 760 264"
-            role="img"
+            // §11.3 — the composite-widget container. `role="group"` (not `img`)
+            // so the focusable note markers inside are exposed to AT; the group's
+            // accessible name stays "Full fingerboard note map". tabIndex={-1} so
+            // the skip link (`#board`) can land focus on the group.
+            role="group"
             aria-label="Full fingerboard note map"
+            tabIndex={-1}
             // §7.1/§7.2 — the single root toggle that selects the live motion
             // variable set (stateful property transitions vs the snappy dotPop
             // keyframe). motion.css keys every rule off this attribute.
@@ -91,6 +101,7 @@ export function Content({ controls }: ContentProps) {
               scale={controls.state.scale}
               refs={controls.state.refs}
               motion={motion}
+              onSoundNote={onSoundNote}
             />
           </svg>
         </div>
