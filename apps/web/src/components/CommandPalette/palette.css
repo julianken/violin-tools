@@ -1,0 +1,316 @@
+/*
+ * palette.css — the §8.5 / §9 command palette (modal + rows) visuals AND motion.
+ * Every color/space/radius/type/motion value resolves to a §0 token from
+ * tokens.css / typography.css — NO raw hex, and no magic px where a token
+ * exists. The few bare px below are DESIGN.md's own off-scale literals (the §8.5
+ * row `padding 0 11px` / `gap 11px`, the 18px leading icon column, the per-role
+ * type sizes the §3 table fixes per role, the §8.6 chip paddings, the §7.3
+ * scrim blur 2px). DESIGN.md wins on any conflict.
+ *
+ * MOTION (this step authors it; S8 disowns the palette timelines). The technique
+ * is the transitions-dev modal `06` recipe — `.is-open` / `.is-closing`
+ * state-class pair with a JS `setTimeout` cleanup (usePaletteController) — but
+ * EVERY value is overridden to a §0 motion token by NAME (§7.3 / §7.5):
+ *   - the scrim (`.overlay`) fades `opacity 0↔.55` over `--overlay-out` (180ms)
+ *     identically both directions, on its OWN timeline;
+ *   - the modal (`.palette`) rests at `scale(.96); opacity:0`; `.is-open`
+ *     promotes it to `scale(1); opacity:1` with transform `--modal-in` (250ms)
+ *     `--ease-modal-in` + opacity `--palette-in` (200ms); `.is-closing` returns
+ *     it to `scale(.96); opacity:0` with transform `--modal-out` (160ms)
+ *     `--ease-modal-out` + opacity `--palette-out` (150ms).
+ * The recipe's single `--modal-ease` and 250/150 defaults are NOT used — §7
+ * requires SEPARATE open/close easings and a 160ms close-transform, and §7 wins.
+ * The reduced-motion guard (§7.4) removes the scale-up and the transitions.
+ */
+
+/* ── .overlay — the fixed full-inset scrim (§9 tree, §7.3/§7.5) ──────────────
+ * z-index 50, scrim {overlay-scrim} (black @ 55%) + blur 2px. The opacity
+ * timeline is its OWN: `--overlay-out` (180ms) BOTH opening and closing, kept
+ * separate from the palette's transform/opacity (§7.3 "two independent fades").
+ * It rests at opacity 0; `.is-open` on the child palette can't drive the parent,
+ * so the overlay tracks the modal via its own `.is-open`/`.is-closing` siblings:
+ * we promote it whenever the palette is open by selecting on the palette state. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  /* The palette sits below the vertical centre — a top inset reads better for a
+   * search surface than dead-centre, and keeps the input near the eye line. */
+  padding-top: 11vh; /* §4.2 overlay padding-top 11vh */
+  background: var(--overlay-scrim); /* black @ 55% (§7.5) */
+  backdrop-filter: blur(2px); /* §7.3 scrim blur 2px */
+  opacity: 0;
+  transition: opacity var(--overlay-out) var(--ease-standard); /* 180ms, both ways */
+}
+/* The scrim is visible while the palette is open OR closing — it fades out on
+ * the same `--overlay-out` timeline as it faded in (§7.5 "same both directions").
+ * We mount the overlay only while open/closing (CommandPalette gates mounting),
+ * so promoting it to opacity 1 whenever a non-closing palette is inside it, and
+ * back to 0 when the inner palette goes `.is-closing`, gives the symmetric fade. */
+.overlay:has(.palette.is-open) {
+  opacity: 1;
+}
+.overlay:has(.palette.is-closing) {
+  opacity: 0;
+}
+
+/* ── .palette — the 560px modal (§9 tree, §8.5, §7.3/§7.5) ───────────────────
+ * radius frame (14px), surface body, the ONE heavy product shadow
+ * ({elevation.modal}). Resting/closed state IS the close destination:
+ * scale(.96); opacity:0 (§7.3). transform-origin center. */
+.palette {
+  width: var(--palette-w); /* 560px (§0/§9) */
+  max-width: calc(100% - 2 * var(--space-400)); /* breathing room at narrow widths */
+  display: flex;
+  flex-direction: column;
+  background: var(--surface); /* palette body (§0 --surface) */
+  border-radius: var(--radius-frame); /* 14px — "panelcard frame; command palette" (§0) */
+  box-shadow: var(--elevation-modal); /* the ONLY heavy shadow (§5/§0) */
+  /* Resting (closed) = the close destination (§7.3). */
+  transform: scale(0.96);
+  transform-origin: center;
+  opacity: 0;
+  /* CLOSE timeline (base rule): transform 160ms ease-modal-out + opacity 150ms
+   * ease (§7.5). The OPEN timeline lives on `.is-open` below. */
+  transition:
+    transform var(--modal-out) var(--ease-modal-out),
+    opacity var(--palette-out) var(--ease-standard);
+  will-change: transform, opacity;
+}
+/* OPEN — promote to scale(1)/opacity:1 with the OPEN timeline: transform 250ms
+ * ease-modal-in + opacity 200ms (palette-in) (§7.3/§7.5). */
+.palette.is-open {
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform var(--modal-in) var(--ease-modal-in),
+    opacity var(--palette-in) var(--ease-standard);
+}
+/* CLOSING — return to the resting scale(.96)/opacity:0 (§7.3). Inherits the base
+ * rule's CLOSE transition (modal-out / palette-out); restated for clarity. */
+.palette.is-closing {
+  transform: scale(0.96);
+  opacity: 0;
+  transition:
+    transform var(--modal-out) var(--ease-modal-out),
+    opacity var(--palette-out) var(--ease-standard);
+}
+
+/* ── .psearch — search icon + input + "esc" chip (§9, §8.3) ──────────────────
+ * border-bottom 1px {hairline} (the §8.5 top section divider). */
+.psearch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300); /* 12px — icon→input breathing room */
+  padding: 15px var(--space-400); /* §4.2 palette-search padding 15px 16px */
+  border-bottom: 1px solid var(--hairline); /* §8.5 section divider */
+}
+/* The leading magnifier: the shared ic-search glyph, rendered ~16px and stroked
+ * at {text2} here (§8.3 "leads the palette's .psearch row … ~16px … {text2}"). */
+.psearch-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text2); /* §8.3 palette magnifier {text2} */
+}
+.psearch-ic svg {
+  width: 16px;
+  height: 16px;
+}
+.pinput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none; /* the input keeps DOM focus; the field is the whole search box */
+  background: transparent;
+  color: var(--text); /* typed query is primary text */
+  font-family: var(--family-ui); /* human language → Inter (§8.5) */
+  font-size: 16px; /* §3 palette-input is 16px (listed size, not interpolated) */
+  font-weight: 400;
+  line-height: var(--lh-flush);
+}
+.pinput::placeholder {
+  color: var(--text3); /* placeholder {text3} (§8.3 language) */
+}
+/* The "esc" dismiss chip (§8.6): Geist Mono 10px {text3}, radius kbd (4px),
+ * pad 2px 6px — deliberately taller/wider than the sidebar ⌘K chip (1px 5px). */
+.esc {
+  flex: none;
+  font-family: var(--family-mono);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text3);
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-kbd); /* 4px */
+  padding: 2px 6px; /* §8.6 "esc" chip padding */
+}
+
+/* ── .presults — the grouped listbox (§8.5, §9) ──────────────────────────────
+ * max-height 48vh, scrolls within; NO divider of its own (the rules live on
+ * .psearch / .pfoot). list-reset the <ul>s used for grouping. */
+.presults {
+  margin: 0;
+  padding: var(--space-200); /* 8px gutter around the rows */
+  list-style: none;
+  max-height: 48vh; /* §9 .presults cap */
+  overflow-y: auto;
+}
+.presults .pgroup,
+.presults .pgroup-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Group header — mono uppercase, spacing only, NOT ruled (§8.5). */
+.pgroup-h {
+  font-family: var(--family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 9px 10px 4px; /* §4.2 group-header padding 9px 10px 4px */
+}
+
+/* ── .pitem — one §8.5 / §15.2 result row ───────────────────────────────────
+ * background transparent · text string-name (Inter 14px) · radius control (8px)
+ * · height 40px · padding 0 11px · gap 11px · 18px leading icon column. */
+.pitem {
+  display: flex;
+  align-items: center;
+  gap: 11px; /* §8.5 row gap (off-scale literal) */
+  height: var(--palette-row-h); /* 40px (§0/§8.5) */
+  padding: 0 11px; /* §8.5 row padding (off-scale literal) */
+  border-radius: var(--radius-control); /* control = 8px (§8.5) */
+  background: transparent; /* §8.5 default bg */
+  cursor: pointer;
+}
+/* Selected/hover — the ONE shared {raised} fill (keyboard selection AND pointer
+ * hover render this same fill; they never diverge) (§8.5/§15.2). No focus ring
+ * inside the modal — selection is the fill alone. */
+.pitem.sel {
+  background: var(--raised);
+}
+/* soon — non-actionable stub: muted, no pointer, no hover/selected fill (§8.5). */
+.pitem.soon {
+  cursor: default;
+}
+/* Leading icon column — 18px (icon.box.palette), glyph centered, color {text3},
+ * promoted to {mint} on the selected row by `.pitem.sel .pico` (§8.5/§15.2). */
+.pico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px; /* icon.box.palette (§0/§8.5) */
+  color: var(--text3); /* resting glyph {text3} (§8.5) */
+  font-size: 14px; /* sizes the Unicode glyph in the 18px box */
+  line-height: 1;
+}
+.pitem.sel .pico {
+  color: var(--mint); /* selected row promotes the glyph to {mint} (§8.5/§15.2) */
+}
+.pitem.soon .pico {
+  color: var(--muted); /* the soon glyph reads as disabled (§8.2 language) */
+}
+/* Label — Inter 14px/400, color string-name (#cfcfd4); human language, NOT mono
+ * (§8.5/§15.2). */
+.plabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--family-ui); /* Inter (§8.5) */
+  font-size: 14px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--string-name); /* palette row text token (§8.5/§15.2) */
+}
+.pitem.soon .plabel {
+  color: var(--muted); /* soon label reads disabled (§8.2 language) */
+}
+/* Trailing meta chip — Geist Mono 11px {text3}; `soon` → palette-soon (§8.5). */
+.pmeta {
+  flex: none;
+  font-family: var(--family-mono);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text3); /* §8.5 trailing meta {text3} */
+}
+.pmeta.palette-soon {
+  color: var(--palette-soon); /* §8.5 soon meta in palette-soon */
+}
+
+/* ── empty state (§8.5) — a single centered "No matches" line ────────────────
+ * Inter 14px {text3} (NOT Geist Mono — human language), no icon, non-selectable.
+ * Group headers are suppressed by the data layer (no groups → only this row). */
+.pempty {
+  list-style: none;
+  text-align: center;
+  padding: var(--space-600) var(--space-300); /* generous vertical centring */
+  font-family: var(--family-ui); /* Inter, NOT mono (§8.5) */
+  font-size: 14px;
+  font-weight: 400;
+  line-height: var(--lh-normal);
+  color: var(--text3);
+}
+
+/* ── .pfoot — the shortcut legend (§9) ───────────────────────────────────────
+ * border-top 1px {hairline} (the §8.5 bottom section divider). */
+.pfoot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-400); /* 16px between segments */
+  padding: 9px 14px; /* §4.2 footer padding 9px 14px */
+  border-top: 1px solid var(--hairline); /* §8.5 section divider */
+  font-family: var(--family-ui);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text3);
+}
+.pfoot-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-100); /* 4px key→word gap */
+}
+/* The footer keys reuse the kbd chip language (§8.6): Geist Mono, {text3},
+ * radius kbd, the compact 1px 5px padding of the sidebar kbd chip. */
+.pfoot-key {
+  font-family: var(--family-mono);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text3);
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-kbd); /* 4px */
+  padding: 1px 5px; /* §8.6 kbd chip padding */
+}
+
+/* ── §7.4 reduced motion — remove the scale-up and the transitions ───────────
+ * Under `reduce` the palette appears without scale-up and the .overlay/.palette
+ * transitions are none (§7.4 lists exactly `.overlay, .palette { transition:
+ * none }`). The modal still appears (opacity is set by the state class, just not
+ * tweened); the scale is neutralized so it never animates in. */
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .palette {
+    transition: none;
+  }
+  /* No scale-up: the resting and open transforms collapse to no displacement. */
+  .palette,
+  .palette.is-open,
+  .palette.is-closing {
+    transform: none;
+  }
+}

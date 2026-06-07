@@ -2,9 +2,10 @@ import { IcScales, IcSearch } from './icons';
 
 // The fixed 248px sticky left rail (DESIGN.md §9 tree, §4.2). Children render in
 // the spec's exact order: brand · search · section-heading · nav · spacer ·
-// theme-toggle. Everything here is a frame: the search is a no-op trigger stub,
-// the three soon tools are inert stubs, and the theme toggle is inert. Later
-// steps wire the palette (S9) and controls (S6); this step lays out the chrome.
+// theme-toggle. The three soon tools are inert stubs and the theme toggle is
+// inert; S6 wired the controls and S9 wires the palette: the search is now a
+// LIVE trigger that opens the command palette (§8.3 — a button that opens the
+// palette, not an inline text input).
 
 // The three "soon" tools, in display order, with their Unicode glyph characters
 // (DESIGN.md §0 `icon.glyph-char`, §8.2) — set as text, never custom SVG.
@@ -14,20 +15,19 @@ const SOON_TOOLS = [
   { label: 'Tuner', glyph: '◎' },
 ] as const;
 
-function openCommandPalette(): void {
-  // No-op open stub for v1 (DESIGN.md §8.3): the search is a trigger that opens
-  // the command palette. The palette overlay/dialog and ⌘K wiring are S9; this
-  // step ships the trigger and its ⌘K chip wired to this stub.
+interface SidebarProps {
+  /** Open the command palette — the search trigger calls this (§8.3, §9). */
+  onOpenPalette: () => void;
 }
 
-export function Sidebar() {
+export function Sidebar({ onOpenPalette }: SidebarProps) {
   return (
     <header className="side">
       <div className="brand">
         Violin Tools<span className="brand-dot">.</span>
       </div>
 
-      <button type="button" className="search" onClick={openCommandPalette}>
+      <button type="button" className="search" onClick={onOpenPalette}>
         <span className="search-ic">
           <IcSearch />
         </span>
