@@ -94,6 +94,89 @@
   opacity: 1;
 }
 
+/* ── reference overlays (§12.3) — tape bands + heel/octave/position landmarks
+ * ────────────────────────────────────────────────────────────────────────────
+ * S7 ships the STATIC, transition-READY surface: the `.tape` and `.land` groups
+ * carry `.hide` as the visibility mechanism (§7.1 — "visibility is the `.hide`
+ * class, not a raw inline opacity write"), tape 2 carries the panel-reveal (07)
+ * hook (`t-panel-slide` + `data-open`), and every band renders at its END-STATE
+ * x. NO `transition`, `@keyframes`, `transition-delay`, or per-column stagger is
+ * authored here — the §7.5 tape/land opacity tweens and the `+4`↔`+3`
+ * `ease-spring-2` slide are S8. Every color resolves to a §0 token; NO raw hex.
+ * The bare px are DESIGN.md §12.3 / §3 SVG literals (stroke widths, dasharray,
+ * label sizes/weights) — spec values, not magic numbers. */
+
+/* `.hide` is the show/hide mechanism for the overlay groups (and tape 2 under
+ * "3-tape") — opacity 0, mounted-but-hidden (§7.1). S8 attaches the opacity
+ * transition (§7.5); S5/S7 hold it static. */
+.board .tape.hide,
+.board .land.hide,
+.board .tape .tape-band.hide {
+  opacity: 0;
+}
+
+/* tape band rect (§12.3): {tape} translucent fill, rx 3, 26×152 at y=60. */
+.board .tape .tape-rect {
+  fill: var(--tape-band);
+}
+/* tape number label (§12.3 / §3): Geist Mono 9px, tnum + lnum (features-mono —
+ * tabular AND lining figures are load-bearing for column alignment, §0/§3). */
+.board .tape .tape-num {
+  font-family: var(--family-mono);
+  font-size: 9px;
+  font-feature-settings: var(--features-mono); /* 'tnum','lnum' (§0/§3) */
+  fill: var(--tape-num);
+}
+
+/* heel / position landmark (§12.3): {violet} band, dashed underline, italic
+ * label. The dash runs the full band width at y=212, stroke-width 1, dasharray
+ * 2 3. The "heel ⌄" label is the lone consumer of the REAL Inter Italic 400 face
+ * (§0 weights-ui-italic / §3) — font-style:italic, not a synthesized slant. */
+.board .land .heel-rect {
+  fill: var(--heel-band);
+}
+.board .land .heel-dash {
+  stroke: var(--heel-dash);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.board .land .heel-label {
+  font-family: var(--family-ui);
+  font-style: italic; /* real Inter Italic 400 face (§0 weights-ui-italic, §3) */
+  font-size: 8px;
+  font-weight: 400;
+  fill: var(--heel-label);
+}
+
+/* octave landmark (§12.3): {teal} band, two stacked labels sharing octave-label
+ * color but differing in family AND size — "octave ◈" Geist Mono 9px (top),
+ * "½ string" Inter 8px (bottom) (§3). */
+.board .land .octave-rect {
+  fill: var(--octave-band);
+}
+.board .land .octave-label {
+  fill: var(--octave-label);
+}
+.board .land .octave-top {
+  font-family: var(--family-mono);
+  font-size: 9px;
+}
+.board .land .octave-bottom {
+  font-family: var(--family-ui);
+  font-size: 8px;
+}
+
+/* position labels (§12.3 / §3): Inter 10px/600, tnum (features-ui — the
+ * "3rd/4th/5th/7th" numerals fall off the column grid without tabular figures,
+ * §0/§3). Inside `.land`, so they toggle with the Landmarks pill. */
+.board .land .pos-label {
+  font-family: var(--family-ui);
+  font-size: 10px;
+  font-weight: 600;
+  font-feature-settings: var(--features-ui); /* 'tnum' (§0/§3) */
+  fill: var(--pos-label);
+}
+
 /* ── legend (§12.4) — always visible, static (§7.5) ─────────────────────── */
 /* The `.legend` flex container lives in shell.css; these style its swatches. */
 .legend-item {

@@ -28,6 +28,9 @@ import {
   type ScaleType,
 } from '@violin-tools/theory';
 
+import { INITIAL_CONTROLS, type RefsState } from '../state/controls';
+
+import { RefLayers } from './RefLayers';
 import {
   COLUMN_OFFSETS,
   GUIDE_Y1,
@@ -56,6 +59,12 @@ interface NoteMapProps {
   rootPc?: number;
   /** Selected scale type (§12.5(a)); Major by default. */
   scale?: ScaleType;
+  /**
+   * The four §9.1 Refs toggles that show/hide the §12.3 reference overlays. The
+   * map passes them straight to <RefLayers>; defaults to every layer off (the
+   * S6 initial state) so the static render matches the spec default.
+   */
+  refs?: RefsState;
 }
 
 // S5 has no controls yet (S6 wires selection), so it renders a fixed default —
@@ -63,6 +72,8 @@ interface NoteMapProps {
 // the exact case a reviewer can diff against the spec.
 const DEFAULT_ROOT_PC = 9;
 const DEFAULT_SCALE: ScaleType = 'major';
+// Every reference layer off by default (the S6 INITIAL_CONTROLS refs) — the
+// first paint is the bare map a reviewer diffs against §12.
 
 /**
  * The board content: string lines + nut + position guides + string/open labels,
@@ -73,11 +84,18 @@ const DEFAULT_SCALE: ScaleType = 'major';
 export function NoteMap({
   rootPc = DEFAULT_ROOT_PC,
   scale = DEFAULT_SCALE,
+  refs = INITIAL_CONTROLS.refs,
 }: NoteMapProps) {
   const scaleSet = SCALE_INTERVALS[scale];
 
   return (
     <>
+      {/* §12.3 reference overlays FIRST, so the tape/landmark bands paint BEHIND
+          the note dots (SVG paints in document order). Their visibility is the
+          `.hide` class driven by the Refs pills — mounted-but-hidden, never
+          unmounted (the S8 attach contract). */}
+      <RefLayers refs={refs} />
+
       {/* Static chrome — guide lines, nut, string lines, labels. The guide
           lines and nut are decorative (no meaning); they read as background. */}
       <g className="chrome" aria-hidden="true">
