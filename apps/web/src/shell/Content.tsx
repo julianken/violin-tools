@@ -10,9 +10,10 @@ import { useControls } from '../state/useControls';
 // and the `.legend` key; S6 now owns the STATE SEAM: it holds the single
 // `(root, scale, refs)` source of truth (useControls), renders the three live
 // controls rows (Controls), and re-derives the map's `(rootPc, scaleSet)` from it
-// (derive) so a control change re-renders the §12 60-dot map IN PLACE. The
-// caveat / reference-overlay rendering is still S7; the H1 scale-name + the live
-// breadcrumb are out of S6 scope (they need §13 scale-aware spelling).
+// (derive) so a control change re-renders the §12 60-dot map IN PLACE. S7 wires
+// the Refs toggles into the map's §12.3 reference overlays (the four `.tape` /
+// `.land` layers). The caveat copy, the H1 scale-name, and the live breadcrumb
+// are still out of scope (they need §13 scale-aware spelling).
 
 export function Content() {
   // The single app state every control writes and the map renders from (§9.1).
@@ -56,7 +57,11 @@ export function Content() {
             role="img"
             aria-label="Full fingerboard note map"
           >
-            <NoteMap rootPc={rootPc} scale={controls.state.scale} />
+            <NoteMap
+              rootPc={rootPc}
+              scale={controls.state.scale}
+              refs={controls.state.refs}
+            />
           </svg>
         </div>
       </div>
