@@ -226,3 +226,50 @@ describe('control → state → classify → map re-render (§12.5)', () => {
     expect(notes().filter((n) => n.classList.contains('is-off'))).toHaveLength(0);
   });
 });
+
+describe('§9.1 / §13 — pc-1 root pill + H1 relabel by scale family (S15)', () => {
+  const h1 = () => document.querySelector('h1.h1')?.textContent;
+  // The pc-1 pill is the SECOND pill (after `C`); pick it by its current label.
+  const pc1Pill = (root: HTMLElement, label: string) =>
+    within(root).getByRole('radio', { name: label });
+
+  it('Db + Major: pc-1 pill reads Db and the H1 reads D♭ Major (regression guard)', () => {
+    const { root, scale } = setup();
+    fireEvent.click(within(root).getByRole('radio', { name: 'Db' }));
+    fireEvent.click(within(scale).getByRole('radio', { name: 'Major' }));
+    expect(pc1Pill(root, 'Db')).toBeInTheDocument();
+    expect(h1()).toBe('D♭ Major');
+  });
+
+  it('Db + Natural Minor: pc-1 pill flips to C♯ and the H1 reads C♯ Natural Minor', () => {
+    const { root, scale } = setup();
+    fireEvent.click(within(root).getByRole('radio', { name: 'Db' }));
+    fireEvent.click(within(scale).getByRole('radio', { name: 'Nat. minor' }));
+    // The pill's text content IS its accessible name, so AT sees the flip too (§9.1).
+    expect(pc1Pill(root, 'C♯')).toBeInTheDocument();
+    expect(within(root).queryByRole('radio', { name: 'Db' })).not.toBeInTheDocument();
+    expect(h1()).toBe('C♯ Natural Minor');
+  });
+
+  it('Db + Natural Minor: NO map dot label renders a B♭♭ (the #70 fix proof)', () => {
+    const { root, scale, notes } = setup();
+    fireEvent.click(within(root).getByRole('radio', { name: 'Db' }));
+    fireEvent.click(within(scale).getByRole('radio', { name: 'Nat. minor' }));
+    const labels = notes().map((n) => n.querySelector('text')?.textContent ?? '');
+    expect(labels.some((t) => t.includes('♭♭'))).toBe(false);
+    expect(labels.some((t) => t.includes('♯♯'))).toBe(false);
+    // The C♯-minor root label is present on the map (open D4-string nodes etc.).
+    expect(labels).toContain('C♯');
+  });
+
+  it('toggling Nat. minor → Major flips the pc-1 pill back from C♯ to Db', () => {
+    const { root, scale } = setup();
+    fireEvent.click(within(root).getByRole('radio', { name: 'Db' }));
+    fireEvent.click(within(scale).getByRole('radio', { name: 'Nat. minor' }));
+    expect(pc1Pill(root, 'C♯')).toBeInTheDocument();
+    // Family toggles back: minor → major re-spells C♯ → Db (no double accidental either way).
+    fireEvent.click(within(scale).getByRole('radio', { name: 'Major' }));
+    expect(pc1Pill(root, 'Db')).toBeInTheDocument();
+    expect(within(root).queryByRole('radio', { name: 'C♯' })).not.toBeInTheDocument();
+  });
+});

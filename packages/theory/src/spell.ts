@@ -23,6 +23,16 @@
 //     Chromatic is the deliberate exception to one-letter-per-degree (a base
 //     letter recurs across two pitch classes), so it is spelled by accidental
 //     side, never by letter-distinctness.
+//
+// The §13 root spelling is SCALE-FAMILY-AWARE (S15): a root whose minor key would
+// carry a double accidental is re-spelled to its conventional minimal-accidental
+// enharmonic for the minor family, so no key ever reaches a double accidental.
+// In the current 12-root pill set this affects exactly pc 1: `Db` (→ D♭ minor,
+// 8 flats, a `B♭♭` 6th) re-spells to `C♯` (→ C♯ minor, 4 sharps, no double) for
+// the minor-family scales (natural / harmonic / melodic minor, minor pentatonic),
+// and stays `Db` for the major family (major, major pentatonic) and chromatic
+// (the §9.1 default). Every other root already has a clean minor key, so the
+// override table holds one entry today (it generalizes if a future root needs it).
 
 import { SCALE_INTERVALS, ROOT_PITCH_CLASS, type Root, type ScaleType } from './classify.ts';
 
@@ -63,14 +73,60 @@ function mod12(value: number): number {
 }
 
 /**
- * The §13 root spelling, decomposed into its natural letter + accidental side.
- *
- * The 12 `Root` union members ARE the §13 chosen spellings (`Db`/`Eb`/`F#`/`Ab`/
- * `Bb` on the accidental pills; naturals otherwise). The first char is the
- * letter; a trailing `b` is a flat, a trailing `#` a sharp. This is the single
- * source of the §13 root rule (flat side for the flat-named roots and F).
+ * The two scale families the §13 root spelling depends on (S15). The MAJOR family
+ * (major + major pentatonic) and CHROMATIC keep the §9.1 default root spelling;
+ * the MINOR family (the three minors + minor pentatonic) re-spells any root whose
+ * minor key would carry a double accidental to its conventional enharmonic.
  */
-function rootSpelling(root: Root): { letter: Letter; flatSide: boolean } {
+type RootSpellingFamily = 'major' | 'minor';
+
+/**
+ * Which spelling family a scale belongs to for the §13 root rule (S15). The
+ * pentatonics follow their parent (major / natural-minor) family; chromatic is
+ * grouped with major (the §9.1 default). Total over every `ScaleType`.
+ */
+const SCALE_SPELLING_FAMILY: Readonly<Record<ScaleType, RootSpellingFamily>> = {
+  major: 'major',
+  naturalMinor: 'minor',
+  harmonicMinor: 'minor',
+  melodicMinor: 'minor',
+  majorPentatonic: 'major',
+  minorPentatonic: 'minor',
+  chromatic: 'major',
+} as const;
+
+/**
+ * Minor-family root re-spellings (S15): a root whose minor key would carry a
+ * double accidental, mapped to its conventional minimal-accidental enharmonic.
+ * In the current 12-root pill set only `Db` qualifies — D♭ minor is an 8-flat key
+ * with a `B♭♭` 6th, universally spelled as C♯ minor (4 sharps, no double). Other
+ * accidental roots already spell cleanly in minor (`F#` → F♯ minor, `Ab` → A♭
+ * minor with 7 single flats), so they need no override and are absent here.
+ */
+const MINOR_FAMILY_ROOT_RESPELL: Partial<Record<Root, { letter: Letter; flatSide: boolean }>> = {
+  Db: { letter: 'C', flatSide: false }, // D♭ minor (B♭♭) → C♯ minor (no double)
+};
+
+/**
+ * The §13 root spelling, decomposed into its natural letter + accidental side,
+ * for the selected scale's family (S15 — the seam #70 names: this is now a
+ * function of `(root, scaleFamily)`, not `root` alone).
+ *
+ * The 12 `Root` union members ARE the §9.1 DEFAULT spellings (`Db`/`Eb`/`F#`/
+ * `Ab`/`Bb` on the accidental pills; naturals otherwise). The first char is the
+ * letter; a trailing `b` is a flat, a trailing `#` a sharp. That default holds
+ * for the MAJOR family + chromatic. For the MINOR family a root in
+ * `MINOR_FAMILY_ROOT_RESPELL` (today only `Db` → `C♯`) takes its conventional
+ * enharmonic instead, so no minor key ever reaches a double accidental (§13).
+ */
+function rootSpelling(
+  root: Root,
+  family: RootSpellingFamily,
+): { letter: Letter; flatSide: boolean } {
+  if (family === 'minor') {
+    const respell = MINOR_FAMILY_ROOT_RESPELL[root];
+    if (respell !== undefined) return respell;
+  }
   const letter = root[0] as Letter;
   // A root name carrying a `b` (flat) — or `F`, per the §13 root rule — spells
   // the key on the flat side; everything else (naturals other than F, and `F#`)
@@ -112,14 +168,20 @@ const NEXT_LETTER: Readonly<Record<Letter, Letter>> = {
  * The diatonic spelling map for a (root, diatonic-scale) key: each scale degree's
  * pitch class → its letter-correct name, one letter per degree. Used directly for
  * the four diatonic scales, and as the parent spelling pentatonics inherit.
+ *
+ * `family` is the SELECTED scale's spelling family (S15) — it decides the root
+ * letter/side, so a minor-family pentatonic inherits its parent (natural minor)
+ * letters walked from the minor-family root spelling (e.g. `Db` minor pentatonic
+ * starts from `C♯`, not `Db`), keeping the whole family coherent and double-free.
  */
 function diatonicSpelling(
   root: Root,
   scale: 'major' | 'naturalMinor' | 'harmonicMinor' | 'melodicMinor',
+  family: RootSpellingFamily,
 ): Map<number, string> {
   const rootPc = ROOT_PITCH_CLASS[root];
   const intervals = SCALE_INTERVALS[scale];
-  const { letter: rootLetter } = rootSpelling(root);
+  const { letter: rootLetter } = rootSpelling(root, family);
 
   const byPc = new Map<number, string>();
   let letter = rootLetter;
@@ -160,8 +222,10 @@ const FLAT_NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A'
  * exception to one-letter-per-degree.
  */
 function chromaticSpelling(root: Root): Map<number, string> {
-  const major = diatonicSpelling(root, 'major');
-  const { flatSide } = rootSpelling(root);
+  // Chromatic is a MAJOR-family surface (the §9.1 default root spelling, S15) —
+  // it keeps `Db`, never the minor-family `C♯` re-spelling.
+  const major = diatonicSpelling(root, 'major', 'major');
+  const { flatSide } = rootSpelling(root, 'major');
   const fill = flatSide ? FLAT_NAMES : SHARP_NAMES;
 
   const byPc = new Map<number, string>();
@@ -188,16 +252,19 @@ export function spell(nodePc: number, root: Root, scale: ScaleType): string {
   }
 
   if (scale === 'majorPentatonic' || scale === 'minorPentatonic') {
-    // Pentatonics inherit the parent diatonic spelling and select the pcs the
+    // Pentatonics inherit the parent diatonic spelling, walked from the SELECTED
+    // pentatonic's family root spelling (S15 — minorPentatonic is a minor-family
+    // surface, so `Db` minor pentatonic spells from `C♯`), and select the pcs the
     // pentatonic actually contains; an off pc (not in the pentatonic) has no §13
     // name and renders no label (§12.2), so it falls through to ''.
-    const parent = diatonicSpelling(root, PENTATONIC_PARENT[scale]);
+    const parent = diatonicSpelling(root, PENTATONIC_PARENT[scale], SCALE_SPELLING_FAMILY[scale]);
     const rootPc = ROOT_PITCH_CLASS[root];
     const pentatonicPcs = new Set(SCALE_INTERVALS[scale].map((i) => mod12(rootPc + i)));
     return pentatonicPcs.has(pc) ? (parent.get(pc) ?? '') : '';
   }
 
-  // The four diatonic scales: one letter per degree. An off pc (not in the
-  // scale) has no §13 name and renders no label, so it falls through to ''.
-  return diatonicSpelling(root, scale).get(pc) ?? '';
+  // The four diatonic scales: one letter per degree, walked from the family root
+  // spelling (S15 — the three minors use the minor-family root). An off pc (not in
+  // the scale) has no §13 name and renders no label, so it falls through to ''.
+  return diatonicSpelling(root, scale, SCALE_SPELLING_FAMILY[scale]).get(pc) ?? '';
 }

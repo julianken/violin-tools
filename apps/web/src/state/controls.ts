@@ -202,3 +202,35 @@ export function scaleName(state: ControlsState): string {
   const rootGlyph = spell(ROOT_PITCH_CLASS[state.root], state.root, state.scale);
   return `${rootGlyph} ${SCALE_DISPLAY_NAME[state.scale]}`;
 }
+
+/**
+ * §9.1 / §13 — the displayed label for a Root PILL in the current scale's key
+ * (S15). The root is degree 0 of every scale, so `spell(rootPc, root, scale)`
+ * makes the SAME family decision the H1/breadcrumb (`scaleName`) and the map dots
+ * make: `Db` for the MAJOR family + chromatic, `C♯` for the MINOR family. The
+ * pill, H1, and dots therefore never disagree on which spelling a root takes.
+ *
+ * The only label that ever differs from the §9.1 default `Root` union member is
+ * pc 1 under the minor family (`Db` → `C♯`) — the first context-dependent pill
+ * label (§9.1). When the family-aware spelling equals the union member's own pitch
+ * class glyph the pill keeps its compact §9.1 form (ASCII `Db`/`Eb`/`F#`/`Ab`/
+ * `Bb`); it only adopts the `spell()` glyph when the family actually re-spells it.
+ * No double-accidental key is reachable (§13).
+ */
+export function rootLabel(root: Root, scale: ScaleType): string {
+  const spelled = spell(ROOT_PITCH_CLASS[root], root, scale);
+  // Keep the compact §9.1 union-member glyph unless the scale family re-spells the
+  // root to a different pitch-letter/side — today only pc 1: `Db` → `C♯` (minor).
+  return spelled === asciiGlyph(root) ? root : spelled;
+}
+
+/**
+ * The `spell()` glyph form of a `Root` union member's OWN default spelling — i.e.
+ * the ASCII pill form (`Db`, `F#`) rewritten with the Unicode accidental glyphs
+ * `spell()` emits (`D♭`, `F♯`). Used by `rootLabel` to detect when the family-aware
+ * spelling matches the root's default (so the pill keeps its §9.1 ASCII form) vs.
+ * when it genuinely re-spells (so the pill adopts the new glyph, e.g. `C♯`).
+ */
+function asciiGlyph(root: Root): string {
+  return root.replace('b', '♭').replace('#', '♯');
+}
