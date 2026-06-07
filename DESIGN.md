@@ -814,7 +814,7 @@ The shell is a flex row: a fixed-width sticky **sidebar** and a fluid **main** c
 
 ### 9.1 Controls card — every pill, in display order
 
-The controls card has exactly three rows. Each row is one ARIA **radiogroup** (§11.3), and **arrow-key navigation follows the left-to-right order below** — so the sequence is load-bearing, not cosmetic. Pill visuals resolve in §8.1; this is the *content* contract (which pills, what label, in what order).
+The controls card has exactly three rows. The **Root** and **Scale** rows are each one ARIA **radiogroup** (single-select), and the **Refs** row is an ARIA **`group` of `checkbox` pills** (multi-select — four independent toggles, any combination valid), see §11.3. In all three, **arrow-key / focus order follows the left-to-right order below** — so the sequence is load-bearing, not cosmetic (the Refs checkboxes are independently Tab-focusable rather than roving, but the displayed order is still authoritative). Pill visuals resolve in §8.1; this is the *content* contract (which pills, what label, in what order).
 
 **Root** — 12 pills, ascending chromatic order from C, using the violin enharmonic spellings of §13 (`Bb` not `A#`, `Ab` not `G#`, `F#` as the default sharp-side choice). Full sequence:
 
@@ -897,9 +897,9 @@ Treat shipping an uncorrected lighter dot background as a P0 blocker — it woul
 ### 11.3 Structure, keyboard, live regions
 
 - **The note map is one composite widget**, not a flat list of tab stops. It uses a **roving tabindex**: exactly one marker is tabbable at a time (initially the root); arrow keys move focus in pitch order (up/down cross strings spatially); Enter/Space sounds the focused note; Tab exits the whole widget.
-- **Every selector** (root, scale, refs) follows the ARIA **radiogroup** pattern: arrows move selection within the group, Tab exits, selection follows focus.
+- **The single-select selectors** (root, scale) follow the ARIA **radiogroup** pattern: each is one `radiogroup` of `radio` pills with a roving tabindex, arrows move selection within the group, Tab exits, selection follows focus. **The Refs selector is multi-select** — four independent reference-layer toggles can each be on or off in any combination — so it is an ARIA **`role="group"` of `role="checkbox"` pills**, *not* a radiogroup: each checkbox is independently Tab-focusable, Space toggles it, and `aria-checked` reflects its own boolean (a radiogroup would announce "radio button, 1 of 4" and falsely tell a screen-reader user only one Refs layer can be active). The §9.1 left-to-right order is still authoritative for both patterns.
 - **ARIA label strings (the accessible names to ship, verbatim).** These are the expected `aria-label` / accessible-name values so a reproducer does not invent them:
-  - Root radiogroup → **"Root note"**; Scale radiogroup → **"Scale type"**; Refs radiogroup → **"Reference layers"**.
+  - Root radiogroup → **"Root note"**; Scale radiogroup → **"Scale type"**; Refs `group` (of checkboxes, per the bullet above) → **"Reference layers"**.
   - The note-map composite widget (the `<svg id="board">` group) → **"Full fingerboard note map"** (the build's existing `aria-label`).
   - The command palette (dialog) → **"Scale search"**; its input → **"Search scales and tools"**; its results list → `role="listbox"` labelled **"Results"**.
   - Each note marker's accessible name is its spoken note name (§13, "C sharp"), suffixed with state for non-visual users — e.g. **"C sharp, root"**, **"E, in scale"**, **"F, not in scale"**.
