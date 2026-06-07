@@ -47,10 +47,22 @@ describe('§13 spokenName — glyph → plain speech (for assistive tech)', () =
 
 describe('§11.3 noteMarkerName — the verbatim per-marker accessible name', () => {
   it('names a root marker "<spoken note>, root" (e.g. "C sharp, root")', () => {
-    // C♯ as the root of C♯ major (pc 1). The spec's own example string.
+    // pc 1 as the root of D♭ major (major family, S15) → spoken "D flat".
     expect(noteMarkerName(1, 'Db', 'major', 'root')).toBe('D flat, root'); // Db root spelling
     // A as the root of A major.
     expect(noteMarkerName(9, 'A', 'major', 'root')).toBe('A, root');
+  });
+
+  it('flips the pc-1 root spoken name with the scale family (S15: D♭ ↔ C♯)', () => {
+    // The §13 spoken/ARIA name follows `spell()`, so it is family-aware too: pc 1's
+    // root marker speaks "D flat" under the major family + chromatic and "C sharp"
+    // under the minor family — and never reaches a "double flat" (no B♭♭ key).
+    expect(noteMarkerName(1, 'Db', 'naturalMinor', 'root')).toBe('C sharp, root');
+    expect(noteMarkerName(1, 'Db', 'harmonicMinor', 'root')).toBe('C sharp, root');
+    expect(noteMarkerName(1, 'Db', 'minorPentatonic', 'root')).toBe('C sharp, root');
+    expect(noteMarkerName(1, 'Db', 'chromatic', 'root')).toBe('D flat, root');
+    // The former D♭-minor B♭♭ 6th (pc 9) now speaks the natural "A", not "B double flat".
+    expect(noteMarkerName(9, 'Db', 'naturalMinor', 'in-scale')).toBe('A, in scale');
   });
 
   it('names an in-scale marker "<spoken note>, in scale" (e.g. "E, in scale")', () => {

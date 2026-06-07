@@ -29,7 +29,7 @@ export function Controls({
       <div className="ctrl-row">
         <div className="lab">Root</div>
         <div className="ctrl-slot">
-          <RootRow selected={state.root} onSelect={selectRoot} />
+          <RootRow selected={state.root} scale={state.scale} onSelect={selectRoot} />
         </div>
       </div>
 

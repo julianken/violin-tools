@@ -6,6 +6,7 @@ import {
   isRefDimmed,
   REF_PILLS,
   ROOT_PILLS,
+  rootLabel,
   SCALE_DISPLAY_NAME,
   SCALE_PILLS,
   scaleName,
@@ -175,5 +176,33 @@ describe('§13 scaleName — spelled heading / breadcrumb name', () => {
     expect(scaleName(setScale(INITIAL_CONTROLS, 'minorPentatonic'))).toBe(
       'A Minor Pentatonic',
     );
+  });
+
+  it('flips the pc-1 H1/breadcrumb name with the scale family (S15: D♭ ↔ C♯)', () => {
+    const dbMinor = setScale(setRoot(INITIAL_CONTROLS, 'Db'), 'naturalMinor');
+    expect(scaleName(dbMinor)).toBe('C♯ Natural Minor'); // never "D♭ Natural Minor"
+    expect(scaleName(setScale(dbMinor, 'major'))).toBe('D♭ Major'); // major family keeps D♭
+    expect(scaleName(setScale(dbMinor, 'chromatic'))).toBe('D♭ Chromatic'); // chromatic = default
+  });
+});
+
+describe('§9.1 / §13 rootLabel — family-aware pill label (S15)', () => {
+  it('every NON-pc-1 root keeps its §9.1 default ASCII pill label in every scale', () => {
+    for (const { scale } of SCALE_PILLS) {
+      for (const root of ROOT_PILLS) {
+        if (root === 'Db') continue; // pc 1 is the one context-dependent pill
+        expect(rootLabel(root, scale)).toBe(root);
+      }
+    }
+  });
+
+  it('pc 1 reads Db for the major family + chromatic, C♯ for the minor family', () => {
+    expect(rootLabel('Db', 'major')).toBe('Db');
+    expect(rootLabel('Db', 'majorPentatonic')).toBe('Db');
+    expect(rootLabel('Db', 'chromatic')).toBe('Db');
+    expect(rootLabel('Db', 'naturalMinor')).toBe('C♯');
+    expect(rootLabel('Db', 'harmonicMinor')).toBe('C♯');
+    expect(rootLabel('Db', 'melodicMinor')).toBe('C♯');
+    expect(rootLabel('Db', 'minorPentatonic')).toBe('C♯');
   });
 });
