@@ -1,0 +1,117 @@
+/*
+ * a11y.css — the §8 / §11 accessibility layer (S10). DESIGN.md §8 (focus ring),
+ * §11.3 (live-region visual hiding), §10 / §16 (44px touch-target hit-padding)
+ * win on any conflict (AGENTS.md). Every value resolves to a §0 token from
+ * tokens.css — NO raw hex (the {mint} ring is `var(--mint)`, the 44px floor is
+ * `var(--touch-target-min)`). This file is cross-cutting chrome a11y, separate
+ * from the per-surface CSS so the focus/hit-padding contract is in one place.
+ *
+ * It is NOT motion (a11y is ARIA/focus); it authors no transition/keyframe, so
+ * it carries no reduced-motion guard of its own — the §7.4 gate lives with the
+ * motion surfaces (motion.css / palette.css), unchanged by S10.
+ */
+
+/* ── §8 custom focus ring — the {mint} target replaces the UA ring ────────────
+ * §8: the design's intended focus indicator is a global 2px {mint} ring at 2px
+ * offset, OR the equivalent box-shadow on rounded chrome. `:focus-visible` means
+ * the ring shows on KEYBOARD focus and not on a pointer click (§8 / the AC). The
+ * invariant §8 protects: a visible focus indicator always exists — we never emit
+ * `outline:none` without this replacement.
+ *
+ * The interactive chrome enumerated in §8 / §9.1: pills (root/scale/refs), nav
+ * items (the live Scales link), the search trigger, the ghost button, the theme
+ * toggle, the skip link, the palette input, and the note-map markers. Rounded
+ * chrome (pills, the ghost button, nav/control radii) uses the box-shadow form so
+ * the ring follows the radius; square-ish / SVG targets use outline + offset. */
+
+/* Default: suppress the UA outline ONLY where we paint a replacement below. */
+.pill:focus-visible,
+.ni:focus-visible,
+.search:focus-visible,
+.ghost:focus-visible,
+.theme:focus-visible,
+.skip-link:focus-visible,
+.pinput:focus-visible {
+  outline: none;
+  /* 2px {mint} ring that hugs the element's border radius (§8 box-shadow form).
+   * `0 0 0 2px` = a 2px ring; a preceding `0 0 0 2px transparent` spacer creates
+   * the §8 "2px offset" so the ring sits just OUTSIDE the control's edge. */
+  box-shadow:
+    0 0 0 2px var(--canvas),
+    0 0 0 4px var(--mint);
+}
+
+/* The palette input sits on {surface}, not {canvas}; offset against its own bg so
+ * the 2px gap reads correctly inside the modal. */
+.pinput:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--mint);
+}
+
+/* The note-map markers are SVG `<g>`; an outline + offset is the reliable SVG
+ * focus indicator (box-shadow does not paint on SVG groups across engines). The
+ * 2px {mint} outline at 2px offset is the §8 target in its outline form. */
+.board .note:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+/* The board group itself can receive focus via the skip link (tabindex -1); give
+ * it the same {mint} indicator so a skip-to-map landing is visible. */
+.board:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+
+/* ── §10 / §16 — 44px touch-target hit-padding (visual box unchanged) ─────────
+ * WCAG 2.5.5: every pointer target reaches 44×44px. The pill (30px) and nav item
+ * (32px) keep their compact PAINTED box; a transparent `::before` overlay expands
+ * the POINTER/tap area to the §0 `touch-target-min` (44px) floor, centered on the
+ * control, without changing layout or the visual size. The host is already
+ * `position:relative` (pills via controls.css; we set it on `.ni`/`.theme` here),
+ * so the absolutely-positioned overlay centers on it. */
+.pill::before,
+.ni::before,
+.theme::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* Grow to at least 44px in both axes; `max()` keeps a wide pill its own width
+   * while still guaranteeing the 44px floor on the short (height) axis. */
+  min-width: var(--touch-target-min); /* 44px */
+  min-height: var(--touch-target-min); /* 44px */
+  width: 100%;
+  height: 100%;
+  /* The overlay is purely a hit area — invisible and behind the label so it never
+   * intercepts the text, only extends the clickable region. */
+  background: transparent;
+  pointer-events: auto;
+  z-index: 0;
+}
+
+/* Nav items / theme toggle need a positioning context for their ::before overlay
+ * (pills already declare `position:relative` in controls.css). The label spans
+ * keep their own stacking so text stays above the transparent overlay. */
+.ni,
+.theme {
+  position: relative;
+}
+
+/* ── §11.3 live regions / sr-only — present for AT, hidden visually ───────────
+ * The two polite live regions (and any visually-hidden a11y text) use the
+ * standard clip pattern: removed from the visual layout and the scroll/overflow
+ * box, but still in the accessibility tree so a screen reader announces updates. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

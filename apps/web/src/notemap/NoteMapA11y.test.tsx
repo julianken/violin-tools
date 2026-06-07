@@ -1,0 +1,177 @@
+import { fireEvent, render } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { NoteMap } from './NoteMap';
+
+// §11.3 accessibility suite for the note-map composite widget: the roving
+// tabindex (one tab stop), the per-marker spoken accessible names (recomputed on
+// a key change), and the Enter/Space sounding (announce + the §12.2 static stroke
+// cue). These are jsdom behaviour assertions; the LIVE focus-ring paint and the
+// axe scan live in the Playwright suite (e2e/a11y.spec.ts).
+
+function renderBoard(props?: Parameters<typeof NoteMap>[0]) {
+  const { container, rerender } = render(
+    <svg>
+      <NoteMap {...props} />
+    </svg>,
+  );
+  const svg = container.querySelector('svg');
+  if (svg === null) throw new Error('no svg host');
+  return {
+    svg,
+    markers: () => Array.from(svg.querySelectorAll('g.note')),
+    rerender: (next?: Parameters<typeof NoteMap>[0]) => {
+      rerender(
+        <svg>
+          <NoteMap {...next} />
+        </svg>,
+      );
+    },
+  };
+}
+
+describe('§11.3 roving tabindex — the note map is one tab stop', () => {
+  it('exposes exactly one marker with tabindex 0; the other 59 are -1', () => {
+    const { markers } = renderBoard();
+    const all = markers();
+    expect(all).toHaveLength(60);
+    const tabbable = all.filter((m) => m.getAttribute('tabindex') === '0');
+    const untabbable = all.filter((m) => m.getAttribute('tabindex') === '-1');
+    expect(tabbable).toHaveLength(1);
+    expect(untabbable).toHaveLength(59);
+  });
+
+  it('the initial tab stop is a root marker (§11.3 "initially the root")', () => {
+    const { markers } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    const tabbable = markers().find((m) => m.getAttribute('tabindex') === '0');
+    // The first root marker in flat (string × column) order is the tab stop; in
+    // A Major that is E5 column 5 (pc 9 = A), so it reads "A, root".
+    expect(tabbable).toBeDefined();
+    expect(tabbable?.getAttribute('aria-label')).toBe('A, root');
+  });
+
+  it('ArrowRight moves the single tab stop one column along the string', () => {
+    const { markers } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    const before = markers();
+    const start = before.find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    fireEvent.keyDown(start, { key: 'ArrowRight' });
+    const after = markers();
+    const tabbable = after.filter((m) => m.getAttribute('tabindex') === '0');
+    // Still exactly one tab stop, now one index further (the next column).
+    expect(tabbable).toHaveLength(1);
+    expect(after.indexOf(tabbable[0]!)).toBe(after.indexOf(start) + 1);
+  });
+
+  it('ArrowDown crosses to the next string spatially (same column, +15 indices)', () => {
+    const { markers } = renderBoard();
+    const before = markers();
+    const start = before.find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    const startIndex = before.indexOf(start);
+    fireEvent.keyDown(start, { key: 'ArrowDown' });
+    const after = markers();
+    const next = after.find((m) => m.getAttribute('tabindex') === '0');
+    expect(after.indexOf(next!)).toBe(startIndex + 15);
+  });
+
+  it('ArrowLeft clamps at the open column (no wrap to the previous string)', () => {
+    const { markers } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    // Drive the tab stop to the open column (col 0) of its string with Home, then
+    // ArrowLeft must clamp there (no wrap to the previous string).
+    const start = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    fireEvent.keyDown(start, { key: 'Home' });
+    const atOpen = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (atOpen === undefined) throw new Error('no tab stop after Home');
+    const openIndex = markers().indexOf(atOpen);
+    expect(openIndex % 15).toBe(0); // Home landed on the open column
+    fireEvent.keyDown(atOpen, { key: 'ArrowLeft' });
+    const after = markers().find((m) => m.getAttribute('tabindex') === '0');
+    expect(markers().indexOf(after!)).toBe(openIndex); // clamped, unchanged
+  });
+});
+
+describe('§11.3 / §12.2 per-marker spoken accessible names', () => {
+  it('names each marker with its §13 spoken note + state suffix', () => {
+    const { svg } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    const labels = Array.from(svg.querySelectorAll('g.note')).map((m) =>
+      m.getAttribute('aria-label'),
+    );
+    // The §11.3 example strings must appear: a root, an in-scale, and an off.
+    expect(labels).toContain('A, root'); // open A4 = root
+    expect(labels).toContain('C sharp, in scale'); // C♯ = 3rd of A major
+    expect(labels).toContain('G, not in scale'); // G (pc 7) off in A major
+  });
+
+  it('recomputes every accessible name when the key changes (root/scale)', () => {
+    const { svg, rerender } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    // Open G3 (string 3, col 0 → index 45): off in A major.
+    const openG3 = () => Array.from(svg.querySelectorAll('g.note'))[45];
+    expect(openG3()?.getAttribute('aria-label')).toBe('G, not in scale');
+    // Switch to G major: open G3 becomes the root → its name must update.
+    rerender({ rootPc: 7, root: 'G', scale: 'major' });
+    expect(openG3()?.getAttribute('aria-label')).toBe('G, root');
+  });
+
+  it('spells off-node names key-aware (B♭ Major speaks flats, never sharps)', () => {
+    const { svg } = renderBoard({ rootPc: 10, root: 'Bb', scale: 'major' });
+    const labels = Array.from(svg.querySelectorAll('g.note')).map(
+      (m) => m.getAttribute('aria-label') ?? '',
+    );
+    // No marker name contains "sharp" in a flat key — off notes spell flat too.
+    expect(labels.some((l) => l.includes('sharp'))).toBe(false);
+    expect(labels).toContain('B flat, root');
+  });
+
+  it('hides the visual label from AT (the marker aria-label is the single name)', () => {
+    const { svg } = renderBoard();
+    for (const lbl of svg.querySelectorAll('g.note text.lbl')) {
+      expect(lbl.getAttribute('aria-hidden')).toBe('true');
+    }
+  });
+});
+
+describe('§11.3 Enter/Space sounding — announce + the static stroke cue', () => {
+  it('Enter on the focused marker announces its spoken note name', () => {
+    const onSoundNote = vi.fn();
+    const { markers } = renderBoard({ rootPc: 9, root: 'A', scale: 'major', onSoundNote });
+    const tabStop = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (tabStop === undefined) throw new Error('no tab stop');
+    fireEvent.keyDown(tabStop, { key: 'Enter' });
+    // The root tab stop is A4 → spoken "A" (no suffix on the live-region phrase).
+    expect(onSoundNote).toHaveBeenCalledWith('A');
+  });
+
+  it('Space sounds the focused marker (same as Enter)', () => {
+    const onSoundNote = vi.fn();
+    const { markers } = renderBoard({ rootPc: 9, root: 'A', scale: 'major', onSoundNote });
+    const tabStop = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (tabStop === undefined) throw new Error('no tab stop');
+    fireEvent.keyDown(tabStop, { key: ' ' });
+    expect(onSoundNote).toHaveBeenCalledWith('A');
+  });
+
+  it('sounding toggles the §12.2 .is-sounding stroke on exactly the sounded marker', () => {
+    const { markers } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    const tabStop = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (tabStop === undefined) throw new Error('no tab stop');
+    fireEvent.keyDown(tabStop, { key: 'Enter' });
+    const sounding = markers().filter((m) =>
+      m.querySelector('circle.sound.is-sounding') !== null,
+    );
+    // Exactly one marker carries the sounding stroke — the one just sounded.
+    expect(sounding).toHaveLength(1);
+    expect(sounding[0]?.getAttribute('aria-label')).toBe('A, root');
+  });
+
+  it('does not announce when no onSoundNote is wired (static render is safe)', () => {
+    const { markers } = renderBoard({ rootPc: 9, scale: 'major' });
+    const tabStop = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (tabStop === undefined) throw new Error('no tab stop');
+    // Must not throw without the callback (the S5 static default omits it).
+    expect(() => {
+      fireEvent.keyDown(tabStop, { key: 'Enter' });
+    }).not.toThrow();
+  });
+});

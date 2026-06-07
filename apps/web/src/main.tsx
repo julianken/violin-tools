@@ -8,6 +8,10 @@ import App from './App.tsx';
 // once at the app root for every later surface (S3+) to consume by name.
 import './styles/tokens.css';
 import './styles/typography.css';
+// §8 / §11 accessibility layer (S10): the custom {mint} :focus-visible ring, the
+// 44px touch-target hit-padding, and the .sr-only / live-region visual hiding.
+// Loaded at the root so the focus/hit-padding contract applies to every surface.
+import './styles/a11y.css';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

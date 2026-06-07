@@ -1,6 +1,9 @@
+import { useState } from 'react';
+
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { usePaletteController } from '../components/CommandPalette/usePaletteController';
-import { scaleName } from '../state/controls';
+import { describeMap } from '../notemap/describeMap';
+import { scaleName, SCALE_DISPLAY_NAME } from '../state/controls';
 import { useControls } from '../state/useControls';
 
 import { Content } from './Content';
@@ -28,10 +31,22 @@ export function AppShell() {
   // The palette open/close lifecycle + the global ⌘K / Ctrl-K toggle (§9).
   const palette = usePaletteController();
 
+  // §11.3 polite live regions: one announces the current sounding note name
+  // (Enter/Space over a map marker), one carries the string-by-string map text
+  // description, refreshed whenever (root, scale) changes. Both live in EXTERNAL
+  // DOM elements (not the SVG), as §11.3 requires — SVG `<desc>` doesn't update
+  // reliably across screen-reader/browser pairs.
+  const [soundingNote, setSoundingNote] = useState('');
+  const mapDescription = describeMap(
+    controls.state.root,
+    controls.state.scale,
+    SCALE_DISPLAY_NAME[controls.state.scale],
+  );
+
   return (
     <div className="app">
       {/* Skip link to the map slot (DESIGN.md §11.3). Visually hidden until
-          focused; the UA focus ring is preserved (S10 styles the {mint} ring). */}
+          focused; S10 styles the {mint} :focus-visible ring (§8). */}
       <a className="skip-link" href="#board">
         Skip to note map
       </a>
@@ -40,7 +55,17 @@ export function AppShell() {
         {/* The breadcrumb's active segment is the §13 spelled selection, shared
             with the Content H1 + the map labels via one `spell()` engine. */}
         <Topbar scaleName={scaleName(controls.state)} />
-        <Content controls={controls} />
+        <Content controls={controls} onSoundNote={setSoundingNote} />
+      </div>
+
+      {/* §11.3 live regions — both `polite`, never `assertive`. Visually hidden
+          (`.sr-only`) but read by assistive tech. The sounding region speaks the
+          last sounded note; the description region re-reads the scale layout. */}
+      <div className="sr-only" aria-live="polite" data-live="sounding">
+        {soundingNote === '' ? '' : `Sounding ${soundingNote}`}
+      </div>
+      <div className="sr-only" aria-live="polite" data-live="map-description">
+        {mapDescription}
       </div>
 
       {/* The command palette overlay — mounted only while open or animating
