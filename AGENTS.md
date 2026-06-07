@@ -13,6 +13,13 @@ This file is **process-only** — how agents work, portable across products. The
 - **PRs / issues:** PRs follow `.github/PULL_REQUEST_TEMPLATE.md` (diagram-first); implementation issues follow `.claude/skills/issue-authoring/SKILL.md`.
 - **Review:** every PR and every implementation-issue spec gets a real review before merge or coding — never rubber-stamp. See **Review dispatch (all tools)** below.
 
+## UI & motion tooling
+Front-end / UI work uses the **transitions-dev skill suite** (the motion SME) plus the UI design skills (`frontend-design` / `ui-design`). This binds **both sides** of a UI PR:
+- **Implementer:** motion & interaction via transitions-dev — *technique* from transitions-dev (recipe hooks, the reduced-motion guard, reflow-to-replay), *values* from `DESIGN.md` §7 (durations/easings/stagger), **no motion library**; components & layout via the UI design skills. Never install transitions-dev's `_root.css` (it ships demo-default tokens `DESIGN.md` forbids) — use the named-custom-property *pattern* populated with §0 values.
+- **Reviewer:** the design-system review pass (`.claude/agents/design-reviewer.md`) **verifies** the transitions-dev patterns were actually used (not hand-rolled, not a motion library) and that motion values trace to §7 — a hand-rolled tween or a motion-library dependency on a UI surface is a finding.
+
+The front-end implementation issues (S5–S10) carry a matching "UI tooling (required)" block; `DESIGN.md` §7 remains the source of truth for the values.
+
 ## Review dispatch (all tools)
 
 These rules bind **every harness** (Claude Code, Cursor, CLI, etc.). Tool-specific dispatch mechanics that duplicate this section belong only in thin pointer config (e.g. `.cursor/rules/`, `CLAUDE.md` tail) — not a second copy of the rubric.

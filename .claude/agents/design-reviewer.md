@@ -125,6 +125,13 @@ hard constraints you need are restated here. The binding ones:
   keyframe (§7.4, §11.4, §16). Legibility may **never** be gated on animation
   (§14) — under `reduce` every state stays distinguishable and the sounding note's
   static heavier stroke is its sole indicator.
+- **transitions-dev patterns, not hand-rolled motion** (AGENTS.md → UI & motion
+  tooling): on any motion or interaction surface in the diff, verify the implementer
+  used the transitions-dev skill-suite patterns (recipe hooks + the
+  `prefers-reduced-motion` guard; reflow-to-replay where a re-trigger is needed)
+  rather than hand-rolling a tween or pulling in a motion library, and that every
+  duration/easing/stagger traces to §7. A hand-rolled motion or a motion-library
+  dependency on a UI surface is a finding.
 
 ### Accessibility (§11)
 - **Color is never the only signal** (§11.1, WCAG 1.4.1): every distinction color
