@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import App from './App.tsx';
@@ -68,5 +68,46 @@ describe('App shell', () => {
       'aria-disabled',
       'true',
     );
+  });
+});
+
+// S14 — the H1 heading and the breadcrumb active segment are §13 scale-aware: they
+// spell the selected key letter-correct (the same `spell()` engine the map labels
+// use). These mount the WHOLE app, change the selection, and assert all three
+// surfaces agree — the integration guard for the original B♭→A♯ defect.
+describe('App §13 scale-aware heading + breadcrumb (S14)', () => {
+  function activeCrumb(): string {
+    const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    const active = crumb.querySelector('[aria-current="page"]');
+    if (active === null) throw new Error('no active breadcrumb segment');
+    return active.textContent;
+  }
+
+  it('defaults to the A Major selection in both the H1 and the breadcrumb', () => {
+    render(<App />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('A Major');
+    expect(activeCrumb()).toBe('A Major');
+  });
+
+  it('selecting B♭ Major spells B♭ (not A♯) in the H1 and the breadcrumb', () => {
+    render(<App />);
+    const rootRow = screen.getByRole('radiogroup', { name: 'Root note' });
+    fireEvent.click(within(rootRow).getByRole('radio', { name: 'Bb' }));
+
+    const h1 = screen.getByRole('heading', { level: 1 });
+    // The §13 root glyph is B♭ — never the sharp-only A♯ the old table produced.
+    expect(h1).toHaveTextContent('B♭ Major');
+    expect(h1.textContent).not.toContain('A♯');
+    expect(activeCrumb()).toBe('B♭ Major');
+  });
+
+  it('uses the full scale name (Harmonic Minor), not the truncated pill label', () => {
+    render(<App />);
+    const scaleRow = screen.getByRole('radiogroup', { name: 'Scale type' });
+    // The pill label is truncated "Harm. minor"; the heading uses the full §13
+    // form "Harmonic Minor".
+    fireEvent.click(within(scaleRow).getByRole('radio', { name: 'Harm. minor' }));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('A Harmonic Minor');
+    expect(activeCrumb()).toBe('A Harmonic Minor');
   });
 });

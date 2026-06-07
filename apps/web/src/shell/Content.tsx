@@ -2,7 +2,7 @@ import { Controls } from '../controls/Controls';
 import { NoteMap } from '../notemap/NoteMap';
 import { NoteMapLegend } from '../notemap/NoteMapLegend';
 import { type MotionBuild } from '../notemap/motion';
-import { derive } from '../state/controls';
+import { derive, scaleName } from '../state/controls';
 import { type ControlsApi } from '../state/useControls';
 
 // The max-880px content column (DESIGN.md §9 tree, §4.2). It emits the slot set
@@ -14,9 +14,9 @@ import { type ControlsApi } from '../state/useControls';
 // as a prop. The three live controls rows (Controls) write it, and the map
 // re-derives its `(rootPc, scaleSet)` from it (derive) so a control change
 // re-renders the §12 60-dot map IN PLACE. S7 wires the Refs toggles into the map's
-// §12.3 reference overlays (the four `.tape` / `.land` layers). The caveat copy,
-// the H1 scale-name, and the live breadcrumb are still out of scope (they need
-// §13 scale-aware spelling).
+// §12.3 reference overlays (the four `.tape` / `.land` layers). S14 fills the H1
+// scale-name (and the topbar breadcrumb, in AppShell) from §13 scale-aware
+// spelling via `scaleName()`. The caveat copy stays out of scope.
 
 interface ContentProps {
   /** The shared controls api, owned by AppShell so the palette can write it too. */
@@ -42,6 +42,9 @@ export function Content({ controls }: ContentProps) {
   // classifies each node via `classify()` (it resolves the §12.5(a) interval set
   // from `scale` itself; `derive()` exposes both halves for the state-seam test).
   const { rootPc } = derive(controls.state);
+  // §13 spelled heading ("B♭ Major", "A Harmonic Minor") — same `spell()` engine
+  // the map labels use, so the H1 and the fingerboard never disagree.
+  const heading = scaleName(controls.state);
   const motion = resolveMotionBuild();
 
   return (
@@ -49,11 +52,12 @@ export function Content({ controls }: ContentProps) {
       <div className="kicker">Scale map</div>
 
       <div className="toolhead">
-        {/* H1 scale-name slot + interval-formula slot — both empty pending the
-            §13 scale-aware spelling that names "A Major" / "A Harmonic Minor"
-            (out of S6 scope). The H1 holds its 32px lh-tight box at every width
-            (§10) so the landmark/heading order stays correct while empty. */}
-        <h1 className="h1" />
+        {/* H1 scale-name slot — the §13 spelled current selection ("A Major",
+            "B♭ Major", "A Harmonic Minor"). S14 fills it from `scaleName()` (the
+            same `spell()` engine as the map labels). The interval-formula slot
+            stays empty (its §13 formula tokens are a later concern). The H1 holds
+            its 32px lh-tight box at every width (§10). */}
+        <h1 className="h1">{heading}</h1>
         <div className="formula" />
       </div>
 
@@ -83,6 +87,7 @@ export function Content({ controls }: ContentProps) {
           >
             <NoteMap
               rootPc={rootPc}
+              root={controls.state.root}
               scale={controls.state.scale}
               refs={controls.state.refs}
               motion={motion}

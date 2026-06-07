@@ -24,7 +24,9 @@
 import {
   classify,
   nodePitchClass,
+  spell,
   SCALE_INTERVALS,
+  type Root,
   type ScaleType,
 } from '@violin-tools/theory';
 import { useRef } from 'react';
@@ -49,7 +51,6 @@ import {
 import { type MotionBuild, useDotPopReplay } from './motion';
 import './motion.css';
 import './notemap.css';
-import { noteName } from './notes';
 
 // §12.2 — the per-state dot radii. Radius is a redundant non-color cue (§11.1),
 // so it is carried as a real geometric value, not only a class.
@@ -60,6 +61,13 @@ const GLOW_RADIUS = 19;
 interface NoteMapProps {
   /** Selected root as a pitch-class integer (§12.5(b)); A = 9 by default. */
   rootPc?: number;
+  /**
+   * Selected root pill name (§9.1) — the §13 key the dot labels spell within.
+   * `rootPc` classifies (§12.5); `root` names (§13), so both are threaded: the
+   * pitch class is what `classify` needs, the spelling needs the chosen glyph
+   * (`Bb` vs `A#`). Defaults to `A`, matching the `rootPc` default.
+   */
+  root?: Root;
   /** Selected scale type (§12.5(a)); Major by default. */
   scale?: ScaleType;
   /**
@@ -81,6 +89,7 @@ interface NoteMapProps {
 // A Major (rootPc 9), the §12.5 worked-check selection, so the static render is
 // the exact case a reviewer can diff against the spec.
 const DEFAULT_ROOT_PC = 9;
+const DEFAULT_ROOT: Root = 'A';
 const DEFAULT_SCALE: ScaleType = 'major';
 // Every reference layer off by default (the S6 INITIAL_CONTROLS refs) — the
 // first paint is the bare map a reviewer diffs against §12.
@@ -93,6 +102,7 @@ const DEFAULT_SCALE: ScaleType = 'major';
  */
 export function NoteMap({
   rootPc = DEFAULT_ROOT_PC,
+  root = DEFAULT_ROOT,
   scale = DEFAULT_SCALE,
   refs = INITIAL_CONTROLS.refs,
   motion = 'stateful',
@@ -233,7 +243,11 @@ export function NoteMap({
                   y={cy + LABEL_Y_OFFSET}
                   textAnchor="middle"
                 >
-                  {hasLabel ? noteName(nodePc) : ''}
+                  {/* §13 letter-correct spelling for the current key — Bb major's
+                      root reads Bb, A major's 3rd reads C♯, never the sharp-only
+                      table. Off nodes carry no label (the element persists empty
+                      for S8). */}
+                  {hasLabel ? spell(nodePc, root, scale) : ''}
                 </text>
               </g>
             );
