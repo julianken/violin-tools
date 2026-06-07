@@ -1,0 +1,105 @@
+/*
+ * typography.css — self-hosted faces + the typography tokens (DESIGN.md §0 type,
+ * §3). Companion to tokens.css; DESIGN.md §0 is the source of truth.
+ *
+ * Fonts are SELF-HOSTED woff2 — NO Google Fonts / third-party CDN request
+ * (consistent with the README no-third-party posture and the static deploy).
+ * Files live under apps/web/public/fonts/ and are served from /fonts/* by Vite.
+ *   Inter        — official rsms/inter v4.1 release (web static instances), OFL.
+ *   Geist Mono   — official vercel/geist-font (GeistMono webfonts), OFL.
+ * Each family's OFL.txt is committed alongside its woff2 files.
+ *
+ * Inter loads 400/500/600/700 roman + a REAL Inter Italic 400 face (§3,
+ * weights-ui-italic): the SVG "heel ⌄" label sets font-style:italic and the
+ * roman cuts carry no italic, so without a true italic the browser would
+ * synthesize an oblique slant. The italic woff2 below is a genuine italic face
+ * (italic angle ≈ -9.4°), NOT synthesis. Geist Mono loads 400/500/600.
+ *
+ * font-display: swap on the critical UI faces so first paint is stable; the
+ * less-critical faces (Inter 600/700, the italic, Geist Mono 500/600) use
+ * `optional` so a slow font fetch never blocks paint. The critical Inter faces
+ * (400/500) are <link rel="preload">ed from index.html.
+ */
+
+/* ── Inter (roman) ── */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/inter/inter-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/inter/inter-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: optional;
+  src: url('/fonts/inter/inter-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: optional;
+  src: url('/fonts/inter/inter-700-normal.woff2') format('woff2');
+}
+
+/* ── Inter Italic 400 — a REAL loaded face, not synthesis (§3) ── */
+@font-face {
+  font-family: 'Inter';
+  font-style: italic;
+  font-weight: 400;
+  font-display: optional;
+  src: url('/fonts/inter/inter-400-italic.woff2') format('woff2');
+}
+
+/* ── Geist Mono ── */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/geist-mono/geist-mono-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: optional;
+  src: url('/fonts/geist-mono/geist-mono-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: optional;
+  src: url('/fonts/geist-mono/geist-mono-600-normal.woff2') format('woff2');
+}
+
+/*
+ * Typography tokens (§0 `type`). The font stacks are verbatim from §0; the
+ * line-heights and font-feature-settings are the named tokens consumers read.
+ * Numbers/sizes/weights per role live in the §3 table and are applied by the
+ * consuming components (S3+), not declared as tokens here.
+ */
+:root {
+  /* families — verbatim §0 */
+  --family-ui: 'Inter', -apple-system, sans-serif; /* all human language */
+  --family-mono: 'Geist Mono', 'SF Mono', Menlo, monospace; /* music/technical */
+
+  /* line-heights (named; §0 / §3) */
+  --lh-tight: 1.1; /* large display — Page H1 (scale name) */
+  --lh-normal: 1.5; /* body copy / legend / caveat / palette (document default) */
+  --lh-flush: 1; /* single-line chrome set by fixed height */
+
+  /* font-feature-settings — tabular figures are LOAD-BEARING (§3). */
+  --features-mono: 'tnum', 'lnum'; /* Geist Mono numeric roles */
+  --features-ui: 'tnum'; /* Inter numeric roles */
+}

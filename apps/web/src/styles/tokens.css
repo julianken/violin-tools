@@ -1,0 +1,275 @@
+/*
+ * tokens.css — the Violin Tools design-token surface (DESIGN.md §0 Token Manifest).
+ *
+ * This file is a 1:1 transcription of DESIGN.md §0 into CSS custom properties.
+ * DESIGN.md §0 is the source of truth and wins on any conflict; review this file
+ * line-by-line against it. No design decision is made here — only transcription.
+ *
+ * THREE-TIER CHAIN (color only — §0):
+ *   TIER 1 primitive  — holds the raw literal; the ONLY place a hex is written.
+ *   TIER 2 semantic   — aliases ONE primitive, names its job (var(--<primitive>)).
+ *   TIER 3 component  — aliases a semantic, names WHERE the color is used.
+ * Two documented departures from the strict chain (tagged at their declaration):
+ *   (a) some semantic tokens alias a primitive directly when no component layer
+ *       exists for that role (e.g. --canvas → --gray-950);
+ *   (b) the 15 single-use note-map SVG component tokens alias an `ink-*`
+ *       PRIMITIVE directly ([ink→primitive]) — each has one SVG call site and no
+ *       system-wide job, so a semantic middle tier would be empty indirection.
+ *
+ * color-alpha tokens are emitted as the RESOLVED rgba() literal documented in
+ * §0's trailing comment ("derived, never hand-keyed") — NOT recomputed here.
+ *
+ * radius / space / motion / elevation / layout are primitive scales with NO
+ * component tier by design (§0 closing note) — declared flat.
+ *
+ * Typography (@font-face + family/line-height/feature tokens) lives in the
+ * sibling typography.css. The prefers-reduced-motion gate (plumbing only, no
+ * @keyframes / transitions) lives at the foot of THIS file (§7.4).
+ */
+
+:root {
+  /* ───────────────────────────────────────────────────────────────────────
+   * TIER 1 — PRIMITIVES. Raw literals. The only place a hex is written. (§0)
+   * ─────────────────────────────────────────────────────────────────────── */
+
+  /* Near-black grey ramp. INVARIANT: higher suffix = darker (lower luminance).
+   * Listed in ascending-luminance order; trailing comment gives the measured L. */
+  --gray-950: #0a0a0a; /* L≈0.0030 — darkest (page canvas) */
+  --gray-945: #0c0c0d; /* L≈0.0037 */
+  --gray-935: #0f0f11; /* L≈0.0048 */
+  --gray-930: #141417; /* L≈0.0071 — note-map plate */
+  --gray-925: #161618; /* L≈0.0081 */
+  --gray-915: #1c1c1f; /* L≈0.0118 */
+  /* line greys */
+  --gray-900: #1f1f1f; /* L≈0.0137 */
+  --gray-880: #26262b; /* L≈0.0197 */
+  --gray-870: #28282c; /* L≈0.0215 */
+  --gray-820: #3a3a40; /* L≈0.0430 */
+  /* text greys */
+  --gray-600: #4a4a52; /* L≈0.0696 */
+  --gray-500: #6a6a72; /* L≈0.1459 */
+  --gray-300: #9a9aa2; /* L≈0.3259 */
+  --gray-100: #ededed; /* L≈0.8469 — lightest (primary text) */
+
+  /* accents */
+  --mint-500: #00d4a4;
+  --mint-600: #00b48a;
+  --amber-400: #caa45f;
+  --teal-500: #2a9d8f;
+  --violet-500: #7c5cbf;
+
+  /* status — NONE of these are emitted by either build. They exist ONLY so a
+   * future status surface has a sanctioned literal instead of an invented one
+   * (§2.6). red-500 is the single reserved error candidate, deliberately
+   * desaturated so it never reads as a second brand accent next to mint. */
+  --red-500: #e5644e; /* RESERVED error candidate — not applied anywhere in v1 */
+
+  /* note-map literals (live only in the SVG; primitives so they still alias) */
+  --ink-string: #3a3a3f; /* string lines + nut rect */
+  --ink-guide: #1d1d22; /* vertical position guides */
+  --ink-off-fill: #17171c; /* off-state dot fill */
+  --ink-off-edge: #2a2a30; /* off-state dot stroke */
+  --ink-root-lbl: #08130f; /* text inside root dot (INVARIANT) */
+  --ink-scale-lbl: #ffffff; /* text on in-scale dot */
+  --ink-strname: #cfcfd4; /* string-name labels + palette row text */
+  --ink-tape-num: #d6b878; /* tape number label */
+  --ink-heel-dash: #8a83a6; /* heel underline */
+  --ink-heel-lbl: #a99fc4; /* "heel ⌄" */
+  --ink-oct-lbl: #5ecabb; /* "octave ◈" + "½ string" */
+  --ink-pos-lbl: #b9a7e8; /* "3rd/4th/5th/7th pos" */
+  --ink-tape-fg: #f0e2c4; /* active tape pill text */
+  --ink-land-fg: #bfeae3; /* active landmark pill text */
+  --ink-pal-soon: #55555d; /* palette "soon" meta */
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * TIER 2 — SEMANTIC. Each names a job and aliases ONE primitive. (§0)
+   * ─────────────────────────────────────────────────────────────────────── */
+  --canvas: var(--gray-950); /* page body            [semantic→primitive, case a] */
+  --sidebar: var(--gray-945); /* left rail            [semantic→primitive, case a] */
+  --surface: var(--gray-925); /* raised card / palette body */
+  --raised: var(--gray-915); /* active/hover-selected interactive surface */
+  --panel: var(--gray-930); /* inner note-map plate */
+  --panel-bd: var(--gray-880); /* note-map plate border */
+  --panelcard-bg: var(--gray-935); /* frame wrapping the plate */
+  --hairline: var(--gray-900); /* primary dividers */
+  --hairline2: var(--gray-870); /* secondary / resting-interactive borders */
+  --hairline3: var(--gray-820); /* hover border on pills + search; breadcrumb "/" */
+  --nav-hover-bg: var(--gray-930); /* nav item hover fill */
+  --text: var(--gray-100); /* primary */
+  --text2: var(--gray-300); /* secondary */
+  --text3: var(--gray-500); /* tertiary / placeholder */
+  --muted: var(--gray-600); /* disabled-only */
+  --mint: var(--mint-500); /* BRAND + "in scale / where sound lives" */
+  --mint-deep: var(--mint-600); /* reserved deeper mint — declared, unapplied (§0) */
+  --tape: var(--amber-400); /* functional: beginner TAPE overlay only */
+  --teal: var(--teal-500); /* functional: OCTAVE landmark only */
+  --violet: var(--violet-500); /* functional: POSITION/HEEL landmark only */
+  /* status roles (§2.6). success has NO own primitive — it reuses {mint}.
+   * danger is reserved/unbound in v1 — declared, applied to nothing (§2.6). */
+  --success: var(--mint); /* in-tune / success === the acoustic anchor */
+  --danger: var(--red-500); /* RESERVED error role — unbound in v1 (do not apply) */
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * color-alpha — semantic translucents. Each is its base PRIMITIVE at an
+   * opacity; emitted as the RESOLVED rgba() literal §0 documents in its trailing
+   * comment (derived, never hand-keyed). (§0)
+   * ─────────────────────────────────────────────────────────────────────── */
+  --in-scale-fill: rgba(0, 212, 164, 0.13); /* {mint-500} @ 13% — in-scale dot fill */
+  --in-scale-swatch: rgba(0, 212, 164, 0.14); /* {mint-500} @ 14% — legend swatch */
+  --pill-active-wash: rgba(0, 212, 164, 0.12); /* {mint-500} @ 12% — active default pill bg */
+  --root-glow: rgba(0, 212, 164, 0.28); /* {mint-500} @ 28% — root ring (STATEFUL build) */
+  --root-glow-snappy: rgba(0, 212, 164, 0.25); /* {mint-500} @ 25% — root ring (SNAPPY build) */
+  --tape-pill-wash: rgba(202, 164, 95, 0.14); /* {amber-400} @ 14% — active tape pill bg */
+  --tape-swatch: rgba(202, 164, 95, 0.3); /* {amber-400} @ 30% — legend swatch */
+  --tape-band: rgba(202, 164, 95, 0.16); /* {amber-400} @ 16% — tape band in note map */
+  --land-pill-wash: rgba(42, 157, 143, 0.16); /* {teal-500} @ 16% — active landmark pill bg */
+  --octave-band: rgba(42, 157, 143, 0.34); /* {teal-500} @ 34% — teal octave band */
+  --heel-band: rgba(124, 92, 191, 0.3); /* {violet-500} @ 30% — violet heel band */
+  --overlay-scrim: rgba(0, 0, 0, 0.55); /* black @ 55% — palette backdrop (blur 2px) */
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * TIER 3 — COMPONENT. Names WHERE a color is used. (§0)
+   * INVARIANT: a component token aliases a SEMANTIC token — EXCEPT the 15
+   * single-use note-map SVG literals, which alias an `ink-*` PRIMITIVE directly
+   * BY DESIGN ([ink→primitive]).
+   * ─────────────────────────────────────────────────────────────────────── */
+  /* ── alias a SEMANTIC token ── */
+  --fingerboard-plate: var(--panel); /* the SVG plate ( → gray-930 → #141417 ) */
+  --open-label: var(--text3); /* "open" label ( = gray-500 ) */
+  /* ── [ink→primitive] single-use SVG literals: alias an `ink-*` PRIMITIVE ── */
+  --string-line: var(--ink-string); /* [ink→primitive] 4 string lines + nut rect */
+  --guide-line: var(--ink-guide); /* [ink→primitive] vertical position guides */
+  --off-fill: var(--ink-off-fill); /* [ink→primitive] off-state dot */
+  --off-stroke: var(--ink-off-edge); /* [ink→primitive] off-state dot ring */
+  --root-label: var(--ink-root-lbl); /* [ink→primitive] text inside root dot */
+  --scale-label: var(--ink-scale-lbl); /* [ink→primitive] text on in-scale dot */
+  --string-name: var(--ink-strname); /* [ink→primitive] string labels + palette text */
+  --tape-num: var(--ink-tape-num); /* [ink→primitive] */
+  --heel-dash: var(--ink-heel-dash); /* [ink→primitive] */
+  --heel-label: var(--ink-heel-lbl); /* [ink→primitive] */
+  --octave-label: var(--ink-oct-lbl); /* [ink→primitive] */
+  --pos-label: var(--ink-pos-lbl); /* [ink→primitive] */
+  --tape-pill-fg: var(--ink-tape-fg); /* [ink→primitive] */
+  --land-pill-fg: var(--ink-land-fg); /* [ink→primitive] */
+  --palette-soon: var(--ink-pal-soon); /* [ink→primitive] */
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * space — 4px base. Multiplier = value / 4. (§0; flat, no component tier)
+   * ─────────────────────────────────────────────────────────────────────── */
+  --space-100: 4px; /* 1× */
+  --space-200: 8px; /* 2× */
+  --space-300: 12px; /* 3× */
+  --space-400: 16px; /* 4× */
+  --space-500: 20px; /* 5× */
+  --space-600: 24px; /* 6× */
+  --space-800: 32px; /* 8× */
+  --space-1000: 40px; /* 10× */
+  --space-1200: 48px; /* 12× */
+  --space-1600: 64px; /* 16× */
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * radius (§0; flat, no component tier — §16 Known Gaps)
+   * ─────────────────────────────────────────────────────────────────────── */
+  --radius-chip: 3px; /* legend swatches; palette kbd; tape/heel band rx */
+  --radius-kbd: 4px; /* kbd, esc, "soon" badge */
+  --radius-nav: 6px; /* nav items; theme toggle */
+  --radius-control: 8px; /* search bar; palette rows */
+  --radius-plate: 10px; /* note-map inner plate */
+  --radius-card: 12px; /* controls card */
+  --radius-frame: 14px; /* panelcard frame; command palette */
+  --radius-pill: 9999px; /* pills; ghost button; note-map dots (circles) */
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * elevation — depth is surface-tint + hairline FIRST (§5). modal is the ONLY
+   * heavy shadow in the product. (§0; flat)
+   * ─────────────────────────────────────────────────────────────────────── */
+  --elevation-resting: none;
+  --elevation-raised: none; /* surface step + hairline only */
+  --elevation-overlay: none; /* scrim carries the float for the scrim itself */
+  --elevation-modal: 0 24px 64px rgba(0, 0, 0, 0.6); /* the ONLY heavy shadow */
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * motion — the project's motion-token layer. Named CSS custom properties on
+   * :root (the technique pattern from transitions-dev; DESIGN §7/§0's own names
+   * and values replace its defaults entirely — NO transitions-dev demo-default
+   * token, NO motion library). S2 owns the names and values, NOT the behavior:
+   * NO @keyframes / transition lists are authored here. (§0 / §7)
+   *
+   * Build-specific pairs: where §0 documents a stateful vs snappy literal, BOTH
+   * members are declared so each build references a name (root-glow above;
+   * color-shift / color-shift-snappy below). Per-build :root selection is an S8
+   * concern; S2 applies neither.
+   * ─────────────────────────────────────────────────────────────────────── */
+  /* durations (ms) */
+  --press: 90ms;
+  --color-shift: 140ms; /* stateful build (pill/search border/bg/color, search) */
+  --color-shift-snappy: 120ms; /* snappy build override of color-shift (§0 line 227) */
+  --label-fade: 160ms; /* .note .lbl opacity transition (§7.1) */
+  --lbl-fill: 190ms; /* .note .lbl fill transition (§7.1) */
+  --pop: 150ms;
+  --overlay-out: 180ms; /* scrim opacity — applies BOTH directions */
+  --glow-fade: 200ms; /* .note .glow opacity */
+  --state-color: 200ms; /* dot fill/stroke/stroke-width; .land opacity */
+  --palette-in: 200ms; /* palette OPACITY on open */
+  --palette-out: 150ms; /* palette OPACITY on close */
+  --modal-out: 160ms; /* palette TRANSFORM on close */
+  --modal-in: 250ms; /* palette TRANSFORM on open */
+  --dot-radius: 230ms;
+  --tape-slide: 230ms;
+  /* easings — each carries a "never use for" guard in §0 */
+  --ease-standard: ease; /* the default; safe anywhere */
+  --ease-spring: cubic-bezier(0.34, 1.45, 0.64, 1); /* dot RADIUS morph only */
+  --ease-spring-2: cubic-bezier(0.34, 1.4, 0.64, 1); /* tape SLIDE only */
+  --ease-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1); /* snappy dot-POP only */
+  --ease-modal-in: cubic-bezier(0.22, 1, 0.36, 1); /* palette OPEN only */
+  --ease-modal-out: cubic-bezier(0.4, 0, 0.2, 1); /* palette CLOSE only */
+  /* stagger constants */
+  --stagger-per-column-stateful: 6ms;
+  --stagger-per-column-snappy: 10ms;
+  /* reduced-motion gate flag — plumbing for §7.4 (NOT a §0 token). 0 by default;
+   * the `prefers-reduced-motion: reduce` block at the foot of this file flips it
+   * to 1 so token-aware consumers branch on the OS setting without re-querying
+   * the media feature. No motion behavior is attached to it in S2. */
+  --reduced-motion: 0;
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * layout (§0; flat measurements)
+   * ─────────────────────────────────────────────────────────────────────── */
+  --sidebar-w: 248px;
+  --content-max-w: 880px;
+  --topbar-h: 52px;
+  --nav-item-h: 32px;
+  --search-h: 36px;
+  --pill-h: 30px;
+  --palette-w: 560px;
+  --palette-row-h: 40px;
+  --board-viewbox: 0 0 760 264;
+  --board-min-width: 760px;
+  --shell-min-width: 760px; /* below this, the plate horizontal-scrolls (§10) */
+  --touch-target-min: 44px; /* WCAG 2.5.5 floor for any pointer target */
+}
+
+/*
+ * §7.4 Reduced-motion gate — PLUMBING ONLY.
+ *
+ * S2 establishes the `prefers-reduced-motion: reduce` structure so later motion
+ * items (S6–S9) have the kill-switch in place and motion is opt-in by default
+ * (§11.4). S2 authors NO @keyframes and NO transition behavior — the per-element
+ * resets §7.4 lists (.dot-anim animation; .note .dot/.glow/.lbl, .tape, .land,
+ * .overlay, .palette, .pill transition; .pill:active transform) are authored by
+ * the items that introduce that motion, each adding its reset inside this gate.
+ *
+ * The single declaration below is plumbing, not behavior: it flips the
+ * `--reduced-motion` gate flag (declared `0` in :root above) to `1` so a later
+ * surface can branch on the OS setting without re-querying the media feature. It
+ * is a token, not a keyframe or a transition — keeping the gate structural and
+ * non-droppable rather than an empty block a minifier removes.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    /* Motion is opt-in (§11.4); under `reduce` this flag flips to 1 for
+     * token-aware consumers. No motion behavior is suppressed here in S2 — the
+     * per-element resets land with the motion items (S6–S9). */
+    --reduced-motion: 1;
+  }
+}

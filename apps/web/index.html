@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Violin Tools</title>
+    <!-- Preload the critical, self-hosted UI faces (Inter 400/500) so first
+         paint is stable and the S12 reduced-motion visual snapshots stay
+         deterministic (DESIGN.md §3; fonts are self-hosted, never a CDN). -->
+    <link
+      rel="preload"
+      href="/fonts/inter/inter-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/inter/inter-500-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
   </head>
   <body>
     <div id="root"></div>
