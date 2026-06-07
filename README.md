@@ -2,11 +2,21 @@
 
 A web app of focused practice tools for violinists. The first tool is **Scales** — a whole-neck fingerboard note map that shows where every note of a scale falls across the entire fingerboard at a glance.
 
-## Status: in development — builds and runs locally, not yet live
+## Status: shipped — v1 is live at [strings-solo.com](https://strings-solo.com)
 
-The foundation is in place: a Turborepo + pnpm-workspaces monorepo whose `apps/web` is a React + Vite + TypeScript app that builds to static assets, gated in CI by `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build`. You can install and run it locally — see [`AGENTS.md`](./AGENTS.md) → "Working in the tree" for the commands. The product UI is still being built against [`DESIGN.md`](./DESIGN.md) (the spec for the whole thing — token system, color and contrast, typography, motion, components, accessibility, and the fingerboard note-map model). The hosting infrastructure is now defined as code in [`infra/`](./infra/) — Cloudflare's free edge fronting a public-read static-asset bucket, with a keyless CI deploy pipeline — but it is **not applied yet**, so nothing is **live**.
+Violin Tools v1 is live. The **Scales** note map — the whole-neck fingerboard view, scale-aware note spelling, reference overlays, motion, the ⌘K command palette, and the accessibility + mobile-reflow passes — is built against [`DESIGN.md`](./DESIGN.md) (the spec for the whole thing: token system, color and contrast, typography, motion, components, accessibility, and the fingerboard note-map model) and deployed.
 
-It's a client-side static web app: no backend, no accounts, no personal data, no analytics.
+**Install and run locally:**
+
+```sh
+pnpm install      # install workspace deps (the monorepo uses pnpm + Turborepo)
+pnpm dev          # run apps/web locally (Vite dev server)
+pnpm build        # build the static bundle to apps/web/dist/
+```
+
+The four CI gates are `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build`; a separate soft Playwright suite (`pnpm test:e2e`) covers motion, accessibility, mobile reflow, and the v1 acceptance + visual flows. See [`AGENTS.md`](./AGENTS.md) → "Working in the tree" for the full command set.
+
+**Hosting (lean, ~$0/mo):** it's a client-side static web app — no backend, no accounts, no personal data, no analytics. The built bundle is published to a public-read Google Cloud Storage bucket; a free **Cloudflare Worker** fronts it at the edge (TLS + CDN + the `www`→apex 301). There is **no GCP load balancer or Cloud CDN** — those were deferred for cost and can be added in front of the same bucket if traffic or latency metrics ever justify it. Deploys are keyless: a GitHub Actions workflow ([`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml)) authenticates to GCP via Workload Identity Federation (no service-account JSON key) and syncs the bundle on every push to `main`. The hosting IaC lives in [`infra/`](./infra/) — see [`infra/README.md`](./infra/README.md).
 
 ## Where things live
 

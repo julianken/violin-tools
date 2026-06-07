@@ -39,11 +39,15 @@ export default {
         });
 
     // Caching: hashed assets are immutable; everything else (notably the SPA
-    // entry) revalidates so a fresh deploy goes live without a purge.
+    // entry) revalidates so a fresh deploy goes live without a purge. Gate
+    // `immutable` on a REAL asset hit (`originResponse.ok` AND an /assets/ path):
+    // a 404 that fell back to index.html keeps `path` as /assets/... but must NOT
+    // be stamped immutable, or a missing hashed file would be cached forever as a
+    // stale SPA shell. (This matches the live `strings-solo-web` Worker.)
     const headers = new Headers(response.headers);
     headers.set(
       "Cache-Control",
-      path.startsWith("/assets/")
+      originResponse.ok && path.startsWith("/assets/")
         ? "public,max-age=31536000,immutable"
         : "no-cache",
     );
