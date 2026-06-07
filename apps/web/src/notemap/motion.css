@@ -1,0 +1,237 @@
+/*
+ * motion.css — the §7 motion layer over the §12 note map (DESIGN.md §7 / §7.1 /
+ * §7.2 / §7.4 / §7.5 win on any conflict, AGENTS.md). This is THE transitions-dev
+ * step (AGENTS.md "UI & motion tooling"): the *technique* is the transitions-dev
+ * recipe vocabulary — texts-reveal (18) per-column stagger, number-pop-in (02)
+ * `dotPop` + the `void el.offsetWidth` reflow-to-replay, panel-reveal (07) for the
+ * tape `+4`↔`+3` slide, tabs-sliding (16) for the active-pill highlight — and the
+ * *values* are §0 motion tokens by NAME (no raw durations/easings invented here,
+ * NO transitions-dev demo defaults, NO `_root.css`, NO motion library). On any
+ * conflict §7 wins over the transitions-dev illustrative defaults.
+ *
+ * ONE recipe, two builds. A single root toggle — `data-motion="stateful"`
+ * (primary, default) | `data-motion="snappy"` (alternative) on the board element
+ * — selects two CSS-variable *sets* (the transitions-dev "every transition reads
+ * from semantic :root names" principle). There are NO per-build rule forks beyond
+ * the variable values: the stateful property transitions vs the snappy `dotPop`
+ * keyframe both key off the same `data-motion` selector, and the shared aliases
+ * (`--stagger-per-column`, `--root-ring-color`) point at the build's source token.
+ *
+ * Every value below resolves to a §0 token minted by S2 in tokens.css; this file
+ * authors BEHAVIOR (transitions / @keyframes / the §7.4 gate), never new values.
+ */
+
+/* ── build selector → the two §0 variable sets (§7.1 / §7.2) ─────────────────
+ * The semantic aliases each build supplies. Stateful is the default; both are
+ * declared explicitly so each build's literals are unambiguous (§7.2). */
+.board[data-motion='stateful'] {
+  --stagger-per-column: var(--stagger-per-column-stateful); /* 6ms (§7.1) */
+  --root-ring-color: var(--root-glow); /* {mint-500} @ .28 — stateful (§7.2) */
+}
+.board[data-motion='snappy'] {
+  --stagger-per-column: var(--stagger-per-column-snappy); /* 10ms (§7.2) */
+  --root-ring-color: var(--root-glow-snappy); /* {mint-500} @ .25 — snappy (§7.2) */
+}
+
+/* The root ring color is driven by the selected build's alias in BOTH builds,
+ * so the §0 root-glow/.28 vs root-glow-snappy/.25 choice is the variable set's
+ * job, not a per-build rule (§7.2). S5 set the static `--root-glow` stroke; here
+ * the build alias takes over so snappy softens it to .25. */
+.board[data-motion] .note .glow {
+  stroke: var(--root-ring-color);
+}
+
+/* ── per-column stagger (texts-reveal 18) — set inline on each node ───────────
+ * Each note `<g>` carries `--col` (its 0…14 column index) inline; the delay is
+ * `col × var(--stagger-per-column)`. The same `--col` feeds the stateful
+ * `transition-delay` and the snappy `animation-delay` (set per build below), so a
+ * change sweeps left → right up the neck (§7.1 / §7.2, §12.1). */
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * STATEFUL build (primary) — dots morph between states (§7.1 / §7.5)
+ * Per-property transitions on the persistent inner pieces; a scale change only
+ * swaps is-off/is-scale/is-root and radius/fill/label/glow tween in place.
+ * ════════════════════════════════════════════════════════════════════════════ */
+.board[data-motion='stateful'] .note .dot {
+  /* r 230ms ease-spring (the dot-radius row — NOT tape-slide's separate 230);
+   * fill/stroke/stroke-width 200ms (state-color) ease (§7.1). */
+  transition:
+    r var(--dot-radius) var(--ease-spring),
+    fill var(--state-color) var(--ease-standard),
+    stroke var(--state-color) var(--ease-standard),
+    stroke-width var(--state-color) var(--ease-standard);
+  transition-delay: calc(var(--col) * var(--stagger-per-column));
+}
+.board[data-motion='stateful'] .note .glow {
+  /* opacity 200ms (glow-fade) ease (§7.1). */
+  transition: opacity var(--glow-fade) var(--ease-standard);
+  transition-delay: calc(var(--col) * var(--stagger-per-column));
+}
+.board[data-motion='stateful'] .note .lbl {
+  /* opacity 160ms (label-fade) ease; fill 190ms (lbl-fill) ease — the fill tween
+   * is load-bearing: the root label crosses #ffffff ↔ #08130f without snapping
+   * (§7.1). */
+  transition:
+    opacity var(--label-fade) var(--ease-standard),
+    fill var(--lbl-fill) var(--ease-standard);
+  transition-delay: calc(var(--col) * var(--stagger-per-column));
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SNAPPY build (alternative) — dots pop in via dotPop (§7.2 / §7.5)
+ * Same recipe, different variable set: the in-scale dots run the dotPop keyframe
+ * instead of the property transitions; the reflow-to-replay (number-pop-in 02)
+ * re-runs it on an off→in-scale change.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/* §7.2 dotPop — EXACT: 0% opacity0/scale.5/blur1.5px → 70% opacity1 → 100%
+ * scale1/blur0. (transitions-dev number-pop-in shape; values are §7.2's.) */
+@keyframes dotPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+    filter: blur(1.5px);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* `.dot-anim` is applied (by NoteMap, snappy build only) to each in-scale dot's
+ * `<g>`; dotPop runs 150ms (pop) ease-overshoot with the §7.2 transform setup.
+ * transform-box:fill-box scopes the scale to the SVG dot's own box. */
+.board[data-motion='snappy'] .dot-anim {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: dotPop var(--pop) var(--ease-overshoot) both;
+  animation-delay: calc(var(--col) * var(--stagger-per-column));
+}
+
+/* ── tape +4↔+3 slide (panel-reveal 07) — the S7 `t-panel-slide`/`data-open` hook
+ * ────────────────────────────────────────────────────────────────────────────
+ * Tape 2 carries `t-panel-slide` + `data-open` (S7 left the hook). The slide is a
+ * pure CSS transform keyed on `data-open`: open (+4, default) = no displacement;
+ * closed (low 2, +3) = shifted one column left (xOf(4)−xOf(3) = 44px). The rect
+ * x stays at the default column so the transform — not an SVG `x` rewrite — owns
+ * the motion (§7.1 / §7.5: transform 230ms tape-slide ease-spring-2). */
+.board[data-motion] .tape .tape-band.t-panel-slide {
+  transform: translateX(0);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--tape-slide) var(--ease-spring-2); /* 230ms (§7.1) */
+}
+.board[data-motion] .tape .tape-band.t-panel-slide[data-open='false'] {
+  transform: translateX(-44px); /* low 2 → +3, one column (44px) left (§12.1/§12.3) */
+}
+
+/* ── tape / land opacity show/hide via `.hide` (§7.1 / §7.5) ──────────────────
+ * `.tape` 190ms ease; `.land` 200ms (state-color) ease; the band carries NO
+ * transform animation on `.land` (bands only toggle — §7.5). Visibility is the
+ * `.hide` class S7 toggles, never a raw inline opacity write (§7.1). */
+.board[data-motion] .tape {
+  transition: opacity 190ms var(--ease-standard); /* §7.1 tape opacity 190ms */
+}
+.board[data-motion] .tape .tape-band {
+  transition: opacity 190ms var(--ease-standard); /* tape 2 hidden under 3-tape */
+}
+.board[data-motion] .land {
+  transition: opacity var(--state-color) var(--ease-standard); /* 200ms (§7.1) */
+}
+
+/* ── active-pill highlight slide (tabs-sliding 16) — moved here from S6 ───────
+ * The Root/Scale highlight tweens transform + width between selections at
+ * color-shift (140ms) ease-standard. useActiveHighlight writes the box from the
+ * active pill's offsetLeft/offsetWidth; this rule owns the tween. The first-paint
+ * / resize snap (transition:none → forced reflow → restore) is handled in JS
+ * (useActiveHighlight) so the highlight never animates in from translateX(0)/
+ * width:0 on mount or resize. */
+.pill-highlight {
+  transition:
+    transform var(--color-shift) var(--ease-standard),
+    width var(--color-shift) var(--ease-standard);
+}
+
+/* ── sounding overlay — static stroke, NO pulse (§12.2 / §7.5 / §11.4) ────────
+ * The persistent `.sound` child (mounted hidden by NoteMap) toggles opacity
+ * 0↔1 only; r/fill/state untouched, and NO pulse keyframe is defined anywhere —
+ * the static stroke-width:3 {mint} ring is the sole indicator in ALL motion
+ * modes. It sits above the dot but below the label so the note name stays
+ * legible (§12.2). */
+.board .note .sound {
+  fill: none;
+  stroke: var(--mint);
+  stroke-width: 3;
+  opacity: 0;
+  pointer-events: none;
+}
+.board .note .sound.is-sounding {
+  opacity: 1;
+}
+.board[data-motion] .note .sound {
+  transition: opacity var(--glow-fade) var(--ease-standard); /* opacity-only fade */
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * §7.4 reduced-motion gate — the single canonical block (S8 owns §7.4)
+ * Under `reduce`: dots change instantly, bands toggle without fade, no stagger
+ * applies in EITHER build, the pill press has no displacement, and the static
+ * {mint} sounding stroke remains the sole motion-free cue (§7.4 / §11.4).
+ * Values: this block sets `none` (the absence of motion), so it carries no §0
+ * duration/easing — that is exactly §7.4's contract.
+ * ════════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  /* The §7.4 canonical reset, enumerating exactly §7.4's selector list. The
+   * board-internal members (.note .dot/.glow/.lbl, .tape, .land) AND .dot-anim
+   * are ALSO restated under the `.board[data-motion]` prefix below so they win
+   * the cascade against the build-scoped rules (a media query adds no
+   * specificity, and the build rules carry the `[data-motion]` attribute). The
+   * chrome members (.overlay, .palette, .pill) are not under .board, so this
+   * unscoped rule is what zeroes them. */
+  .dot-anim {
+    animation: none; /* snappy (see the scoped override below for the win) */
+  }
+  .note .dot,
+  .note .glow,
+  .note .lbl,
+  .tape,
+  .land,
+  .overlay,
+  .palette,
+  .pill {
+    transition: none; /* stateful + chrome */
+  }
+  .pill:active {
+    transform: none;
+  }
+  /* The highlight snaps (same gate); its specificity (0,1,0) matches its tween
+   * rule and this comes later, so it wins unscoped. */
+  .pill-highlight {
+    transition: none;
+  }
+
+  /* Specificity-matched overrides for the board-scoped build rules (their
+   * `.board[data-motion] …` selectors out-specify the bare §7.4 list above).
+   * Same selectors, prefixed — so the §7.4 contract holds AND actually applies:
+   * dots change instantly, no stagger, the tape doesn't slide, the dotPop
+   * keyframe is killed, in EITHER build. */
+  .board[data-motion] .note .dot,
+  .board[data-motion] .note .glow,
+  .board[data-motion] .note .lbl,
+  .board[data-motion] .note .sound,
+  .board[data-motion] .tape,
+  .board[data-motion] .tape .tape-band,
+  .board[data-motion] .tape .tape-band.t-panel-slide,
+  .board[data-motion] .land {
+    transition: none;
+    transition-delay: 0s; /* kill the per-column stagger */
+  }
+  .board[data-motion='snappy'] .dot-anim {
+    animation: none;
+  }
+}

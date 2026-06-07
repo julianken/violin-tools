@@ -27,6 +27,7 @@ import {
   SCALE_INTERVALS,
   type ScaleType,
 } from '@violin-tools/theory';
+import { useRef } from 'react';
 
 import { INITIAL_CONTROLS, type RefsState } from '../state/controls';
 
@@ -45,6 +46,8 @@ import {
   STRINGS,
   xOf,
 } from './geometry';
+import { type MotionBuild, useDotPopReplay } from './motion';
+import './motion.css';
 import './notemap.css';
 import { noteName } from './notes';
 
@@ -65,6 +68,13 @@ interface NoteMapProps {
    * S6 initial state) so the static render matches the spec default.
    */
   refs?: RefsState;
+  /**
+   * The §7 motion build — `'stateful'` (primary, default) | `'snappy'`. The board
+   * carries it as `data-motion` so motion.css selects the live variable set; the
+   * snappy build also adds `.dot-anim` to in-scale dots and runs the reflow-replay
+   * (§7.1 / §7.2). It is the single root toggle, orthogonal to per-node state.
+   */
+  motion?: MotionBuild;
 }
 
 // S5 has no controls yet (S6 wires selection), so it renders a fixed default —
@@ -85,8 +95,15 @@ export function NoteMap({
   rootPc = DEFAULT_ROOT_PC,
   scale = DEFAULT_SCALE,
   refs = INITIAL_CONTROLS.refs,
+  motion = 'stateful',
 }: NoteMapProps) {
   const scaleSet = SCALE_INTERVALS[scale];
+
+  // The snappy build replays `dotPop` on each (root, scale) change via the
+  // number-pop-in reflow trick (motion.ts). `changeKey` keys the effect on the
+  // selection; the stateful build no-ops inside the hook.
+  const notesRef = useRef<SVGGElement>(null);
+  useDotPopReplay(notesRef, motion, `${String(rootPc)}-${scale}`);
 
   return (
     <>
@@ -150,7 +167,7 @@ export function NoteMap({
       {/* The 60 persistent note nodes. The outer loop is stringIndex, the inner
           is columnOffset, so the (stringIndex, columnOffset) key is the stable
           identity S8's in-place tween relies on. */}
-      <g className="notes">
+      <g className="notes" ref={notesRef}>
         {STRINGS.map((string, stringIndex) =>
           COLUMN_OFFSETS.map((columnOffset) => {
             const cx = xOf(columnOffset);
@@ -163,16 +180,29 @@ export function NoteMap({
             const state = classify(rootPc, scaleSet, nodePc);
             const radius = DOT_RADIUS[state];
             const hasLabel = state !== 'off';
+            // §7.2 — the snappy build pops every in-scale (and root) dot in via
+            // `dotPop`; off dots carry no pop. The stateful build never adds it
+            // (its rules key off `[data-motion='stateful']`, not this class).
+            const popAnim = motion === 'snappy' && state !== 'off';
 
             return (
               <g
                 // Stable identity per (string, column): the SAME element across
                 // every re-render, so re-classification is in-place (§7.5).
                 key={`${String(stringIndex)}-${String(columnOffset)}`}
-                className={`note ${stateClass(state)}`}
+                className={`note ${stateClass(state)}${popAnim ? ' dot-anim' : ''}`}
+                // §7.1/§7.2 per-column stagger: `--col` feeds the stateful
+                // transition-delay AND the snappy animation-delay (motion.css),
+                // both = col × var(--stagger-per-column). columnOffset is o = 0…14
+                // (§12.1), so a change sweeps left → right up the neck.
+                style={{ '--col': columnOffset }}
+                // The column index as a plain attribute — a stable seam for the
+                // e2e to read computed delays per column without parsing inline
+                // style (the §7.5 stagger assertion targets col 0 vs col 14).
+                data-col={columnOffset}
               >
                 {/* glow — present on EVERY node, shown only on the root via
-                    `.note.is-root .glow` (§12.2 / §15.1). Static in S5. */}
+                    `.note.is-root .glow` (§12.2 / §15.1). S8 fades its opacity. */}
                 <circle
                   className="glow"
                   cx={cx}
@@ -182,6 +212,18 @@ export function NoteMap({
                 />
                 {/* dot — the state circle (radius + fill + stroke per §12.2). */}
                 <circle className="dot" cx={cx} cy={cy} r={radius} />
+                {/* sound — the persistent hidden §12.2 sounding overlay. S8 mounts
+                    it (S5 excluded it); it sits ABOVE the dot but BELOW the label
+                    so the note name stays legible. opacity-only toggle, NO pulse
+                    keyframe anywhere — the static stroke is the sole cue (§7.5 /
+                    §11.4). Its r follows the dot's state radius. */}
+                <circle
+                  className="sound"
+                  cx={cx}
+                  cy={cy}
+                  r={radius}
+                  fill="none"
+                />
                 {/* lbl — the note name (Inter, tnum, baseline cy + 4, no
                     dominant-baseline). Empty string on off nodes so the element
                     persists for S8 (the element is never removed). */}
