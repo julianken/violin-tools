@@ -78,9 +78,11 @@ jobs:
       # deploy is picked up immediately. index.html is the SPA entry; rewriting
       # it (and any other root-level non-hashed file) to no-cache means browsers
       # and Cloudflare always revalidate it, which is how a deploy goes live with
-      # no CDN purge. Cloud Storage `cp` over itself updates only the metadata.
+      # no CDN purge. `objects update` rewrites the object metadata IN PLACE — a
+      # `cp` of an object onto itself is rejected by gcloud ("Source URL matches
+      # destination URL"), so we use the metadata-update verb instead.
       - name: Mark index.html no-cache
         run: |
-          gcloud storage cp "gs://${{ vars.GCS_WEBSITE_BUCKET }}/index.html" \
+          gcloud storage objects update \
             "gs://${{ vars.GCS_WEBSITE_BUCKET }}/index.html" \
             --cache-control="no-cache"

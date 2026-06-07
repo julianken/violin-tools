@@ -49,16 +49,21 @@ jobs:
       - name: Build
         run: pnpm build
 
-  # SOFT-LAUNCH (S8): the Playwright e2e suite — `pnpm test:e2e` runs ALL specs in
-  # `apps/web/e2e/` (motion `motion.spec.ts`, the §10 mobile-reflow `responsive.
-  # spec.ts` added in S11, and the a11y spec, which the dedicated `a11y` job below
-  # also runs on its own). A SEPARATE job from `gates`
-  # — it is deliberately NOT in the branch ruleset's required checks nor in
-  # .mergify.yml `check-success`, so a flake never blocks a merge while the suite
-  # proves itself. It is the first noisy/non-deterministic check, so it follows the
-  # GAPS.md "soft-launch → dated-flip → promote-to-blocker" rollout ritual: ships
-  # SOFT now, to be promoted to required at S12 once stable. `gates` above and its
-  # required status are unchanged.
+  # SOFT-LAUNCH (S8, extended S11/S13): the Playwright e2e suite — `pnpm test:e2e`
+  # runs ALL specs in `apps/web/e2e/`: motion (`motion.spec.ts`), the §10 mobile-
+  # reflow (`responsive.spec.ts`, S11), the a11y spec (which the dedicated `a11y`
+  # job below also runs on its own), and the S13 capstone ACCEPTANCE + VISUAL specs
+  # (`select-root-scale`, `toggle-refs`, `palette-jump`, and `visual.spec.ts` — the
+  # full-page snapshots at 390×844 and 1440×900, whose -linux baselines are committed
+  # under e2e/visual.spec.ts-snapshots/). A SEPARATE job from `gates` — it is
+  # deliberately NOT in the branch ruleset's required checks nor in .mergify.yml
+  # `check-success`, so a flake never blocks a merge while the suite proves itself.
+  # It is the first noisy/non-deterministic check, so it follows the GAPS.md
+  # "soft-launch → dated-flip → promote-to-blocker" rollout ritual: ships SOFT now,
+  # to be promoted to required at the S13 capstone once stable. The promotion to a
+  # required check is a branch-ruleset API change handled by the orchestrator
+  # separately — NOT done in this PR. `gates` above and its required status are
+  # unchanged.
   e2e:
     runs-on: ubuntu-latest
     steps:
