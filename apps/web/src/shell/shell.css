@@ -585,7 +585,9 @@ body {
     transition:
       transform var(--state-color) var(--ease-standard),
       visibility 0s linear var(--state-color); /* hide AFTER the slide-out */
-    box-shadow: var(--elevation-modal); /* lift the panel above the content */
+    /* No drop shadow: the drawer is an overlay-tier surface, so the {overlay-scrim}
+     * dimmed page is its depth cue (§5). The command palette is the product's one
+     * heavy shadow; a shadow on a near-black panel would read as haze, not lift. */
     /* The drawer can scroll internally if its content exceeds a short viewport. */
     overflow-y: auto;
   }

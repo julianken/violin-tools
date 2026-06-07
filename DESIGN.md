@@ -275,10 +275,10 @@ icon:
   #       "soon" tools, the palette scale/tool/open markers), set as plain
   #       text inside a fixed-width icon <span> so they inherit color the same
   #       way. These are NOT drawn paths — do not redraw them as custom SVG.
-  # The full <svg> source for the two real glyphs is given verbatim below so an
+  # The full <svg> source for the three real glyphs is given verbatim below so an
   # agent reproduces them exactly rather than interpreting a description.
-  set: inline-svg-pair + unicode-glyphs   # NOT a sprite, NOT a vendor set
-  svg:                                     # the only two drawn glyphs in the product
+  set: inline-svg-trio + unicode-glyphs   # NOT a sprite, NOT a vendor set
+  svg:                                     # the three drawn glyphs in the product
     ic-search:    |   # magnifier — sidebar .search trigger AND palette .psearch
       <svg viewBox="0 0 14 14" fill="none">
         <circle cx="6" cy="6" r="4.5" stroke="currentColor"/>
@@ -296,6 +296,16 @@ icon:
       </svg>
       # three horizontal rules on a 14×10 box, evoking strings on the neck.
       # currentColor → {text3} at rest, promoted to {mint} by .ni.active .ic.
+    ic-menu:      |   # the mobile-drawer hamburger — topbar .topbar-menu (< 760px only, §10)
+      <svg width="16" height="12">
+        <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <line x1="1" y1="2" x2="15" y2="2"/>
+          <line x1="1" y1="6" x2="15" y2="6"/>
+          <line x1="1" y1="10" x2="15" y2="10"/>
+        </g>
+      </svg>
+      # three rounded rules on a 16×12 box; shown ONLY below the §10 760px breakpoint
+      # on the .topbar-menu trigger ("Open navigation"). currentColor → {text2}.
   glyph-char:                # element → the literal Unicode character it renders (kind B)
     nav-intonation: "◴"      # U+25F4 — "soon" Intonation tool
     nav-vibrato:    "∿"      # U+223F — "soon" Vibrato tool (sine-wave glyph)
@@ -690,7 +700,7 @@ Note dots have **no** hover/press state — they are SVG data, not buttons (§11
 | height | `32px` | `32px` | `32px` |
 | padding | `0 10px` | `0 10px` | `0 10px` |
 
-**Icons.** Each nav item carries one glyph inside a fixed **`15px`** icon span (`icon.box.nav`, §0), color = `currentColor` so it inherits the row's text token — which is why the active item's icon turns `{mint}` along with its label, while resting/soon icons sit at `{text3}`. Only **Scales** is a drawn inline SVG (`ic-scales`, the three-line neck mark, §0 `icon.svg`); the three "soon" tools render **Unicode glyph characters** as plain text (§0 `icon.glyph-char`): **Intonation** = `◴`, **Vibrato** = `∿`, **Tuner** = `◎`. Do not redraw the soon-tool glyphs as custom SVG — they are characters.
+**Icons.** Each nav item carries one glyph inside a fixed **`15px`** icon span (`icon.box.nav`, §0), color = `currentColor` so it inherits the row's text token — which is why the active item's icon turns `{mint}` along with its label, while resting/soon icons sit at `{text3}`. **Scales** (`ic-scales`, the three-line neck mark) and the mobile-drawer **hamburger** (`ic-menu`, §10 — shown only below the `760px` breakpoint on `.topbar-menu`) are the drawn inline SVGs (§0 `icon.svg`); the three "soon" tools render **Unicode glyph characters** as plain text (§0 `icon.glyph-char`): **Intonation** = `◴`, **Vibrato** = `∿`, **Tuner** = `◎`. Do not redraw the soon-tool glyphs as custom SVG — they are characters.
 
 - **hover** (default only) — background → `nav-hover-bg`.
 - **soon** — carries a "soon" badge, `aria-disabled="true"`, **no hover**, not focusable as an action.
