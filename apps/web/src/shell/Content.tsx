@@ -1,6 +1,7 @@
 import { Controls } from '../controls/Controls';
 import { NoteMap } from '../notemap/NoteMap';
 import { NoteMapLegend } from '../notemap/NoteMapLegend';
+import { type MotionBuild } from '../notemap/motion';
 import { derive } from '../state/controls';
 import { type ControlsApi } from '../state/useControls';
 
@@ -22,12 +23,26 @@ interface ContentProps {
   controls: ControlsApi;
 }
 
+/**
+ * The §7 motion build to render. `'stateful'` is the primary default; `?motion=
+ * snappy` selects the alternative build (the single `data-motion` root toggle,
+ * §7.1/§7.2). A query param keeps the toggle a real runtime switch — no rebuild —
+ * and lets the Playwright e2e exercise both builds against the same bundle.
+ */
+function resolveMotionBuild(): MotionBuild {
+  if (typeof window === 'undefined') return 'stateful';
+  return new URLSearchParams(window.location.search).get('motion') === 'snappy'
+    ? 'snappy'
+    : 'stateful';
+}
+
 export function Content({ controls }: ContentProps) {
   // Pure derivation of the selected root's pitch class through the theory engine
   // (§12.5(b)) — never re-derived here. The map takes (rootPc, scale) and
   // classifies each node via `classify()` (it resolves the §12.5(a) interval set
   // from `scale` itself; `derive()` exposes both halves for the state-seam test).
   const { rootPc } = derive(controls.state);
+  const motion = resolveMotionBuild();
 
   return (
     <main id="main" className="content">
@@ -61,11 +76,16 @@ export function Content({ controls }: ContentProps) {
             viewBox="0 0 760 264"
             role="img"
             aria-label="Full fingerboard note map"
+            // §7.1/§7.2 — the single root toggle that selects the live motion
+            // variable set (stateful property transitions vs the snappy dotPop
+            // keyframe). motion.css keys every rule off this attribute.
+            data-motion={motion}
           >
             <NoteMap
               rootPc={rootPc}
               scale={controls.state.scale}
               refs={controls.state.refs}
+              motion={motion}
             />
           </svg>
         </div>

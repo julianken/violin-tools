@@ -1,0 +1,9 @@
+{
+  "//": "Standalone tsconfig for the Playwright e2e suite (S8). Kept OUT of the main tsconfig.json `include` so `tsc --noEmit` (the build/typecheck gate) does not typecheck browser specs nor pull in `@playwright/test` globals. Playwright runs its own TS via its config; ESLint's type-aware `projectService` resolves the e2e files to THIS project. Extends the same strict base so the specs are held to the repo's type bar.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "@playwright/test"]
+  },
+  "include": ["e2e", "playwright.config.ts"]
+}

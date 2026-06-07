@@ -48,3 +48,42 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  # SOFT-LAUNCH (S8): the Playwright motion e2e suite. A SEPARATE job from `gates`
+  # — it is deliberately NOT in the branch ruleset's required checks nor in
+  # .mergify.yml `check-success`, so a flake never blocks a merge while the suite
+  # proves itself. It is the first noisy/non-deterministic check, so it follows the
+  # GAPS.md "soft-launch → dated-flip → promote-to-blocker" rollout ritual: ships
+  # SOFT now, to be promoted to required at S12 once stable. `gates` above and its
+  # required status are unchanged.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @violin-tools/web exec playwright install --with-deps chromium
+
+      - name: Run e2e (Playwright)
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7

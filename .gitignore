@@ -11,6 +11,12 @@ build/
 .turbo/
 coverage/
 
+# Playwright e2e artifacts (S8 soft-launch suite) — reports/traces are CI artifacts
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
 # Misc
 .DS_Store
 *.log

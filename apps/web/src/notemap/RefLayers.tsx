@@ -78,12 +78,19 @@ export function RefLayers({ refs }: RefLayersProps) {
       <g className={`tape${refs.tapes ? '' : ' hide'}`} aria-hidden="true">
         {TAPE_SPECS.map((spec) => {
           const offset = tapeOffset(spec, refs);
-          const center = xOf(offset);
           const isTape2 = spec.low2Offset !== undefined;
+          // The rect/label render at the band's DEFAULT column x; the `+4`↔`+3`
+          // "low 2" displacement is owned by the panel-reveal `transform` keyed
+          // off `data-open` (S8, motion.css), NOT by rewriting the SVG `x` — a CSS
+          // transform tween can't catch an `x`-attribute change, and the band must
+          // physically translate to read as a slide (§7.1/§7.5). So tape 2 sits at
+          // its default x and the transform moves it; the label number still shows
+          // the ACTIVE offset (`2 (+3)` under low 2). Static tapes use their x.
+          const center = xOf(spec.defaultOffset);
           // "3-tape" hides tape 2 — mounted-but-hidden via `.hide`, NOT removed.
           const hidden = isTape2 && refs.threeTape;
-          // Tape 2 carries the panel-reveal (07) hook so S8 can drive the
-          // `+4`↔`+3` slide; S7 renders the end-state x only and animates nothing.
+          // Tape 2 carries the panel-reveal (07) hook so S8 drives the `+4`↔`+3`
+          // slide off `data-open`; the other tapes are static.
           const bandClass = isTape2
             ? `tape-band t-panel-slide${hidden ? ' hide' : ''}`
             : 'tape-band';

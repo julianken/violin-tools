@@ -88,16 +88,32 @@ describe('RefLayers tape bands (§12.3)', () => {
   });
 });
 
-describe('RefLayers "low 2" variant (§12.3)', () => {
-  it('moves tape 2 to +3 (x = xOf(3) − 13) and relabels it 2 (+3)', () => {
+describe('RefLayers "low 2" variant (§12.3 / §7.5)', () => {
+  it('relabels tape 2 to 2 (+3) under low 2 and flips data-open=false (slide driver)', () => {
+    const { tapeBand } = renderRefs({ ...ALL_OFF, tapes: true, low2: true });
+    const band2 = tapeBand(2);
+    const label = band2?.querySelector('text.tape-num');
+    // The label NUMBER tracks the active offset (`2 (+3)` under low 2), and
+    // `data-open=false` is the panel-reveal end-state S8 drives the +4↔+3 slide
+    // from. Per §7.5 the +4↔+3 displacement is owned by the `transform` (S8,
+    // motion.css), NOT by rewriting the rect `x` — so the rect/label stay at the
+    // tape's DEFAULT column x and the band physically translates (see the rect-x
+    // assertion below). A CSS transform tween can't catch an SVG `x`-attribute
+    // change, which is why the slide moved to transform.
+    expect(label?.textContent).toBe('2 (+3)');
+    expect(band2?.getAttribute('data-open')).toBe('false');
+  });
+
+  it('keeps tape 2 rect/label at the DEFAULT +4 column x so the transform owns the slide', () => {
     const { svg, tapeBand } = renderRefs({ ...ALL_OFF, tapes: true, low2: true });
     const band2 = tapeBand(2);
     const rect = band2?.querySelector('rect.tape-rect');
     const label = band2?.querySelector('text.tape-num');
-    expect(rect?.getAttribute('x')).toBe(String(xOf(3) - 13));
-    expect(label?.getAttribute('x')).toBe(String(xOf(3)));
-    expect(label?.textContent).toBe('2 (+3)');
-    // The other tapes stay put — tape 1 at +2, tape 3 at +5, tape 4 at +7.
+    // Rect/label sit at the default +4 x in BOTH states; the -44px transform
+    // (motion.css, keyed on data-open=false) moves the band to read as +3.
+    expect(rect?.getAttribute('x')).toBe(String(xOf(4) - 13));
+    expect(label?.getAttribute('x')).toBe(String(xOf(4)));
+    // The other tapes stay put — tape 1 at +2.
     expect(
       svg.querySelector('g.tape rect.tape-rect')?.getAttribute('x'),
     ).toBe(String(xOf(2) - 13));

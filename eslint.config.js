@@ -173,7 +173,35 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'off',
     },
   },
-  // (8) Prettier LAST — disables stylistic rules that would conflict with the
+  // (8) Playwright e2e specs (S8) — they are `*.spec.ts`, so block (7) above
+  // already relaxed them and added the Vitest plugin. But these run under
+  // Playwright, NOT Vitest, so the Vitest rules misfire (e.g. no-standalone-test).
+  // Turn the Vitest ruleset OFF here; the suite imports `test`/`expect` from
+  // `@playwright/test` explicitly (no test-runner globals needed). Type-aware
+  // coverage stays on via the dedicated tsconfig.e2e.json that includes `e2e`.
+  {
+    files: ['apps/web/e2e/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: { ...globals.node },
+      parserOptions: {
+        // The e2e specs live outside the build tsconfig's `include`; point the
+        // type-aware parser at their dedicated project so it resolves them.
+        projectService: false,
+        project: ['./apps/web/tsconfig.e2e.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      ...Object.fromEntries(
+        Object.keys(vitest.configs.recommended.rules).map((rule) => [
+          rule,
+          'off',
+        ]),
+      ),
+      'vitest/no-focused-tests': 'off',
+    },
+  },
+  // (9) Prettier LAST — disables stylistic rules that would conflict with the
   // formatter. Inert today (none of the added plugins are stylistic), kept as
   // future insurance.
   eslintConfigPrettier,
