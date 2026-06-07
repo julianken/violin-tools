@@ -9,6 +9,7 @@ import { useControls } from '../state/useControls';
 import { Content } from './Content';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { useDrawer } from './useDrawer';
 
 // The §9 app shell: a flex row of `.side` (the fixed rail) and `.main` (the
 // fluid column). The DOM matches the §9 tree exactly — `.app` → `.side` /
@@ -30,6 +31,12 @@ export function AppShell() {
   const controls = useControls();
   // The palette open/close lifecycle + the global ⌘K / Ctrl-K toggle (§9).
   const palette = usePaletteController();
+  // The mobile navigation drawer (§10): below the narrow breakpoint the 248px
+  // sidebar collapses to an off-canvas drawer the topbar hamburger toggles. The
+  // hook owns the open/close state, Esc-to-close, and the focus contract (focus
+  // into the panel on open, back to the trigger on close). It is inert on desktop
+  // where CSS keeps the rail always visible.
+  const drawer = useDrawer();
 
   // §11.3 polite live regions: one announces the current sounding note name
   // (Enter/Space over a map marker), one carries the string-by-string map text
@@ -50,11 +57,32 @@ export function AppShell() {
       <a className="skip-link" href="#board">
         Skip to note map
       </a>
-      <Sidebar onOpenPalette={palette.open} />
+      {/* The mobile drawer scrim — a backdrop behind the open drawer that dims
+          the content and closes the drawer on click/tap (§10). It is rendered
+          only below the §10 breakpoint (CSS `display:none` on desktop) and only
+          painted while the drawer is open (`.is-open`); above the breakpoint it
+          never shows, so the desktop shell is unchanged. `aria-hidden` — it is
+          pure chrome; the Esc key and the trigger carry the a11y affordance. */}
+      <div
+        className={`drawer-scrim${drawer.isOpen ? ' is-open' : ''}`}
+        aria-hidden="true"
+        onClick={drawer.close}
+      />
+      <Sidebar
+        onOpenPalette={palette.open}
+        onNavigate={drawer.close}
+        panelRef={drawer.panelRef}
+        drawerOpen={drawer.isOpen}
+      />
       <div className="main">
         {/* The breadcrumb's active segment is the §13 spelled selection, shared
-            with the Content H1 + the map labels via one `spell()` engine. */}
-        <Topbar scaleName={scaleName(controls.state)} />
+            with the Content H1 + the map labels via one `spell()` engine. The
+            topbar also carries the mobile drawer trigger (§10). */}
+        <Topbar
+          scaleName={scaleName(controls.state)}
+          drawerOpen={drawer.isOpen}
+          onToggleDrawer={drawer.toggle}
+        />
         <Content controls={controls} onSoundNote={setSoundingNote} />
       </div>
 

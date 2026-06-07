@@ -282,6 +282,44 @@ body {
   padding: 0 var(--space-800); /* 0 32px (§4.2) */
   border-bottom: 1px solid var(--hairline);
 }
+/* The left cluster groups the (mobile-only) drawer trigger with the breadcrumb so
+ * they sit together on the left of the space-between bar. min-width:0 lets the
+ * breadcrumb truncate (§10 — "the breadcrumb may truncate before the {ghost}
+ * button wraps") rather than push the bar wider. */
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200); /* 8px */
+  min-width: 0;
+}
+/* ── .topbar-menu — the mobile drawer trigger (§10) ─────────────────────────
+ * Hidden at/above the §10 breakpoint (the desktop topbar is unchanged); the
+ * narrow media block at the foot of this file reveals it. Styled as a borderless
+ * icon button in the topbar's text family; the {mint} :focus-visible ring (a11y.
+ * css) handles keyboard focus. */
+.topbar-menu {
+  display: none; /* desktop: hidden — revealed in the narrow media block */
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--nav-item-h); /* 32px — a comfortable square hit box */
+  height: var(--nav-item-h);
+  margin-left: calc(-1 * var(--space-100)); /* optical: pull the icon to the edge */
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-nav); /* 6px */
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+}
+.topbar-menu:hover {
+  background: var(--nav-hover-bg);
+}
+.topbar-menu-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* ── .crumb — breadcrumb (§3, §9) ───────────────────────────────────────── */
 .crumb {
@@ -474,22 +512,132 @@ body {
   color: var(--text2);
 }
 
-/* ── §10 narrow floor — ONE 760px breakpoint ────────────────────────────── */
-/* Below the floor the plate scrolls (already via .panel) and everything else
- * reflows to full width. The sidebar STAYS 248px fixed (no collapse/stack), the
- * H1 stays 32px lh-tight (no step-down), the topbar stays 52px. This is the
- * entire contract below 760px (§10) — no drawer, no restacked controls. The
- * `.content`/`.controls`/`.legend` are already fluid full-width, so the floor is
- * a no-op reflow guard rather than a new layout; the rule exists to pin that the
- * single specified breakpoint is here and changes nothing structural.
+/* ── drawer scrim — backdrop behind the open mobile drawer (§10) ─────────────
+ * Hidden entirely on desktop (display:none); the narrow media block flips it to
+ * a fixed full-inset backdrop. It fades on its own opacity timeline (the §7
+ * `--overlay-out` token, both directions, reduced-motion-guarded below), mirrors
+ * the palette scrim's language at a lighter scrim, and sits just BELOW the drawer
+ * (z 39 < drawer 40) so the drawer reads above it. Click closes the drawer
+ * (AppShell). */
+.drawer-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: var(--overlay-scrim); /* black @ 55% (§7.5) — shared scrim token */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--overlay-out) var(--ease-standard); /* 180ms both ways */
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * §10 RESPONSIVE REFLOW — the real mobile layout (S11)
+ * ════════════════════════════════════════════════════════════════════════════
+ * Below the §10 breakpoint the desktop two-column shell reflows to a single full-
+ * width column: the 248px sidebar collapses to an off-canvas DRAWER (toggled by
+ * the topbar hamburger), the content + note-map plate take the full viewport
+ * width, the controls keep wrapping (controls.css `.pill-track` flex-wrap), and
+ * NOTHING pushes the page wider than the viewport — `document.scrollingElement.
+ * scrollWidth <= clientWidth` at 390px (the note-map SVG keeps its 760px min-
+ * width but scrolls INSIDE `.panel`, never widening the shell).
+ *
+ * The desktop layout at/above the breakpoint is untouched — every rule here is
+ * scoped inside the media query.
  *
  * The `760px` literal is the one place the `--shell-min-width` token CANNOT be
  * used: CSS media-query feature values do not accept `var()` (the custom
  * property would not resolve in the media condition). It mirrors
  * `--shell-min-width` in tokens.css 1:1 (§0 / §10). */
 @media (max-width: 760px) {
+  /* The shell stacks: the drawer is taken out of flow (fixed), so `.main` is the
+   * only in-flow child and gets the full width. */
+  .app {
+    display: block;
+  }
+
+  /* The rail becomes an off-canvas drawer: fixed, full-height, slid LEFT off
+   * screen at rest, transformed back in when `.is-open`. This is the transitions-
+   * dev panel-reveal (07) technique — a translateX transform driven by a state
+   * class, no motion library — with values from §7: the `--state-color` (200ms)
+   * duration and the standard ease for a crisp, non-bouncy reveal (a spring
+   * bounce on a full-height nav panel reads as jitter, so the §7 spring easings
+   * are deliberately NOT used here; §7's standard ease is the right value).
+   * `width:var(--sidebar-w)` keeps the SAME 248px content width as desktop, so
+   * the rail's internals never reflow — only its position changes. */
+  .side {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40; /* above the scrim (39) and the content */
+    height: 100vh;
+    height: 100dvh; /* dvh where supported — full height on mobile chrome */
+    width: var(--sidebar-w); /* 248px — internals unchanged */
+    max-width: 86vw; /* never wider than the viewport on a tiny phone */
+    transform: translateX(-100%); /* off-canvas at rest */
+    /* `visibility:hidden` while off-canvas removes the closed drawer's focusable
+     * contents (search, Scales link, theme) from the TAB ORDER — without it, a
+     * keyboard user could Tab into an invisible off-screen drawer (an off-canvas
+     * a11y hazard). It is delayed (`visibility 0s var(--state-color)`) so the
+     * slide-OUT is visible before the panel is hidden; on open it flips to
+     * visible immediately. The slide is the transitions-dev panel-reveal (07)
+     * transform; values from §7 (`--state-color`, standard ease). */
+    visibility: hidden;
+    transition:
+      transform var(--state-color) var(--ease-standard),
+      visibility 0s linear var(--state-color); /* hide AFTER the slide-out */
+    /* No drop shadow: the drawer is an overlay-tier surface, so the {overlay-scrim}
+     * dimmed page is its depth cue (§5). The command palette is the product's one
+     * heavy shadow; a shadow on a near-black panel would read as haze, not lift. */
+    /* The drawer can scroll internally if its content exceeds a short viewport. */
+    overflow-y: auto;
+  }
+  .side.is-open {
+    transform: translateX(0); /* slid in */
+    visibility: visible;
+    transition:
+      transform var(--state-color) var(--ease-standard),
+      visibility 0s linear 0s; /* visible immediately on open */
+  }
+
+  /* The scrim activates below the breakpoint and paints while the drawer is open. */
+  .drawer-scrim {
+    display: block;
+  }
+  .drawer-scrim.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* The topbar hamburger trigger appears (hidden on desktop). */
+  .topbar-menu {
+    display: inline-flex;
+  }
+
+  /* The content column is now full width (no rail beside it). The desktop side
+   * padding (32px) is tightened on a phone so the controls card and plate get
+   * more usable width; the values stay on/near the §0 space scale. */
   .content {
-    /* already 100% up to its max-width; restated so the floor is explicit */
     width: 100%;
+    max-width: 100%;
+    padding-inline: var(--space-400); /* 16px — narrower gutters on a phone */
+  }
+
+  /* The topbar's horizontal padding tightens to match the content gutter so the
+   * breadcrumb and ghost button align with the column below. */
+  .topbar {
+    padding-inline: var(--space-400); /* 16px */
+  }
+}
+
+/* ── §7.4 reduced motion — the drawer + scrim appear without animation ───────
+ * Under `reduce` the drawer slide and the scrim fade are removed (the §7.4
+ * contract: motion is opt-in, every transition gated on the OS setting). The
+ * drawer still opens/closes — only the TRANSITION is dropped, so it snaps to its
+ * open/closed transform instantly. This mirrors how palette.css / motion.css
+ * each carry their own §7.4 block for the motion they author. */
+@media (prefers-reduced-motion: reduce) {
+  .side,
+  .drawer-scrim {
+    transition: none;
   }
 }
