@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+
 import App from './App.tsx';
 
 // Day-one non-vacuous test: render the placeholder app and assert visible text.
