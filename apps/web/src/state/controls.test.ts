@@ -6,7 +6,9 @@ import {
   isRefDimmed,
   REF_PILLS,
   ROOT_PILLS,
+  SCALE_DISPLAY_NAME,
   SCALE_PILLS,
+  scaleName,
   setRoot,
   setScale,
   toggleRef,
@@ -140,5 +142,38 @@ describe('derivation through the theory engine (§12.5)', () => {
       0, 2, 4, 5, 7, 9, 11,
     ]);
     expect(derive(setScale(INITIAL_CONTROLS, 'chromatic')).scaleSet).toHaveLength(12);
+  });
+});
+
+describe('§13 scaleName — spelled heading / breadcrumb name', () => {
+  it('uses the full §13 scale names, not the truncated pill labels', () => {
+    expect(SCALE_DISPLAY_NAME).toEqual({
+      major: 'Major',
+      naturalMinor: 'Natural Minor',
+      harmonicMinor: 'Harmonic Minor',
+      melodicMinor: 'Melodic Minor',
+      majorPentatonic: 'Major Pentatonic',
+      minorPentatonic: 'Minor Pentatonic',
+      chromatic: 'Chromatic',
+    });
+  });
+
+  it('defaults to "A Major"', () => {
+    expect(scaleName(INITIAL_CONTROLS)).toBe('A Major');
+  });
+
+  it('spells a flat root letter-correct — "B♭ Major", never "A♯ Major"', () => {
+    const name = scaleName(setRoot(INITIAL_CONTROLS, 'Bb'));
+    expect(name).toBe('B♭ Major');
+    expect(name).not.toContain('A♯');
+  });
+
+  it('joins the spelled root with the full scale name', () => {
+    expect(scaleName(setScale(setRoot(INITIAL_CONTROLS, 'Bb'), 'harmonicMinor'))).toBe(
+      'B♭ Harmonic Minor',
+    );
+    expect(scaleName(setScale(INITIAL_CONTROLS, 'minorPentatonic'))).toBe(
+      'A Minor Pentatonic',
+    );
   });
 });

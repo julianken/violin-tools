@@ -17,6 +17,7 @@
 import {
   ROOT_PITCH_CLASS,
   SCALE_INTERVALS,
+  spell,
   type Root,
   type ScaleType,
 } from '@violin-tools/theory';
@@ -99,6 +100,23 @@ export const SCALE_PILLS: readonly { scale: ScaleType; label: string }[] = [
   { scale: 'chromatic', label: 'Chromatic' },
 ];
 
+/**
+ * §13 full scale display names for the H1 heading + the breadcrumb — unqualified,
+ * conventional violin spellings ("A Major", "A Harmonic Minor"). These are the
+ * UNtruncated forms (the `SCALE_PILLS` labels are abbreviated to fit the pill
+ * row); the heading uses the full name per §13 ("Headings use conventional violin
+ * spellings, unqualified").
+ */
+export const SCALE_DISPLAY_NAME: Readonly<Record<ScaleType, string>> = {
+  major: 'Major',
+  naturalMinor: 'Natural Minor',
+  harmonicMinor: 'Harmonic Minor',
+  melodicMinor: 'Melodic Minor',
+  majorPentatonic: 'Major Pentatonic',
+  minorPentatonic: 'Minor Pentatonic',
+  chromatic: 'Chromatic',
+};
+
 /** A Refs pill's accent family (§8.1): the three tape pills vs the teal one. */
 export type RefAccent = 'tape' | 'landmark';
 
@@ -171,4 +189,16 @@ export function derive(state: ControlsState): {
     rootPc: ROOT_PITCH_CLASS[state.root],
     scaleSet: SCALE_INTERVALS[state.scale],
   };
+}
+
+/**
+ * The §13 spelled scale name for the H1 heading + the breadcrumb — the root
+ * spelled letter-correct (so `Bb` reads `B♭`, never `A♯`) joined with the full
+ * scale name (e.g. `B♭ Major`, `A Harmonic Minor`). The root glyph comes from the
+ * same `spell()` the map uses (the root is degree 0 of every scale, so it spells
+ * to the chosen root glyph), so the heading and the map can never disagree.
+ */
+export function scaleName(state: ControlsState): string {
+  const rootGlyph = spell(ROOT_PITCH_CLASS[state.root], state.root, state.scale);
+  return `${rootGlyph} ${SCALE_DISPLAY_NAME[state.scale]}`;
 }

@@ -1,6 +1,7 @@
-// Public entry point for @violin-tools/theory — the pure §12.5 pitch model.
-// The renderer (S5) imports `classify`, `nodePitchClass`, and the constants
-// from here; it never reaches into individual module files.
+// Public entry point for @violin-tools/theory — the pure §12.5 pitch model plus
+// the §13 note-name spelling. The renderer imports `classify`, `nodePitchClass`,
+// `spell`, and the constants from here; it never reaches into individual module
+// files.
 export {
   classify,
   nodePitchClass,
@@ -15,3 +16,5 @@ export {
   type Root,
   type OpenString,
 } from './classify.ts';
+// §13 letter-correct note spelling — names what §12.5 classification placed.
+export { spell } from './spell.ts';

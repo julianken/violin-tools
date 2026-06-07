@@ -126,6 +126,50 @@ describe('NoteMap render (§12)', () => {
   });
 });
 
+describe('NoteMap §13 scale-aware spelling — the flat-key regression guard', () => {
+  // The original bug: a sharp-only pitch-class table plotted Bb's root dot as A♯.
+  // These pin that the labels now spell letter-correct per the selected key, so a
+  // revert to a sharp-only table fails the gate.
+  function labelsOf(svg: Element): string[] {
+    return Array.from(svg.querySelectorAll('g.note text.lbl'))
+      .map((el) => el.textContent)
+      .filter((t) => t.length > 0);
+  }
+
+  it('B♭ Major spells the root as B♭ — never A♯ (the original defect)', () => {
+    // Bb = rootPc 10, root 'Bb'. The root dots must read B♭; A♯ must NOT appear.
+    const { svg } = renderBoard({ rootPc: 10, root: 'Bb', scale: 'major' });
+    const labels = labelsOf(svg);
+    expect(labels).toContain('B♭');
+    expect(labels).not.toContain('A♯');
+    // No sharp glyph at all in B♭ Major (its accidentals are B♭ and E♭).
+    expect(labels.some((l) => l.includes('♯'))).toBe(false);
+  });
+
+  it('B♭ Major spells E♭ (not D♯) for pitch class 3', () => {
+    const { svg } = renderBoard({ rootPc: 10, root: 'Bb', scale: 'major' });
+    expect(labelsOf(svg)).toContain('E♭');
+    expect(labelsOf(svg)).not.toContain('D♯');
+  });
+
+  it('A Major still spells sharps (C♯ / F♯ / G♯), proving the labels are key-aware', () => {
+    const { svg } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    const labels = labelsOf(svg);
+    expect(labels).toContain('C♯');
+    expect(labels).toContain('F♯');
+    expect(labels).toContain('G♯');
+    expect(labels.some((l) => l.includes('♭'))).toBe(false);
+  });
+
+  it('B♭ Chromatic uses flats — no A♯ / no sharp glyph anywhere', () => {
+    const { svg } = renderBoard({ rootPc: 10, root: 'Bb', scale: 'chromatic' });
+    const labels = labelsOf(svg);
+    expect(labels).toContain('B♭');
+    expect(labels).not.toContain('A♯');
+    expect(labels.some((l) => l.includes('♯'))).toBe(false);
+  });
+});
+
 describe('NoteMap transition-readiness (§7.5 / §15.1)', () => {
   // The S8 attach contract: on a (root, scale) change the SAME 60 DOM elements
   // persist (stable identity per (string, column)) and are re-classed in place —

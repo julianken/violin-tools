@@ -1,5 +1,6 @@
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { usePaletteController } from '../components/CommandPalette/usePaletteController';
+import { scaleName } from '../state/controls';
 import { useControls } from '../state/useControls';
 
 import { Content } from './Content';
@@ -36,7 +37,9 @@ export function AppShell() {
       </a>
       <Sidebar onOpenPalette={palette.open} />
       <div className="main">
-        <Topbar />
+        {/* The breadcrumb's active segment is the §13 spelled selection, shared
+            with the Content H1 + the map labels via one `spell()` engine. */}
+        <Topbar scaleName={scaleName(controls.state)} />
         <Content controls={controls} />
       </div>
 
