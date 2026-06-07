@@ -25,7 +25,10 @@ const SCALES = Object.keys(SCALE_INTERVALS) as ScaleType[];
 const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const;
 type Letter = (typeof LETTERS)[number];
 const LETTER_PC: Record<Letter, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-const ACC: Record<number, string> = { [-2]: '𝄫', [-1]: '♭', [0]: '', [1]: '♯', [2]: '𝄪' };
+// Double accidentals are doubled single signs (♭♭ / ♯♯), the glyphs the self-hosted
+// Inter face covers (§3) — NOT U+1D12B 𝄫 / U+1D12A 𝄪, which would tofu. This oracle
+// mirrors production; if the two diverge, the truth table catches it.
+const ACC: Record<number, string> = { [-2]: '♭♭', [-1]: '♭', [0]: '', [1]: '♯', [2]: '♯♯' };
 
 const m12 = (n: number): number => ((n % 12) + 12) % 12;
 
@@ -165,6 +168,17 @@ describe('§13 spell() — explicit anchor spellings', () => {
 
   it('A major pentatonic spells A B C♯ E F♯ (inherits Major letters)', () => {
     expect(spelledScale('A', 'majorPentatonic')).toEqual(['A', 'B', 'C♯', 'E', 'F♯']);
+  });
+
+  it('Db minor renders its double-flat 6th as B♭♭ (doubled ♭, NOT the U+1D12B 𝄫 glyph)', () => {
+    // D♭ natural minor's 6th degree is B-double-flat (pc 9). It must spell as the
+    // DOUBLED single-flat sign — the glyph the self-hosted Inter face covers
+    // (DESIGN §3, §13) — never the single Musical-Symbols codepoint U+1D12B 𝄫,
+    // which Inter lacks and which would render as tofu / a platform fallback.
+    expect(spell(9, 'Db', 'naturalMinor')).toBe('B♭♭');
+    expect(spell(9, 'Db', 'naturalMinor')).not.toContain('𝄫');
+    // The only UI-reachable double accidental in the 12-root set is this flat one
+    // (Db minor, 8 flats); no double-sharp key is reachable (Ab not G♯, etc.).
   });
 });
 

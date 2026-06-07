@@ -40,13 +40,21 @@ const LETTER_PITCH_CLASS: Readonly<Record<Letter, number>> = {
   B: 11,
 } as const;
 
-/** Accidental glyphs for an offset in semitones from a natural letter. */
+/**
+ * Accidental glyphs for an offset in semitones from a natural letter. Double
+ * accidentals are written as *doubled single signs* (`♭♭` / `♯♯`), NOT the single
+ * Musical-Symbols codepoints U+1D12B `𝄫` / U+1D12A `𝄪`: the self-hosted Inter
+ * face (DESIGN §3) covers only U+266D `♭` / U+266F `♯`, so the doubled form is the
+ * one that actually renders in-glyph on every platform — the single double-accidental
+ * codepoints fall back to a platform font (or tofu) and break the §3 self-hosted
+ * discipline. Same pitch, covered glyph (DESIGN §13).
+ */
 const ACCIDENTAL_BY_OFFSET: Readonly<Record<number, string>> = {
-  [-2]: '𝄫', // double-flat
-  [-1]: '♭', // flat
-  [0]: '', //   natural
-  [1]: '♯', //  sharp
-  [2]: '𝄪', //  double-sharp
+  [-2]: '♭♭', // double-flat  (doubled ♭, covered by Inter; not U+1D12B 𝄫)
+  [-1]: '♭', //  flat
+  [0]: '', //    natural
+  [1]: '♯', //   sharp
+  [2]: '♯♯', //  double-sharp (doubled ♯, covered by Inter; not U+1D12A 𝄪)
 } as const;
 
 /** Non-negative remainder mod 12 (the §12.5(d) convention; JS `%` can go negative). */
