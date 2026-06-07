@@ -85,3 +85,38 @@ describe('crossOrder (§12.5 string ordering)', () => {
     expect(crossOrder('vertical', 'left')).toEqual([0, 1, 2, 3]);
   });
 });
+
+describe('axisOf (orientation/handedness/density projection)', () => {
+  it('horizontal+right+fit dot center === (xOf(offset), STRINGS[i].y) — today, byte-identical', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    for (let i = 0; i < STRINGS.length; i++) {
+      for (const offset of COLUMN_OFFSETS) {
+        expect(layout.dotCenter(i, offset)).toEqual({ cx: xOf(offset), cy: STRINGS[i]!.y });
+      }
+    }
+  });
+  it('horizontal preserves the §12.1 cross-axis height (264)', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    expect(layout.viewBoxHeight).toBe(264);
+  });
+  it('vertical swaps the axes: the neck runs down (taller than wide)', () => {
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    expect(layout.viewBoxHeight).toBeGreaterThan(layout.viewBoxWidth);
+  });
+  it('vertical+right puts G (index 3) at the smallest cx (left), E (0) at the largest', () => {
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    expect(layout.dotCenter(3, 0).cx).toBeLessThan(layout.dotCenter(0, 0).cx);
+  });
+  it('left handedness mirrors the cross axis vs right (same orientation/density)', () => {
+    const right = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    const left = axisOf({ orientation: 'vertical', handedness: 'left', density: 'comfort' });
+    expect(right.dotCenter(0, 0).cx).not.toBe(left.dotCenter(0, 0).cx);
+  });
+  it('comfort spaces columns wider than fit along the neck', () => {
+    const fit = axisOf({ orientation: 'vertical', handedness: 'right', density: 'fit' });
+    const comfort = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    const fitGap = fit.dotCenter(0, 2).cy - fit.dotCenter(0, 1).cy;
+    const comfortGap = comfort.dotCenter(0, 2).cy - comfort.dotCenter(0, 1).cy;
+    expect(comfortGap).toBeGreaterThan(fitGap);
+  });
+});

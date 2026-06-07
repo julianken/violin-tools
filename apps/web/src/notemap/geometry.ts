@@ -13,7 +13,8 @@ import {
   OPEN_STRING_PITCH_CLASS,
   type OpenString,
 } from '@violin-tools/theory';
-import type { Orientation, Handedness, Density } from './mapView';
+
+import type { Density, Handedness, Orientation } from './mapView';
 
 /**
  * §12.1 — the SVG canvas. `width:100%`, `height:auto`, `min-width:760px` are CSS
@@ -113,4 +114,75 @@ export function crossOrder(
 ): readonly number[] {
   const ascending = (orientation === 'horizontal') === (handedness === 'right');
   return ascending ? [0, 1, 2, 3] : [3, 2, 1, 0];
+}
+
+/** A resolved view config (orientation already resolved — never 'auto'). */
+export interface AxisConfig {
+  orientation: Orientation;
+  handedness: Handedness;
+  density: Density;
+}
+
+/** The geometry the renderer needs for a given config (pure; no DOM). */
+export interface MapLayout {
+  viewBoxWidth: number;
+  viewBoxHeight: number;
+  viewBox: string;
+  /** Center of the dot at (stringIndex 0..3, columnOffset 0..14), in viewBox px. */
+  dotCenter(stringIndex: number, columnOffset: number): { cx: number; cy: number };
+}
+
+// Neck-axis (along the columns) position, density-dependent. `fit` reuses the
+// §12.1 values verbatim (open 42, stopped 96 + (o−1)×44) so horizontal+fit dot
+// centers are byte-identical to today; `comfort` spaces columns wider so the neck
+// is longer than the viewport and scrolls.
+const NECK_FIT = { open: OPEN_X, base: STOPPED_BASE_X, step: STOPPED_STEP_X };
+const NECK_COMFORT = { open: 30, base: 86, step: 56 };
+const NECK_MARGIN = 36;
+
+// Cross-axis (across the strings). Horizontal reuses the §12.1 string y-values
+// (base 68, step 46) so horizontal+fit reproduces the legacy 264 height exactly;
+// vertical packs the 4 strings across a narrow phone.
+// The y-values (68, 114) are transcribed verbatim from the STRINGS literal above —
+// using array indexing would require non-null assertions under noUncheckedIndexedAccess.
+const CROSS_H_BASE = 68; // STRINGS[0].y — E5
+const CROSS_H_STEP = 46; // STRINGS[1].y − STRINGS[0].y — 114 − 68
+const CROSS_H = { base: CROSS_H_BASE, step: CROSS_H_STEP };
+const CROSS_V = { base: 56, step: 82 };
+const CROSS_MARGIN_H = VIEWBOX_HEIGHT - (CROSS_H.base + 3 * CROSS_H.step); // = 58 → height 264
+const CROSS_MARGIN_V = 50;
+
+function neckPos(offset: number, density: Density): number {
+  const n = density === 'fit' ? NECK_FIT : NECK_COMFORT;
+  return offset === 0 ? n.open : n.base + (offset - 1) * n.step;
+}
+
+export function axisOf(config: AxisConfig): MapLayout {
+  const { orientation, handedness, density } = config;
+  const order = crossOrder(orientation, handedness);
+  const cross = orientation === 'horizontal' ? CROSS_H : CROSS_V;
+  const crossMargin = orientation === 'horizontal' ? CROSS_MARGIN_H : CROSS_MARGIN_V;
+
+  const neckExtent = neckPos(COLUMN_COUNT - 1, density) + NECK_MARGIN;
+  const crossExtent = cross.base + 3 * cross.step + crossMargin;
+
+  const crossPos = (stringIndex: number): number =>
+    cross.base + order.indexOf(stringIndex) * cross.step;
+
+  const dotCenter = (stringIndex: number, columnOffset: number) => {
+    const along = neckPos(columnOffset, density);
+    const across = crossPos(stringIndex);
+    return orientation === 'horizontal'
+      ? { cx: along, cy: across }
+      : { cx: across, cy: along };
+  };
+
+  const viewBoxWidth = orientation === 'horizontal' ? neckExtent : crossExtent;
+  const viewBoxHeight = orientation === 'horizontal' ? crossExtent : neckExtent;
+  return {
+    viewBoxWidth,
+    viewBoxHeight,
+    viewBox: `0 0 ${viewBoxWidth} ${viewBoxHeight}`,
+    dotCenter,
+  };
 }
