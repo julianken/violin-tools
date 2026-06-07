@@ -1,12 +1,17 @@
-// Near-empty placeholder app for the S1 foundation. No product UI, tokens, or
-// design surface (that is S2/S3) — this exists only to prove the React + Vite +
-// TS build path compiles to static assets and to give the day-one test a real
-// component to render.
+import { AppShell } from './shell/AppShell';
+import { ErrorBoundary } from './shell/ErrorBoundary';
+import './shell/shell.css';
+
+// The application root: the §9 app shell, wrapped in a top-level error boundary
+// so a render/runtime error shows a minimal fallback instead of a blank page.
+// The shell is the structural frame every later v1 surface plugs into (S5 fills
+// the note-map plate, S6 the controls rows, etc.) — S3 ships the empty, ordered,
+// accessible frame only. Tokens come from tokens.css / typography.css (imported
+// in main.tsx); shell.css consumes them by name.
 export default function App() {
   return (
-    <main>
-      <h1>Violin Tools</h1>
-      <p>Foundation scaffold — the Scales tool is built against DESIGN.md in later items.</p>
-    </main>
+    <ErrorBoundary>
+      <AppShell />
+    </ErrorBoundary>
   );
 }

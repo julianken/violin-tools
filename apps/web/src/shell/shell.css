@@ -1,0 +1,494 @@
+/*
+ * shell.css — the §9 App Shell & Layout (DESIGN.md §9, §4, §4.2, §8). Every
+ * color/space/radius/type/motion value resolves to a §0 token from tokens.css /
+ * typography.css — NO raw hex, and no magic px where a token exists. The few bare
+ * px below are DESIGN.md's own off-scale literals (sidebar padding `16px 14px`
+ * and inter-section gap `14px`, §4.2; the nav inter-item gap `2px`, a deliberate
+ * off-scale half-step, §4.2; icon-box widths `15px`, §0; the 14×10 / 14×14 glyph
+ * boxes, §0) and the per-role type sizes the §3 table fixes per role (not tokens
+ * by design). DESIGN.md wins on any conflict.
+ *
+ * This step ships RESTING + HOVER visuals only — NO motion/transitions (S8, §7)
+ * and the UA focus ring is never suppressed (§8, §16).
+ *
+ * Layout rule (§4): the shell is a flex row — NO CSS grid anywhere. The single
+ * `inline-grid` in the whole product is the theme toggle's one-cell icon slot
+ * (`.t-icon-swap`), forward-prep for a future same-slot icon swap (§8.8).
+ */
+
+/* ── base / reset ───────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  /* The topbar has no own fill — it inherits {canvas} from the body (§9 tree). */
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--family-ui);
+  line-height: var(--lh-normal);
+  -webkit-font-smoothing: antialiased; /* §3: body is antialiased */
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ── skip link (§11.3) — visually hidden until focused; never suppresses the
+ *    UA focus ring (§8) ──────────────────────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  left: var(--space-200);
+  top: calc(-1 * var(--space-1000)); /* off-screen at rest */
+  z-index: 60;
+  padding: var(--space-200) var(--space-300);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: var(--space-200);
+}
+
+/* ── .app — the flex row (§4, §9) ───────────────────────────────────────── */
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── .side — fixed 248px sticky rail (§4.2, §9) ─────────────────────────── */
+.side {
+  flex: none;
+  width: var(--sidebar-w); /* 248px */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px; /* inter-section gap (§4.2, off-scale literal) */
+  padding: var(--space-400) 14px; /* 16px 14px (§4.2; 14px off-scale) */
+  background: var(--sidebar);
+  border-right: 1px solid var(--hairline);
+}
+
+/* ── .brand — wordmark (§3 Wordmark row) ────────────────────────────────── */
+.brand {
+  font-family: var(--family-ui);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: var(--lh-flush);
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.brand-dot {
+  color: var(--mint); /* trailing period in {mint} (§9 tree, §3) */
+}
+
+/* ── .search — palette trigger (§8.3, §4.2) ─────────────────────────────── */
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200); /* 8px */
+  height: var(--search-h); /* 36px */
+  padding: 0 10px; /* §4.2 search padding `0 10px` (off-scale literal) */
+  background: var(--surface);
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-control); /* control = 8px */
+  color: var(--text3); /* placeholder colour (§8.3) */
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  text-align: left;
+  cursor: pointer;
+}
+.search:hover {
+  border-color: var(--hairline3); /* §8.3 hover */
+}
+.search-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px; /* ic-search rendered ~14px (§8.3, §0) */
+  height: 14px;
+  color: var(--text3);
+}
+.search-ic svg {
+  width: 14px;
+  height: 14px;
+}
+.search-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── .kbd / .soon-badge chips (§8.6, §3) — display-only ─────────────────── */
+.kbd {
+  flex: none;
+  font-family: var(--family-mono);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text3);
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-kbd); /* 4px */
+  padding: 1px 5px; /* §8.6 kbd chip padding */
+}
+
+/* ── .sec-h — section header (§3) ───────────────────────────────────────── */
+.sec-h {
+  font-family: var(--family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+/* ── .nav + .ni — nav items (§8.2, §4.2) ────────────────────────────────── */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* inter-item gap (§4.2) — deliberate off-scale half-step */
+}
+.ni {
+  display: flex;
+  align-items: center;
+  gap: 9px; /* icon→label gap (§4.2) — off-scale literal */
+  height: var(--nav-item-h); /* 32px */
+  padding: 0 10px; /* §4.2 nav padding (off-scale literal) */
+  border-radius: var(--radius-nav); /* 6px */
+  font-family: var(--family-ui);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  color: var(--text2);
+  text-decoration: none;
+}
+.ni .ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px; /* icon.box.nav (§0, §8.2) */
+  height: 15px;
+  color: var(--text3); /* resting/soon icon sits at {text3} (§8.2) */
+  font-size: 13px; /* sizes the Unicode soon glyphs in the 15px box */
+  line-height: 1;
+}
+.ni:hover {
+  background: var(--nav-hover-bg); /* §8.2 hover (default only) */
+}
+.ni.active {
+  background: var(--raised);
+  color: var(--text); /* active label {text} (§8.2) */
+}
+.ni.active .ic {
+  color: var(--mint); /* active icon promoted to {mint} (§8.2) */
+}
+.ni.soon {
+  color: var(--muted); /* {muted} (§8.2) */
+  cursor: default;
+}
+.ni.soon:hover {
+  background: transparent; /* soon items have NO hover (§8.2) */
+}
+.ni.soon .ic {
+  color: var(--muted);
+}
+.ni-label {
+  flex: 1;
+  min-width: 0;
+}
+.soon-badge {
+  flex: none;
+  font-family: var(--family-mono);
+  font-size: 9px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text3);
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-kbd); /* 4px */
+  padding: 1px 4px; /* §8.6 "soon" badge padding */
+}
+
+/* ── .spacer — pushes the toggle to the foot (§9 tree) ──────────────────── */
+.spacer {
+  flex: 1;
+}
+
+/* ── .theme — inert theme toggle (§8.8, §4.2) ───────────────────────────── */
+.theme {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200); /* 8px (§4.2) */
+  height: var(--nav-item-h); /* 32px */
+  padding: 0 10px; /* §4.2 (off-scale literal) */
+  border-radius: var(--radius-nav); /* 6px */
+  background: transparent; /* resting (§8.8) */
+  border: 1px solid var(--hairline); /* the one foot-of-rail resting hairline (§8.8) */
+  color: var(--text2); /* {text2} (§8.8) */
+  font-family: var(--family-ui);
+  font-size: 13px;
+  line-height: var(--lh-flush);
+  text-align: left;
+  cursor: default; /* inert; aria-disabled (§8.8) */
+}
+.theme:hover {
+  background: var(--nav-hover-bg); /* §8.8 hover */
+}
+/* The ONE inline-grid in the product (§4 carve-out): a single fixed cell that
+ * holds exactly one glyph in S3, structured so a future light mode can stack two
+ * `t-icon` children in the same cell for a same-slot swap (transitions-dev 09).
+ * NO swap CSS, NO JS, NO second icon ship here (§8.8). */
+.t-icon-swap {
+  display: inline-grid;
+  place-items: center;
+  width: 15px; /* matches the nav icon box so the glyph sits in a fixed cell */
+  height: 15px;
+}
+.t-icon {
+  grid-area: 1 / 1; /* every future icon stacks into the single cell */
+  line-height: 1;
+}
+
+/* ── .main — fluid column (§4, §9) ──────────────────────────────────────── */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── .topbar (§4.2, §9) — no own fill (inherits {canvas}) ───────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  height: var(--topbar-h); /* 52px */
+  padding: 0 var(--space-800); /* 0 32px (§4.2) */
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* ── .crumb — breadcrumb (§3, §9) ───────────────────────────────────────── */
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200); /* 8px */
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+}
+.crumb-seg {
+  color: var(--text3); /* base breadcrumb (§3) */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crumb-sep {
+  color: var(--hairline3); /* separator "/" (§3, §9) */
+}
+.crumb-active {
+  color: var(--text2); /* active segment {text2} (§3, §9) */
+}
+
+/* ── .ghost — inert "Share scale" button (§8.4, §4.2) ───────────────────── */
+.ghost {
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-pill);
+  color: var(--text); /* {text} 13px/500 (§8.4) */
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  padding: 7px 14px; /* §8.4 / §4.2 (off-scale literals) */
+  cursor: pointer;
+}
+.ghost:hover {
+  border-color: var(--hairline3); /* §8.4 hover */
+}
+
+/* ── .content — max-880px column (§4.2, §9) ─────────────────────────────── */
+.content {
+  width: 100%;
+  max-width: var(--content-max-w); /* 880px */
+  /* §4.2 content padding `26px 32px 60px`: 32px = space-800; 26px and 60px are
+   * off-scale literals. */
+  padding-block: 26px 60px;
+  padding-inline: var(--space-800);
+}
+
+/* ── .kicker (§3, §4.2, §9) ─────────────────────────────────────────────── */
+.kicker {
+  font-family: var(--family-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--mint);
+  opacity: 0.85; /* §3 kicker opacity */
+  margin-bottom: 5px; /* §4.2 kicker margin (off-scale literal) */
+}
+
+/* ── .toolhead — baseline-aligned H1 + formula (§4.2, §9) ───────────────── */
+.toolhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-200); /* 8px (§4.2) */
+  margin-bottom: var(--space-400); /* 16px (§4.2) */
+}
+.h1 {
+  /* Page H1 (scale name) — §3. Empty in S3; sized so it holds its 32px lh-tight
+   * box at every width (§10) once a name lands. */
+  margin: 0;
+  min-height: calc(32px * var(--lh-tight)); /* reserve the line box while empty */
+  font-family: var(--family-ui);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: var(--lh-tight); /* 1.1 */
+  letter-spacing: -0.7px;
+  color: var(--text);
+}
+.formula {
+  flex: none;
+  font-family: var(--family-mono);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  letter-spacing: 1px;
+  color: var(--text2);
+  font-feature-settings: var(--features-mono); /* tnum (§3) */
+}
+
+/* ── .controls — card + three empty labeled rows (§4.2, §9.1) ───────────── */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300); /* inner gap 12px (§4.2) */
+  border-radius: var(--radius-card); /* 12px */
+  border: 1px solid var(--hairline);
+  padding: var(--space-400); /* 16px (§4.2) */
+  margin-bottom: var(--space-400); /* 16px (§4.2) */
+}
+.ctrl-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px; /* §4.2 controls-row gap (off-scale literal) */
+}
+.lab {
+  flex: none;
+  width: 52px; /* §3 / §4.2 label column fixed 52px */
+  font-family: var(--family-ui);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: var(--lh-flush);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  /* nudge the label to the row's optical centre while the slot is empty */
+  padding-top: var(--space-100);
+}
+.ctrl-slot {
+  flex: 1;
+  min-width: 0;
+  /* Empty in S3 — pills are S6. Reserve a row height so the empty group reads as
+   * a row, not a collapsed line. */
+  min-height: var(--pill-h); /* 30px */
+}
+
+/* ── .panelcard → .panel — the note-map frame + plate (§4.2, §10) ───────── */
+.panelcard {
+  border-radius: var(--radius-frame); /* 14px */
+  border: 1px solid var(--hairline);
+  padding: var(--space-300); /* 12px (§4.2) */
+  background: var(--panelcard-bg);
+}
+.panel {
+  overflow-x: auto; /* the plate horizontal-scrolls (§4.2, §10) */
+  border-radius: var(--radius-plate); /* 10px */
+  border: 1px solid var(--panel-bd);
+  padding: 12px 10px 8px; /* §4.2 plate padding (off-scale literals) */
+  background: var(--fingerboard-plate);
+}
+.board {
+  display: block;
+  width: 100%;
+  min-width: var(--board-min-width); /* 760px — holds width so the plate scrolls */
+  height: auto;
+}
+
+/* ── .caveat / .legend — empty placeholders in S3 (§9) ──────────────────── */
+.caveat {
+  margin: 10px 2px 0; /* §4.2 caveat margin (off-scale literals) */
+  font-family: var(--family-ui);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: var(--lh-normal);
+  color: var(--tape);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-400); /* outer gap 16px (§4.2) */
+  margin: 14px 2px 0; /* §4.2 legend margin (off-scale literals) */
+}
+
+/* ── crash fallback (ErrorBoundary) — token-styled, no shell chrome ──────── */
+.crash {
+  max-width: var(--content-max-w);
+  margin: 0 auto;
+  padding: var(--space-1600) var(--space-800);
+  color: var(--text);
+  font-family: var(--family-ui);
+}
+.crash h1 {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.7px;
+  color: var(--text);
+}
+.crash p {
+  font-size: 14px;
+  color: var(--text2);
+}
+
+/* ── §10 narrow floor — ONE 760px breakpoint ────────────────────────────── */
+/* Below the floor the plate scrolls (already via .panel) and everything else
+ * reflows to full width. The sidebar STAYS 248px fixed (no collapse/stack), the
+ * H1 stays 32px lh-tight (no step-down), the topbar stays 52px. This is the
+ * entire contract below 760px (§10) — no drawer, no restacked controls. The
+ * `.content`/`.controls`/`.legend` are already fluid full-width, so the floor is
+ * a no-op reflow guard rather than a new layout; the rule exists to pin that the
+ * single specified breakpoint is here and changes nothing structural.
+ *
+ * The `760px` literal is the one place the `--shell-min-width` token CANNOT be
+ * used: CSS media-query feature values do not accept `var()` (the custom
+ * property would not resolve in the media condition). It mirrors
+ * `--shell-min-width` in tokens.css 1:1 (§0 / §10). */
+@media (max-width: 760px) {
+  .content {
+    /* already 100% up to its max-width; restated so the floor is explicit */
+    width: 100%;
+  }
+}
