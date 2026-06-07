@@ -11,7 +11,7 @@ catalogue of instance facts (product, slug, Figma file, merge/review infra) is
 
 | Agent | Purpose | When to dispatch |
 |---|---|---|
-| [`design-reviewer`](design-reviewer.md) | Review a change against the DESIGN.md design system (tokens, color/contrast, type, spacing, motion, the note-map SVG, a11y); Playwright screenshot pass once a UI exists | "review the design surface", "does this match the spec", "design-system review pass" on any token/UI diff |
+| [`design-reviewer`](design-reviewer.md) | Review a change against the DESIGN.md design system (tokens, color/contrast, type, spacing, motion, the note-map SVG, a11y); also verifies transitions-dev usage on motion/interaction surfaces (AGENTS.md → UI & motion tooling); Playwright screenshot pass once a UI exists | "review the design surface", "does this match the spec", "design-system review pass" on any token/UI diff |
 | [`julianken-bot`](julianken-bot.md) | Discoverability shim for `@julianken-bot` review dispatch — routes PRs to the repo `reviewing` rubric + user `reviewing-as-julianken-bot` (bot identity/credentials), issues to repo `issue-plan-review` | "review the PR", "dispatch the bot", "approve the issue spec", "plan review on issue #N" |
 
 The design-reviewer runs **alongside** the correctness review, not instead of it.
