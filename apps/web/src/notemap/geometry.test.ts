@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  axisOf,
   COLUMN_COUNT,
   COLUMN_OFFSETS,
+  crossOrder,
   OPEN_X,
   STOPPED_OFFSETS,
   STRINGS,
@@ -66,5 +68,55 @@ describe('notemap geometry (§12.1)', () => {
     expect([...STOPPED_OFFSETS]).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
     ]);
+  });
+});
+
+describe('crossOrder (§12.5 string ordering)', () => {
+  it('horizontal + right → E,A,D,G top→bottom (today)', () => {
+    expect(crossOrder('horizontal', 'right')).toEqual([0, 1, 2, 3]);
+  });
+  it("vertical + right → G,D,A,E left→right (player's-eye)", () => {
+    expect(crossOrder('vertical', 'right')).toEqual([3, 2, 1, 0]);
+  });
+  it('horizontal + left mirrors the rows', () => {
+    expect(crossOrder('horizontal', 'left')).toEqual([3, 2, 1, 0]);
+  });
+  it('vertical + left mirrors to E,A,D,G left→right', () => {
+    expect(crossOrder('vertical', 'left')).toEqual([0, 1, 2, 3]);
+  });
+});
+
+describe('axisOf (orientation/handedness/density projection)', () => {
+  it('horizontal+right+fit dot center === (xOf(offset), STRINGS[i].y) — today, byte-identical', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    for (let i = 0; i < STRINGS.length; i++) {
+      for (const offset of COLUMN_OFFSETS) {
+        expect(layout.dotCenter(i, offset)).toEqual({ cx: xOf(offset), cy: STRINGS[i]!.y });
+      }
+    }
+  });
+  it('horizontal preserves the §12.1 cross-axis height (264)', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    expect(layout.viewBoxHeight).toBe(264);
+  });
+  it('vertical swaps the axes: the neck runs down (taller than wide)', () => {
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    expect(layout.viewBoxHeight).toBeGreaterThan(layout.viewBoxWidth);
+  });
+  it('vertical+right puts G (index 3) at the smallest cx (left), E (0) at the largest', () => {
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    expect(layout.dotCenter(3, 0).cx).toBeLessThan(layout.dotCenter(0, 0).cx);
+  });
+  it('left handedness mirrors the cross axis vs right (same orientation/density)', () => {
+    const right = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    const left = axisOf({ orientation: 'vertical', handedness: 'left', density: 'comfort' });
+    expect(right.dotCenter(0, 0).cx).not.toBe(left.dotCenter(0, 0).cx);
+  });
+  it('comfort spaces columns wider than fit along the neck', () => {
+    const fit = axisOf({ orientation: 'vertical', handedness: 'right', density: 'fit' });
+    const comfort = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    const fitGap = fit.dotCenter(0, 2).cy - fit.dotCenter(0, 1).cy;
+    const comfortGap = comfort.dotCenter(0, 2).cy - comfort.dotCenter(0, 1).cy;
+    expect(comfortGap).toBeGreaterThan(fitGap);
   });
 });
