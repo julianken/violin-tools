@@ -17,6 +17,17 @@ test-results/
 blob-report/
 .playwright/
 
+# Terraform (infra/) — never commit local state, the provider cache, or live
+# tfvars. The provider lock (.terraform.lock.hcl) and *.example IS committed.
+infra/.terraform/
+*.tfstate
+*.tfstate.*
+infra/terraform.tfvars
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+
 # Misc
 .DS_Store
 *.log

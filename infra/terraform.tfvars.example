@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (gitignored) only if you need to override the
+# Phase-A defaults baked into variables.tf. A cold `terraform validate` and a
+# `terraform plan` both work WITHOUT this file — the variable defaults supply
+# the real values. This example exists so the override shape is discoverable.
+project_id  = "strings-solo-prod"
+region      = "us-central1"
+bucket_name = "strings-solo-prod-web"
+domain      = "strings-solo.com"

@@ -2,9 +2,9 @@
 
 A web app of focused practice tools for violinists. The first tool is **Scales** — a whole-neck fingerboard note map that shows where every note of a scale falls across the entire fingerboard at a glance.
 
-## Status: in development — builds and runs locally, not yet deployed
+## Status: in development — builds and runs locally, not yet live
 
-The foundation is in place: a Turborepo + pnpm-workspaces monorepo whose `apps/web` is a React + Vite + TypeScript app that builds to static assets, gated in CI by `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build`. You can install and run it locally — see [`AGENTS.md`](./AGENTS.md) → "Working in the tree" for the commands. The product UI is still being built against [`DESIGN.md`](./DESIGN.md) (the spec for the whole thing — token system, color and contrast, typography, motion, components, accessibility, and the fingerboard note-map model), and nothing is **deployed** yet — hosting lands in a later item.
+The foundation is in place: a Turborepo + pnpm-workspaces monorepo whose `apps/web` is a React + Vite + TypeScript app that builds to static assets, gated in CI by `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build`. You can install and run it locally — see [`AGENTS.md`](./AGENTS.md) → "Working in the tree" for the commands. The product UI is still being built against [`DESIGN.md`](./DESIGN.md) (the spec for the whole thing — token system, color and contrast, typography, motion, components, accessibility, and the fingerboard note-map model). The hosting infrastructure is now defined as code in [`infra/`](./infra/) — Cloudflare's free edge fronting a public-read static-asset bucket, with a keyless CI deploy pipeline — but it is **not applied yet**, so nothing is **live**.
 
 It's a client-side static web app: no backend, no accounts, no personal data, no analytics.
 
