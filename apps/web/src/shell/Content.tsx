@@ -1,9 +1,12 @@
+import { NoteMap } from '../notemap/NoteMap';
+import { NoteMapLegend } from '../notemap/NoteMapLegend';
+
 // The max-880px content column (DESIGN.md §9 tree, §4.2). It emits the slot set
-// in §9-tree order — kicker · toolhead · controls · panelcard · caveat · legend
-// — as EMPTY, correctly-ordered placeholders. Later steps fill them: S5 renders
-// the note-map SVG inside `.panel`; S6 fills the controls rows with pills; the
-// caveat and legend land with the reference-layer work. This step only lays out
-// the structurally-correct, accessible frame.
+// in §9-tree order — kicker · toolhead · controls · panelcard · caveat · legend.
+// S3 shipped these as empty placeholders; S5 now fills two of them: the note-map
+// SVG (`#board`) renders the §12 60-dot map, and the `.legend` slot renders the
+// §12.4 always-visible five-swatch key. The controls rows (S6) and the caveat /
+// reference overlays (S7) are still empty here.
 
 // The three controls rows (DESIGN.md §9.1, §11.3). Root and Scale are ARIA
 // radiogroups; Refs is an ARIA `group` — NOT a radiogroup — because it is
@@ -40,7 +43,8 @@ export function Content() {
       <div className="panelcard">
         {/* The note-map plate: `overflow-x:auto`, inner SVG holds its 760px
             min-width so it horizontal-scrolls below the narrow floor (§4.2, §10).
-            The SVG is an empty placeholder — S5 renders the 60-dot map into it. */}
+            S5 renders the §12 60-dot map as the SVG's content; the SVG element
+            (viewBox + aria-label, §11.3) is the S3 frame it mounts into. */}
         <div className="panel">
           <svg
             id="board"
@@ -48,13 +52,17 @@ export function Content() {
             viewBox="0 0 760 264"
             role="img"
             aria-label="Full fingerboard note map"
-          />
+          >
+            <NoteMap />
+          </svg>
         </div>
       </div>
 
       <div className="caveat" />
 
-      <div className="legend" />
+      <div className="legend">
+        <NoteMapLegend />
+      </div>
     </main>
   );
 }

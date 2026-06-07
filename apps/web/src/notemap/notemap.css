@@ -1,0 +1,147 @@
+/*
+ * notemap.css — the §12 note-map visuals (DESIGN.md §12.1 / §12.2 / §12.4 /
+ * §15.1). Every color resolves to a §0 token from tokens.css; NO raw hex. The
+ * bare px below are DESIGN.md's own §12 SVG literals (stroke widths 1 / 1.5 / 3,
+ * the legend swatch sizes/gaps, the dot-label sizes/weights) — they are spec
+ * values, not magic numbers. DESIGN.md wins on any conflict.
+ *
+ * S5 ships the STATIC, transition-READY surface: state is carried as a class on
+ * the `.note` wrapper (`is-off` / `is-scale` / `is-root`) and the per-state
+ * visuals are CSS rules keyed off that class, so S8 attaches in-place tweens by
+ * adding `transition` declarations — no DOM restructuring. NO `transition`,
+ * `transition-delay`, `@keyframes`, `.hide` fade, or per-column stagger is
+ * authored here (that is S8, §7 / §7.5).
+ */
+
+/* ── static chrome (§12.1) ──────────────────────────────────────────────── */
+.board .string-line {
+  stroke: var(--string-line);
+  stroke-width: 1.5;
+}
+.board .nut {
+  fill: var(--string-line);
+}
+.board .guide {
+  stroke: var(--guide-line);
+  stroke-width: 1;
+}
+.board .string-name {
+  font-family: var(--family-ui);
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--string-name);
+}
+.board .open-label {
+  font-family: var(--family-ui);
+  font-size: 10px;
+  font-weight: 400;
+  fill: var(--open-label);
+}
+
+/* ── note nodes — persistent glow / dot / lbl per node (§15.1) ───────────── */
+
+/* glow ring (§12.2): present on EVERY node, r=19, fill:none, mint-translucent
+ * stroke width 3 — invisible everywhere except the root, where the wrapper class
+ * promotes its opacity. S8 fades this opacity; S5 holds it static. */
+.board .note .glow {
+  stroke: var(--root-glow);
+  stroke-width: 3;
+  opacity: 0;
+}
+.board .note.is-root .glow {
+  opacity: 1;
+}
+
+/* dot (§12.2): radius is set as the geometric `r` attribute per state in the
+ * component; fill / stroke / stroke-width are the per-state treatment here. */
+.board .note.is-off .dot {
+  fill: var(--off-fill);
+  stroke: var(--off-stroke);
+  stroke-width: 1;
+}
+.board .note.is-scale .dot {
+  fill: var(--in-scale-fill);
+  stroke: var(--mint);
+  stroke-width: 1.5;
+}
+.board .note.is-root .dot {
+  fill: var(--mint);
+  stroke: none;
+  stroke-width: 0;
+}
+
+/* lbl (§12.2 / §15.1): Inter, tabular figures, text-anchor:middle, baseline at
+ * cy + 4 (set as the `y` attribute; NO dominant-baseline — §3 / §15.1). The off
+ * node carries an empty, invisible label element so it persists for S8. */
+.board .note .lbl {
+  font-family: var(--family-ui);
+  font-feature-settings: var(--features-ui); /* 'tnum' — tabular figures (§3) */
+  text-anchor: middle;
+}
+.board .note.is-off .lbl {
+  opacity: 0; /* no label on off dots (§12.2) — hidden, not removed (S8 hook) */
+}
+.board .note.is-scale .lbl {
+  font-size: 12px;
+  font-weight: 500;
+  fill: var(--scale-label);
+  opacity: 1;
+}
+.board .note.is-root .lbl {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--root-label); /* #08130f — invariant, NEVER white (§11.2 / §12.2) */
+  opacity: 1;
+}
+
+/* ── legend (§12.4) — always visible, static (§7.5) ─────────────────────── */
+/* The `.legend` flex container lives in shell.css; these style its swatches. */
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px; /* §12.4 swatch→label gap */
+  font-family: var(--family-ui);
+  font-size: 12px;
+  color: var(--text2);
+}
+.legend-swatch {
+  flex: none;
+  display: inline-block;
+}
+/* root — 16×16 solid {mint} circle (§12.4) */
+.lg-root {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--mint);
+}
+/* in scale — 16×16 circle, in-scale-swatch bg, 1.5px {mint} border (§12.4) */
+.lg-scale {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--in-scale-swatch);
+  border: 1.5px solid var(--mint);
+}
+/* not in scale — 9×9 circle, off-fill bg, 1px off-stroke border (§12.4) */
+.lg-off {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  background: var(--off-fill);
+  border: 1px solid var(--off-stroke);
+}
+/* beginner tape — 13×16 rect, radius 3px, tape-swatch bg (§12.4) */
+.lg-tape {
+  width: 13px;
+  height: 16px;
+  border-radius: var(--radius-chip); /* 3px */
+  background: var(--tape-swatch);
+}
+/* landmark — 13×16 rect, radius 3px, teal→violet vertical gradient (§12.4) */
+.lg-landmark {
+  width: 13px;
+  height: 16px;
+  border-radius: var(--radius-chip); /* 3px */
+  background: linear-gradient(180deg, var(--teal), var(--violet));
+}
