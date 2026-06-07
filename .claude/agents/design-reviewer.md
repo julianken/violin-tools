@@ -221,6 +221,18 @@ dev server is provided and the tools are available:
 5. `browser_console_messages` — surface errors that indicate a broken surface.
 6. Diff the rendered pixels against §12 (map), §8 (components), and the §2.5
    contrast pairs; file findings in the same format and severity vocabulary above.
+7. **Also inspect the PR's *attached* screenshots when they exist** — not only your
+   local Playwright captures. If the dispatch names a PR whose body has
+   `user-attachments/assets/<uuid>` image URLs, view each one (`browser_navigate` to
+   the image URL, or have the URLs passed in the dispatch) and judge the design pass
+   against those published images too, so you grade the same artifact that ships in
+   the PR — not a different render only you saw. Confirm each attached image renders
+   (not broken/404/placeholder), the count/viewports match the PR's claims and the
+   template (≥1 mobile 390×844 + ≥1 desktop 1440×900), and the rendered UI
+   corresponds to the diff/spec at the current HEAD. A missing, broken, stale, or
+   mismatched attached screenshot is a finding (this is the design-surface half of
+   the correctness reviewer's R12 — `.claude/skills/reviewing/SKILL.md`). This is a
+   read-only fetch; you still never write files or run a mutating command.
 
 Report screenshots and the a11y snapshot as evidence for each rendered-UI finding —
 never assert a visual defect you did not capture.
