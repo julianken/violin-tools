@@ -18,11 +18,13 @@ Violin Tools — a web app of focused practice tools for violinists. Its first t
 ## Repo identity
 Local folder `violin-scales/`; GitHub slug `julianken/violin-tools` — they differ, so pass the slug to `gh`. Default branch `main`.
 
-## Design / Figma (read-only)
+## Design / Figma (scoped writes)
 
 `DESIGN.md` is the source of truth for design (see AGENTS.md → "Design source of truth" for the authority ranking). The instance facts about *this product's* Figma file live here.
 
-The design system lives in Figma (file `HWmo5hCeSXWtkSBiO1msIF`). Read it via the Figma MCP **read tools only** — `get_metadata`, `get_design_context`, `get_screenshot`, `get_variable_defs`, `get_code_connect_map`, `get_libraries`, `search_design_system`, `whoami`. **Never** call a write tool (`use_figma`, `create_new_file`, `generate_figma_design`, `generate_diagram`, `upload_assets`, `add_code_connect_map`): agents read Figma; a human edits it.
+The design system lives in Figma (file `HWmo5hCeSXWtkSBiO1msIF`). Read it via the Figma MCP read tools — `get_metadata`, `get_design_context`, `get_screenshot`, `get_variable_defs`, `get_code_connect_map`, `get_libraries`, `search_design_system`, `whoami`.
+
+**Scoped writes (changed 2026-06-07; was read-only).** Figma is now the working board for features going forward, so agents MAY call Figma **write** tools (`use_figma`, `create_new_file`, `upload_assets`) — but **only on a designated feature/WIP page** (one page per feature, e.g. `Scales — Note Map`; see the Node map below). The shared **system pages are off-limits to agent writes** and stay human-edited: **Foundations, Components, States, Motion, Annotations, and the existing Screens boards.** Load the `/figma-use` skill before any `use_figma` call, build idempotently (name-/`setSharedPluginData`-keyed so a re-run never duplicates), and verify the result with read tools. `add_code_connect_map` / Code Connect remain out of scope. The authority rule below is unchanged and binding: **values flow `DESIGN.md` §0 → Figma, never Figma → build.**
 
 **Authority:** shipped build > `DESIGN.md` > Figma. `DESIGN.md` wins on any design conflict; a live Figma value that disagrees with it does **not** bind the build — it's *drift to reconcile into `DESIGN.md` §0 in a PR*. Never build straight from a live Figma node, and don't paste its raw hexes/Tailwind — translate to `DESIGN.md` tokens. The two do not auto-sync.
 
