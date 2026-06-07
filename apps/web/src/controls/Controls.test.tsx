@@ -2,17 +2,24 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Content } from '../shell/Content.tsx';
+import { useControls } from '../state/useControls.ts';
 
 // Controls-card integration tests (§9.1 / §11.3 / §8.1 / §12.5). These mount the
-// live Content (which owns the single `(root, scale, refs)` state, the three
-// rows, and the note map) and assert the controls drive the map. Behaviour-level,
-// not snapshots — they survive cosmetic change while pinning the load-bearing
-// contracts: per-row content/order, per-row ARIA roles, roving tabindex + arrow
-// selection, Refs independence (behavioural), the A-Major classify wiring, and
-// the §9.1 dim logic.
+// live Content and assert the controls drive the map. S9 lifted the `(root,
+// scale, refs)` state up to the shell, so Content now RECEIVES the controls api
+// as a prop; this harness owns the hook (the same `useControls` AppShell uses) so
+// the integration is exercised end-to-end. Behaviour-level, not snapshots — they
+// survive cosmetic change while pinning the load-bearing contracts: per-row
+// content/order, per-row ARIA roles, roving tabindex + arrow selection, Refs
+// independence (behavioural), the A-Major classify wiring, and the §9.1 dim logic.
+
+function ContentHarness() {
+  const controls = useControls();
+  return <Content controls={controls} />;
+}
 
 function setup() {
-  render(<Content />);
+  render(<ContentHarness />);
   const root = screen.getByRole('radiogroup', { name: 'Root note' });
   const scale = screen.getByRole('radiogroup', { name: 'Scale type' });
   const refs = screen.getByRole('group', { name: 'Reference layers' });
@@ -24,8 +31,7 @@ function setup() {
     refs,
     board,
     notes: () => Array.from(board.querySelectorAll('g.note')),
-    openNote: (stringIndex: number) =>
-      board.querySelectorAll('g.note')[stringIndex * 15],
+    openNote: (stringIndex: number) => board.querySelectorAll('g.note')[stringIndex * 15],
   };
 }
 
@@ -34,9 +40,7 @@ describe('controls ARIA roles (§11.3)', () => {
     setup();
     expect(screen.getAllByRole('radiogroup')).toHaveLength(2);
     expect(screen.getByRole('group', { name: 'Reference layers' })).toBeInTheDocument();
-    expect(
-      screen.queryByRole('radiogroup', { name: 'Reference layers' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Reference layers' })).not.toBeInTheDocument();
   });
 
   it('Root/Scale pills are role=radio; Refs pills are role=checkbox', () => {
@@ -50,25 +54,20 @@ describe('controls ARIA roles (§11.3)', () => {
 describe('pill content / order / labels (§9.1)', () => {
   it('Root row renders the 12 default-spelling pills in chromatic order', () => {
     const { root } = setup();
-    expect(within(root).getAllByRole('radio').map((p) => p.textContent)).toEqual([
-      'C',
-      'Db',
-      'D',
-      'Eb',
-      'E',
-      'F',
-      'F#',
-      'G',
-      'Ab',
-      'A',
-      'Bb',
-      'B',
-    ]);
+    expect(
+      within(root)
+        .getAllByRole('radio')
+        .map((p) => p.textContent),
+    ).toEqual(['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']);
   });
 
   it('Scale row renders the 7 exact truncated labels in order', () => {
     const { scale } = setup();
-    expect(within(scale).getAllByRole('radio').map((p) => p.textContent)).toEqual([
+    expect(
+      within(scale)
+        .getAllByRole('radio')
+        .map((p) => p.textContent),
+    ).toEqual([
       'Major',
       'Nat. minor',
       'Harm. minor',
@@ -82,12 +81,7 @@ describe('pill content / order / labels (§9.1)', () => {
   it('Refs row renders the 4 pills in order with the §8.1 accent classes', () => {
     const { refs } = setup();
     const pills = within(refs).getAllByRole('checkbox');
-    expect(pills.map((p) => p.textContent)).toEqual([
-      'Tapes',
-      'low 2',
-      '3-tape',
-      'Landmarks',
-    ]);
+    expect(pills.map((p) => p.textContent)).toEqual(['Tapes', 'low 2', '3-tape', 'Landmarks']);
     // The three tape pills carry pill-tape, the last carries pill-landmark (§8.1).
     expect(pills[0]?.classList.contains('pill-tape')).toBe(true);
     expect(pills[1]?.classList.contains('pill-tape')).toBe(true);
@@ -182,21 +176,21 @@ describe('§9.1 dim logic in the DOM', () => {
   it('turning Tapes on un-dims low 2 and 3-tape', () => {
     const { refs } = setup();
     fireEvent.click(within(refs).getByRole('checkbox', { name: 'Tapes' }));
-    expect(
-      within(refs).getByRole('checkbox', { name: 'low 2' }).classList.contains('dim'),
-    ).toBe(false);
-    expect(
-      within(refs).getByRole('checkbox', { name: '3-tape' }).classList.contains('dim'),
-    ).toBe(false);
+    expect(within(refs).getByRole('checkbox', { name: 'low 2' }).classList.contains('dim')).toBe(
+      false,
+    );
+    expect(within(refs).getByRole('checkbox', { name: '3-tape' }).classList.contains('dim')).toBe(
+      false,
+    );
   });
 
   it('low 2 dims again while 3-tape is active (Tapes on)', () => {
     const { refs } = setup();
     fireEvent.click(within(refs).getByRole('checkbox', { name: 'Tapes' }));
     fireEvent.click(within(refs).getByRole('checkbox', { name: '3-tape' }));
-    expect(
-      within(refs).getByRole('checkbox', { name: 'low 2' }).classList.contains('dim'),
-    ).toBe(true);
+    expect(within(refs).getByRole('checkbox', { name: 'low 2' }).classList.contains('dim')).toBe(
+      true,
+    );
   });
 });
 
