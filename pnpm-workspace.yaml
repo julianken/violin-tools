@@ -4,3 +4,12 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# unrs-resolver (transitive of eslint-plugin-import-x) ships prebuilt platform
+# binaries via its @unrs/resolver-binding-* optional deps, so its postinstall
+# build is unnecessary and is explicitly DENIED here (pnpm 11 otherwise warns /
+# fails the deps-status check on an unanswered build approval). We use
+# importX.createNodeResolver, which loads these prebuilt bindings — no source
+# build required.
+allowBuilds:
+  unrs-resolver: false

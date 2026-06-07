@@ -1,6 +1,6 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
 // Near-empty Vite config for the S1 foundation: React plugin + a jsdom Vitest
 // environment so the day-one component test can render. No product/build tuning
