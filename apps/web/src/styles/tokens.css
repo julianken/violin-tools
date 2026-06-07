@@ -245,7 +245,7 @@
   --palette-row-h: 40px;
   --board-viewbox: 0 0 760 264;
   --board-min-width: 760px;
-  --shell-min-width: 760px; /* below this, the plate horizontal-scrolls (§10) */
+  --shell-min-width: 760px; /* §10 mobile-reflow breakpoint: below this the sidebar collapses to a drawer + the page reflows to one column; the plate scrolls the 760px SVG inside itself (§10) */
   --touch-target-min: 44px; /* WCAG 2.5.5 floor for any pointer target */
 }
 

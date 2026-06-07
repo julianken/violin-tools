@@ -49,7 +49,10 @@ jobs:
       - name: Build
         run: pnpm build
 
-  # SOFT-LAUNCH (S8): the Playwright motion e2e suite. A SEPARATE job from `gates`
+  # SOFT-LAUNCH (S8): the Playwright e2e suite — `pnpm test:e2e` runs ALL specs in
+  # `apps/web/e2e/` (motion `motion.spec.ts`, the §10 mobile-reflow `responsive.
+  # spec.ts` added in S11, and the a11y spec, which the dedicated `a11y` job below
+  # also runs on its own). A SEPARATE job from `gates`
   # — it is deliberately NOT in the branch ruleset's required checks nor in
   # .mergify.yml `check-success`, so a flake never blocks a merge while the suite
   # proves itself. It is the first noisy/non-deterministic check, so it follows the

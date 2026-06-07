@@ -260,7 +260,7 @@ layout:
   palette-row-h:    "40px"
   board-viewbox:    "0 0 760 264"
   board-min-width:  "760px"
-  shell-min-width:  "760px"   # below this, the plate horizontal-scrolls (§10)
+  shell-min-width:  "760px"   # the §10 mobile-reflow breakpoint: below this the sidebar collapses to a drawer + the page reflows to one column; the plate scrolls the 760px SVG inside itself (§10)
   touch-target-min: "44px"    # WCAG 2.5.5 floor for any pointer target
 
 icon:
@@ -850,25 +850,26 @@ The other three accidentals (`Db`, `Eb`, `Ab`) have one overwhelmingly conventio
 
 ## 10. Responsive Behavior
 
-The shell is designed desktop-first; the documented floor is one breakpoint and a touch-target minimum. A true narrow reflow is a **known gap** (§16) — this section gives a reproducer the floor, not a finished mobile design.
+The shell is designed desktop-first and **reflows to a real single-column mobile layout** below one breakpoint (S11). This is no longer a "narrow floor placeholder": below `760px` the 248px sidebar collapses to an off-canvas **drawer**, the content column and note-map plate take the full viewport width, the controls wrap, and **the page never overflows horizontally** — the headline invariant is `document.scrollingElement.scrollWidth <= clientWidth` at `390px` (the historical 458px overflow is gone). The desktop layout at and above the breakpoint is unchanged.
 
 | Breakpoint | Behavior |
 |---|---|
-| ≥ 800px | Full shell as specified: 248px sidebar + fluid main; controls card and note-map plate at natural width. |
-| < 800px | Layout begins to crowd; below the plate's hard floor the documented behavior takes over (next row). |
-| < 760px (`shell-min-width`) | **The note-map plate (`.panel`, `overflow-x:auto`) horizontal-scrolls** — the SVG holds its `760px` min-width and the plate scrolls within the content column. **All other layout elements reflow to full width** (controls card, legend, topbar, sidebar contents). |
+| ≥ 760px (`shell-min-width`) | **Full desktop shell, unchanged:** the 248px sticky sidebar + fluid main; controls card and note-map plate at natural width; no drawer trigger; the note-map SVG fits without the plate needing to scroll. |
+| < 760px (`shell-min-width`) | **Mobile reflow:** the shell stacks to one full-width column. The 248px sidebar collapses to an off-canvas **drawer** (toggled by a topbar hamburger); the content + topbar tighten their side gutters to `space-400` (16px); the controls wrap; the note-map plate (`.panel`, `overflow-x:auto`) is full width and **scrolls the `760px`-min-width SVG INSIDE itself** — never widening the page. |
 
-**Per-element behavior at the narrow floor (the load-bearing three):**
+**Per-element behavior below the breakpoint (the load-bearing three):**
 
 | Element | < 760px behavior |
 |---|---|
-| Sidebar (248px) | **Stays at `248px` fixed width — it does not collapse, hide, or stack.** This is the explicit v1 floor at every viewport width below 760px: the rail keeps its 248px and the main column simply narrows beside it (the plate inside then horizontal-scrolls per the row above). A drawer / icon-rail pattern is a future design decision and must not be invented silently. |
-| Page H1 (32px scale name) | **Unchanged — stays 32px `lh-tight`.** No type step-down is defined; do not drop it to 24px on a guess. If it overflows a very narrow column it wraps at `lh-tight`. |
-| Topbar (52px) | **Height unchanged at 52px.** The breadcrumb may truncate before the `{ghost}` button wraps; the bar does not shrink vertically. |
+| Sidebar (248px) | **Collapses to an off-canvas drawer.** The same `<header class="side">` element becomes a `position:fixed`, full-height, `translateX(-100%)` off-canvas panel; a topbar hamburger (`.topbar-menu`, hidden on desktop) toggles `.is-open`, which slides it back in (`translateX(0)`) over a backdrop scrim (`.drawer-scrim`). Its internals keep the desktop 248px content width (`max-width:86vw` on a tiny phone), so the rail's contents never reflow — only its position changes. While closed it is `visibility:hidden` so its focusable contents leave the tab order (no off-canvas tab-trap). The drawer is keyboard-operable: the trigger carries `aria-expanded` + `aria-controls="mobile-drawer"` + the accessible name "Open navigation"; opening moves focus into the panel, `Esc` (or a scrim tap, or activating a nav item) closes it, and focus returns to the trigger on close (`apps/web/src/shell/useDrawer.ts`). |
+| Page H1 (32px scale name) | **Unchanged — stays 32px `lh-tight`.** The full-width single column gives it room; if a very long name overflows a narrow column it wraps at `lh-tight`. (No type step-down is defined; the reflow frees width rather than shrinking type.) |
+| Topbar (52px) | **Height unchanged at 52px**; its side padding tightens to `space-400` (16px) to match the content gutter, and it gains the (mobile-only) drawer hamburger on the left. The breadcrumb may truncate before the `{ghost}` button wraps; the bar does not shrink vertically. |
+
+**Drawer motion (§7).** The drawer slide is the transitions-dev panel-reveal (07) **technique** — a `translateX` transform driven by the `.is-open` state class, **no motion library** — populated with §7 **values**: the `--state-color` (200ms) duration and the standard ease (a spring/overshoot easing reads as jitter on a full-height nav panel, so §7's spring easings are deliberately not used here). The backdrop scrim fades on the §7 `--overlay-out` (180ms) timeline, both directions. Both are gated on `prefers-reduced-motion: reduce` (§7.4) — under `reduce` the drawer snaps open/closed with no slide and the scrim does not fade (`apps/web/src/shell/shell.css`).
 
 **Touch targets.** The WCAG 2.5.5 target is **44×44px** for any pointer target. Pills (30px) and nav items (32px) keep their compact visual box; **the transparent hit-padding ships (S10)** — a transparent `::before` overlay (`apps/web/src/styles/a11y.css`) centered on each pill / nav item / theme toggle grows the tap area to the `{touch-target-min}` (44px) floor while the painted box stays at 30px / 32px. The expansion is pointer-area only; it changes no layout and no visual size.
 
-**Known-gap note.** A genuine narrow reflow — a collapsing sidebar, a stepped-down H1, fewer semitone columns, scaled column width, or restacked controls — is **not** specified. Every "unchanged" above is a deliberate placeholder, not a final decision. Until a mobile design exists, "horizontal-scroll the plate, reflow everything else to full width, change nothing else" is the entire contract below 760px.
+**No-overflow invariant.** The page's `scrollingElement` must not scroll horizontally at `390px` (`scrollWidth <= clientWidth`) — verified live in `apps/web/e2e/responsive.spec.ts`. The note-map SVG keeps its `760px` min-width but is the **only** horizontally-scrollable element, contained inside `.panel`; nothing else may push the shell wider than the viewport.
 
 ---
 
@@ -1129,7 +1130,7 @@ The chrome counterpart to §15.1: one selected row in the command palette's resu
 - The "soon" tools (Intonation, Vibrato, Tuner) are nav stubs only; their surfaces are unspecified.
 - The **primary §13 letter-correct note spelling now ships** (the dot labels, the H1 heading, and the breadcrumb route through `spell()` — a flat key reads `Bb`, never `A#`; see §13). What remains deferred is only the **enharmonic dual-spelling sub-label** for the two ambiguous root pills (`F#`⇄`Gb`, `Bb`⇄`A#`): it is specified (§9.1, §13) but **not yet in the v1 build** — the mock renders the single default glyph per pill. Reproducing v1 shows defaults only; the secondary sub-label is the documented next step.
 - Audio on/off, tempo, and any settings panel are not yet captured.
-- **Narrow-screen reflow** below the `760px` floor is only "horizontal-scroll the plate; reflow everything else to full width" (§10). A true mobile layout (fewer visible positions, scaled column width, restacked controls) is unspecified.
+- ~~**Narrow-screen reflow** below the `760px` floor is only "horizontal-scroll the plate; reflow everything else to full width" (§10).~~ **RESOLVED (S11):** a true mobile reflow ships — below `760px` the 248px sidebar collapses to a keyboard-operable off-canvas **drawer**, the content + note-map plate take full width, the controls wrap, and the page never overflows horizontally at `390px` (§10; `apps/web/src/shell/{useDrawer.ts,Sidebar.tsx,Topbar.tsx,AppShell.tsx,shell.css}`, verified by `apps/web/e2e/responsive.spec.ts`). What stays a future option (not a v1 gap that blocks anything) is a *deeper* reflow that changes the note map itself — fewer visible positions or scaled column width; v1 keeps the full 760px-min-width map and scrolls it inside its plate.
 - The non-functional theme toggle and "Share scale" button are present in chrome but have no defined behavior.
 
 *End of DESIGN.md — Violin Tools.*
