@@ -258,9 +258,9 @@ layout:
   pill-h:           "30px"
   palette-w:        "560px"
   palette-row-h:    "40px"
-  board-viewbox:    "0 0 760 264"
-  board-min-width:  "760px"
-  shell-min-width:  "760px"   # the §10 mobile-reflow breakpoint: below this the sidebar collapses to a drawer + the page reflows to one column; the plate scrolls the 760px SVG inside itself (§10)
+  board-viewbox:    "0 0 760 264"   # the HORIZONTAL/desktop default; the vertical (mobile auto) viewBox lives in §12.1
+  board-min-width:  "760px"   # HORIZONTAL/desktop floor only; the vertical map sets .board min-width:0 (shell.css) so it fits a phone (§10/§12.1)
+  shell-min-width:  "760px"   # the §10 mobile-reflow breakpoint: below this the sidebar collapses to a drawer + the page reflows to one column; on desktop/horizontal the plate scrolls the 760px SVG inside itself, on a portrait phone the map renders vertical and fits the plate width — no 760px scroll (§10/§12.1)
   touch-target-min: "44px"    # WCAG 2.5.5 floor for any pointer target
 
 icon:
@@ -534,7 +534,7 @@ The spacing scale is 4px-based and every step is a named token in §0 (`space-10
 | Controls row | `display:flex`; the row itself uses gap `6px`; label column (`.lab`) fixed `52px`, `flex:none`. **Pills in the row: `display:flex; flex-wrap:wrap`; inter-pill gap `space-100` (4px).** The 12-pill Root row **wraps** to a second line on a narrow column (it never horizontal-scrolls and never overflows the card) |
 | Pill | height `30px`; padding `0 12px`; radius `pill` |
 | Panelcard (frame) | radius `frame`; **border `1px solid {hairline}`**; padding `12px` |
-| Note-map plate (`.panel`) | radius `plate`; **border `1px solid {panel-bd}`** (the inner hairline that separates plate from frame); padding `12px 10px 8px`; **`overflow-x: auto`**; SVG `width:100%`, `min-width:760px`, `height:auto` |
+| Note-map plate (`.panel`) | radius `plate`; **border `1px solid {panel-bd}`** (the inner hairline that separates plate from frame); padding `12px 10px 8px`; **`overflow-x: auto`**; SVG `width:100%`, `height:auto`, `min-width:760px` **on the horizontal/desktop render only** (the vertical mobile render drops it to `0` — §10/§12.1) |
 | Caveat | margin `10px 2px 0` |
 | Legend | outer gap `16px`; swatch→label gap `7px`; margin `14px 2px 0` |
 | Ghost button | radius `pill`; padding `7px 14px` |
@@ -864,12 +864,14 @@ The other three accidentals (`Db`, `Eb`, `Ab`) get **no** additive secondary sub
 
 ## 10. Responsive Behavior
 
-The shell is designed desktop-first and **reflows to a real single-column mobile layout** below one breakpoint (S11). This is no longer a "narrow floor placeholder": below `760px` the 248px sidebar collapses to an off-canvas **drawer**, the content column and note-map plate take the full viewport width, the controls wrap, and **the page never overflows horizontally** — the headline invariant is `document.scrollingElement.scrollWidth <= clientWidth` at `390px` (the historical 458px overflow is gone). The desktop layout at and above the breakpoint is unchanged.
+The shell is designed desktop-first and **reflows to a real single-column mobile layout** below one breakpoint (S11). This is no longer a "narrow floor placeholder": below `760px` the 248px sidebar collapses to an off-canvas **drawer**, the content column and note-map plate take the full viewport width, the controls wrap, and **the page never overflows horizontally** — the headline invariant is `document.scrollingElement.scrollWidth <= clientWidth` at `390px` **and `320px`** (the historical 458px overflow is gone). The desktop layout at and above the breakpoint is unchanged.
+
+**Auto vertical note map on mobile (S16 ph2).** A second, orthogonal axis to the shell reflow above: the note map itself **auto-rotates to its vertical render in portrait** so it fits the viewport width instead of horizontally scrolling a 760px-wide SVG. The breakpoint trigger is `matchMedia('(orientation: landscape)')`, read in `useMapView` (via `useIsLandscape`): portrait (not landscape) → vertical; landscape → horizontal. The CSS that delivers it is `.board[data-orientation='vertical'] { min-width: 0 }` (`apps/web/src/shell/shell.css`) — the vertical viewBox is intrinsically narrow (`0 0 352 850`, §12.1) but would still paint at the `760px` horizontal floor without this override. v1 ships this **AUTO only** — no manual orientation/density/handedness toggle (deferred, §16).
 
 | Breakpoint | Behavior |
 |---|---|
-| ≥ 760px (`shell-min-width`) | **Full desktop shell, unchanged:** the 248px sticky sidebar + fluid main; controls card and note-map plate at natural width; no drawer trigger; the note-map SVG fits without the plate needing to scroll. |
-| < 760px (`shell-min-width`) | **Mobile reflow:** the shell stacks to one full-width column. The 248px sidebar collapses to an off-canvas **drawer** (toggled by a topbar hamburger); the content + topbar tighten their side gutters to `space-400` (16px); the controls wrap; the note-map plate (`.panel`, `overflow-x:auto`) is full width and **scrolls the `760px`-min-width SVG INSIDE itself** — never widening the page. |
+| ≥ 760px (`shell-min-width`) | **Full desktop shell, unchanged:** the 248px sticky sidebar + fluid main; controls card and note-map plate at natural width; no drawer trigger; the note map renders **horizontal** (`0 0 760 264`) and fits without the plate needing to scroll. (In a wide-but-short *landscape* viewport narrower than the 760px board, the horizontal map scrolls inside its `overflow-x:auto` plate — that is the desktop/horizontal scroll story; on a portrait phone the map is vertical and does not scroll, below.) |
+| < 760px (`shell-min-width`) | **Mobile reflow:** the shell stacks to one full-width column. The 248px sidebar collapses to an off-canvas **drawer** (toggled by a topbar hamburger); the content + topbar tighten their side gutters to `space-400` (16px); the controls wrap; the note map renders **vertical** (auto, portrait → `0 0 352 850`) and **fits the viewport width with no horizontal scroll** — `.board[data-orientation='vertical']{min-width:0}` lets the plate (`.panel`, `overflow-x:auto`) shrink to viewport width instead of holding the `760px` floor, so neither the page nor the plate scrolls horizontally. |
 
 **Per-element behavior below the breakpoint (the load-bearing three):**
 
@@ -883,7 +885,7 @@ The shell is designed desktop-first and **reflows to a real single-column mobile
 
 **Touch targets.** The WCAG 2.5.5 target is **44×44px** for any pointer target. Pills (30px) and nav items (32px) keep their compact visual box; **the transparent hit-padding ships (S10)** — a transparent `::before` overlay (`apps/web/src/styles/a11y.css`) centered on each pill / nav item / theme toggle grows the tap area to the `{touch-target-min}` (44px) floor while the painted box stays at 30px / 32px. The expansion is pointer-area only; it changes no layout and no visual size.
 
-**No-overflow invariant.** The page's `scrollingElement` must not scroll horizontally at `390px` (`scrollWidth <= clientWidth`) — verified live in `apps/web/e2e/responsive.spec.ts`. The note-map SVG keeps its `760px` min-width but is the **only** horizontally-scrollable element, contained inside `.panel`; nothing else may push the shell wider than the viewport.
+**No-overflow invariant.** The page's `scrollingElement` must not scroll horizontally at `390px` **or `320px`** (`scrollWidth <= clientWidth`) — and on a portrait phone the note-map plate (`.panel`) must not scroll horizontally either (its `scrollWidth <= clientWidth`), because the vertical map fits viewport width via `.board[data-orientation='vertical']{min-width:0}` (above). Both checks are verified live in `apps/web/e2e/responsive.spec.ts`. The horizontal `760px` min-width is scoped to the **desktop/horizontal** render: on a wide-but-short landscape viewport the horizontal board is the one horizontally-scrollable element inside its `overflow-x:auto` plate; on a portrait phone nothing scrolls horizontally — neither the page nor the plate.
 
 ---
 
@@ -911,7 +913,7 @@ Treat shipping an uncorrected lighter dot background as a P0 blocker — it woul
 
 ### 11.3 Structure, keyboard, live regions
 
-- **The note map is one composite widget**, not a flat list of tab stops. It uses a **roving tabindex**: exactly one marker is tabbable at a time (initially the root); arrow keys move focus in pitch order (up/down cross strings spatially); Enter/Space sounds the focused note; Tab exits the whole widget.
+- **The note map is one composite widget**, not a flat list of tab stops. It uses a **roving tabindex**: exactly one marker is tabbable at a time (initially the root); arrow keys move focus through the same pitch order in both orientations, but the **arrow-key → screen-direction mapping follows the current render orientation** (§12.1) and is re-bound on a rotation — so Up/Down and Left/Right always match what the user sees (along-string vs. cross-string swap between horizontal and vertical). Enter/Space sounds the focused note; Tab exits the whole widget.
 - **The single-select selectors** (root, scale) follow the ARIA **radiogroup** pattern: each is one `radiogroup` of `radio` pills with a roving tabindex, arrows move selection within the group, Tab exits, selection follows focus. **The Refs selector is multi-select** — four independent reference-layer toggles can each be on or off in any combination — so it is an ARIA **`role="group"` of `role="checkbox"` pills**, *not* a radiogroup: each checkbox is independently Tab-focusable, Space toggles it, and `aria-checked` reflects its own boolean (a radiogroup would announce "radio button, 1 of 4" and falsely tell a screen-reader user only one Refs layer can be active). The §9.1 left-to-right order is still authoritative for both patterns.
 - **ARIA label strings (the accessible names to ship, verbatim).** These are the expected `aria-label` / accessible-name values so a reproducer does not invent them:
   - Root radiogroup → **"Root note"**; Scale radiogroup → **"Scale type"**; Refs `group` (of checkboxes, per the bullet above) → **"Reference layers"**.
@@ -923,18 +925,18 @@ Treat shipping an uncorrected lighter dot background as a P0 blocker — it woul
 
 ### 11.4 Reduced motion
 
-Motion is opt-in: the default honors the OS setting, and every transition and keyframe (dot morph or pop, band fades, palette scale-up, any sounding-note pulse) is gated on `prefers-reduced-motion`. Under `reduce`, the static heavier stroke on the sounding note is its sole, motion-free indicator, and the interface is fully usable and legible.
+Motion is opt-in: the default honors the OS setting, and every transition and keyframe (dot morph or pop, band fades, palette scale-up, any sounding-note pulse) is gated on `prefers-reduced-motion`. Under `reduce`, the static heavier stroke on the sounding note is its sole, motion-free indicator, and the interface is fully usable and legible. The orientation flip (§12.1) snaps instantly in every motion mode, `reduce` included — the canonical contract for that is §7.4.
 
 ---
 
 ## 12. The Fingerboard Note Map (signature component)
 
-This is the product's heart and its hardest-working surface. It is a single inline **SVG** that renders the **whole neck**: four strings as horizontal lines, semitone positions as columns, and a note dot at every string × position. Dots morph between three states (off / in-scale / root); the sounding state adds a heavier stroke during playback. Optional `{tape}` tape bands and `{teal}`/`{violet}` landmark bands sit behind the dots and toggle independently. **The geometry is in §12.1, the dot visuals in §12.2, and the pitch model + the exact off/in-scale/root classification rule in §12.5 — together they let the whole 60-dot map be rebuilt from this file alone, with no outside scale reference.**
+This is the product's heart and its hardest-working surface. It is a single inline **SVG** that renders the **whole neck**: the four strings render as lines along one axis (desktop is horizontal by default; on mobile the map auto-rotates to vertical — §12.1), semitone positions as columns crossing them, and a note dot at every string × position. Dots morph between three states (off / in-scale / root); the sounding state adds a heavier stroke during playback. Optional `{tape}` tape bands and `{teal}`/`{violet}` landmark bands sit behind the dots and toggle independently. **The geometry is in §12.1, the dot visuals in §12.2, and the pitch model + the exact off/in-scale/root classification rule in §12.5 — together they let the whole 60-dot map be rebuilt from this file alone, with no outside scale reference.**
 
 ### 12.1 Canvas & coordinate system
 
-- **viewBox** `0 0 760 264`, rendered `width:100%`, `height:auto`, `min-width:760px` inside the horizontally-scrollable plate (`.panel` `overflow-x:auto`).
-- **Strings** — horizontal lines in perfect-fifth tuning, each drawn `x1:60 → x2:724`, stroke `string-line`, width `1.5`:
+- **viewBox — two orientations, one geometry.** The **horizontal (desktop default)** viewBox is `0 0 760 264`, rendered `width:100%`, `height:auto`, `min-width:760px` inside the horizontally-scrollable plate (`.panel` `overflow-x:auto`). The **vertical (mobile auto)** viewBox is `0 0 352 850` (`= axisOf({vertical, right, comfort}).viewBox`): the neck axis runs *down* the page and the strings sit across it. The vertical render **fits the viewport width with no `760px` horizontal scroll on a phone** because `.board[data-orientation='vertical']` drops `min-width` to `0` (the horizontal default keeps the `760px` floor) — see §10. The two literals are the only place these numbers live; §10 and §16 reference them, never restate them. Both viewBoxes are emitted by the same `axisOf()` resolver, so the map stays reproducible from this file: the horizontal literal `= axisOf({horizontal, right, fit}).viewBox`. Which orientation renders is resolved automatically (no manual toggle in v1 — §16); the trigger is named in §10.
+- **Strings (horizontal layout).** The coordinates below describe the **horizontal** render — lines in perfect-fifth tuning, each drawn `x1:60 → x2:724`, stroke `string-line`, width `1.5`:
 
   | String | Pitch class | y |
   |---|---|---|
@@ -947,6 +949,9 @@ This is the product's heart and its hardest-working surface. It is a single inli
 - **Position-column x** — the **column index `o` runs `0 … NMAX − 1`** (`NMAX = 15`): `o = 0` is the **open string** at `x = 42`; the **14 stopped columns** are `o = 1 … 14` at `x = 96 + (o − 1) × 44`. So each string has `1 open + 14 stopped = 15` columns, and `NMAX` *is* that per-string column count, **not** a separate higher bound than the `o`-range — the apparent ambiguity is resolved here: `o`'s maximum stopped value is `NMAX − 1 = 14`. Reproduce both formulae exactly; the band rects and labels all key off them.
 - **Position guide lines** — one vertical per stopped column, `y1:62 → y2:212`, stroke `guide-line`, width `1` (1px hairline, no radius).
 - **String-name labels** — Inter 11px/600 `string-name` at `x=24`, **`y = S.y + 4`**, `text-anchor:middle` (the build uses a +4px optical-center offset on `y`, **not** `dominant-baseline`; do not add `dominant-baseline:middle` or the label will sit too high). **"open" label** — Inter 10px/400 `open-label` at `(42, 252)`.
+
+**Vertical layout (mobile auto) — the x/y-transposed projection.** The vertical render is the horizontal layout with its two axes swapped: the neck axis (open → stopped columns) runs *down* the page and the four strings spread *across* it. Each chrome element maps through that transpose — string lines run vertically, the nut bar runs across the open end, position guides run across the strings, dots relay out to the new `cx`/`cy`. **Labels stay UPRIGHT** (`<text>` keeps a plain `{x, y}` anchor, no rotation): a naive single 90° `rotate()` on the whole group would tip every note name and string name on its side, which §3/§8 forbid — so the build transposes anchor *positions* but never rotates glyphs. The **vertical string-name labels move into the cross/neck margin, clear of the open-column dot** — the horizontal `+4` optical y-offset is calibrated for a baseline beside a horizontal row and **does not apply** in vertical; the vertical name sits in the cross margin level with the open dot, never overlapping it.
+- **Persistent nodes are orientation-invariant.** The 60 nodes (below) are the *same* nodes in both orientations — a flip changes only each node's `cx`/`cy`, never the node set (morph, not rebuild — §7). The vertical-comfort render lays out **all 60** relaid-out, not fewer.
 
 The map holds **60 persistent note nodes** — `4 strings × NMAX columns = 4 × 15 = 60`, where the 15 columns are the 1 open + 14 stopped of the formula above. On a scale change each node is re-classified and morphs in place — never destroyed and rebuilt (§7).
 
@@ -1029,6 +1034,8 @@ This subsection is what makes the note map **reproducible from this file alone**
 ```
 nodePc = (openStringPc + columnIndex) mod 12
 ```
+
+`columnIndex` is a **logical** position index (semitones from the open string), independent of render orientation: the string order `E5 / A4 / D4 / G3` and all the classification math below are identical whether the map renders horizontal or vertical — only each dot's `cx`/`cy` differ between the two (§12.1).
 
 **(d) Classification rule (the whole of it).** Given a node of pitch class `nodePc`, the selected root's pitch class `rootPc`, and the selected scale's interval set `scaleSet`:
 
@@ -1139,7 +1146,7 @@ The chrome counterpart to §15.1: one selected row in the command palette's resu
 - **Motion** (§7: the stateful + snappy builds, stagger, dotPop reflow-replay, the tape slide), reduced-motion-gated.
 - The **⌘K command palette** (§8.5/§9) — searchable scale/tool jump.
 - **Accessibility** (§8/§11): the `{mint}` `:focus-visible` ring, 44px touch-target hit-padding, the roving-tabindex note map, and the `polite` live regions.
-- **Mobile reflow** (§10): below `760px` the sidebar collapses to a keyboard-operable off-canvas drawer, content + plate go full width, controls wrap, no `390px` horizontal overflow.
+- **Mobile reflow** (§10): below `760px` the sidebar collapses to a keyboard-operable off-canvas drawer, content + plate go full width, controls wrap, and the note map **renders vertical (auto) on a portrait phone** (§12.1) instead of horizontally scrolling the 760px SVG — no horizontal overflow of the page *or* the plate at `390px` **or `320px`**.
 
 **Still deferred (specified surfaces stop here / out of scope for v1):**
 - Light mode — does not exist and is out of scope; the product is dark-native.
@@ -1153,7 +1160,7 @@ The chrome counterpart to §15.1: one selected row in the command palette's resu
 - The transport bar's own component spec is the **deferred §8.9 header** — present so references resolve, but unspecified until the bar is built (the audio surface itself is in the deferred list above).
 - **`radius` has no component tier (by design, flagged here so it is not silent).** The three-tier alias model (§0) is a *color*-system rule. `radius` — like `space`, `motion`, `elevation`, `layout` — is a primitive scale used by name directly (`card`, `pill`, `chip` …) with no per-component aliases; there is intentionally no `controls-card-radius` → `card` indirection. This is a deliberate scope boundary, not an omission: a future component-radius tier would be a spec change, not a tweak.
 - The "soon" tools (Intonation, Vibrato, Tuner) are nav stubs only; their surfaces are unspecified.
-- A **deeper** mobile reflow that changes the note map itself (fewer visible positions or scaled column width) stays a future option — not a v1 gap that blocks anything. v1 keeps the full 760px-min-width map and scrolls it inside its plate.
+- **Mobile note-map reflow — AUTO orientation ships; the manual controls do not (S16 ph2).** The map now **auto-rotates**: horizontal on desktop, vertical on a portrait phone, with upright labels and density-derived spacing (§10/§12.1) — so it fits viewport width instead of horizontally scrolling the 760px SVG. **Still deferred to a later phase:** the user-facing manual **orientation** toggle (Auto/Vertical/Horizontal), the **density** toggle (Fit/Comfort), the **handedness** toggle (Right/Left), the controls "View" row that hosts them, the controls bottom-sheet, and dropping the mobile drawer — none of those ship in v1.
 
 **Resolved during v1 (kept for traceability — these are in the "shipped" list above):**
 - ~~**Focus ring — UA now, `{mint}` ring is the target.**~~ **RESOLVED (S10):** the custom global `2px {mint}` focus ring is implemented on the interactive chrome via `:focus-visible` (`apps/web/src/styles/a11y.css`; see §8) — `box-shadow` on rounded chrome, `outline` on the SVG markers. The invariant (a visible focus indicator always exists, never `outline:none` without a replacement) holds in code.
