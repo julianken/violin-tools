@@ -2,7 +2,7 @@ import { Controls } from '../controls/Controls';
 import { NoteMap } from '../notemap/NoteMap';
 import { NoteMapLegend } from '../notemap/NoteMapLegend';
 import { axisOf } from '../notemap/geometry';
-import { type Density, type Handedness, type Orientation } from '../notemap/mapView';
+import { type Handedness, type Orientation, type ResolvedDensity } from '../notemap/mapView';
 import { type MotionBuild } from '../notemap/motion';
 import { derive, scaleName } from '../state/controls';
 import { type ControlsApi } from '../state/useControls';
@@ -35,11 +35,13 @@ interface ContentProps {
   /** Player handedness (§12.5) — `'right'` (default) | `'left'`; forwarded to <NoteMap>. */
   handedness?: Handedness;
   /**
-   * Neck-axis spacing (§12.1) — `'fit'` (default) | `'comfort'`. Derived from
-   * orientation upstream; forwarded to <NoteMap> so the viewBox and the dot
-   * centers agree (a Content/NoteMap config mismatch clips or squishes the map).
+   * Neck-axis spacing (§12.1) — `'fit'` (default) | `'comfort'`. The RESOLVED
+   * render type (`ResolvedDensity`, never `'auto'`): the AppShell resolves the
+   * stored mode via `resolveDensity` (U2) before threading it here. Forwarded to
+   * <NoteMap> so the viewBox and the dot centers agree (a Content/NoteMap config
+   * mismatch clips or squishes the map).
    */
-  density?: Density;
+  density?: ResolvedDensity;
   /**
    * Announce a sounded note's spoken name (§11.3) up to the shell's polite live
    * region — threaded into the note map's Enter/Space sounding handler.

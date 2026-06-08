@@ -43,7 +43,7 @@ import {
   STOPPED_OFFSETS,
   STRINGS,
 } from './geometry';
-import type { Density, Handedness, Orientation } from './mapView';
+import type { Handedness, Orientation, ResolvedDensity } from './mapView';
 import { type MotionBuild, useDotPopReplay, useOrientationSnap } from './motion';
 import { useRovingNoteMap } from './useRovingNoteMap';
 import './motion.css';
@@ -92,10 +92,12 @@ interface NoteMapProps {
   handedness?: Handedness;
   /**
    * Neck-axis spacing (§12.1) — `'fit'` (default, the byte-identical desktop neck) |
-   * `'comfort'` (the wider mobile-vertical neck). Derived from orientation upstream;
-   * defaults to `'fit'` so the bare render reproduces today's geometry.
+   * `'comfort'` (the wider mobile-vertical neck). The RESOLVED render type
+   * (`ResolvedDensity`, never `'auto'`): the consumer resolves the stored mode via
+   * `resolveDensity` (U2) before threading it here, so 'auto' is structurally
+   * unreachable. Defaults to `'fit'` so the bare render reproduces today's geometry.
    */
-  density?: Density;
+  density?: ResolvedDensity;
   /**
    * Announce a sounded note's spoken name (§11.3) — called on Enter/Space over a
    * marker so the shell's polite live region can speak it. Optional so the static
@@ -115,7 +117,7 @@ const DEFAULT_SCALE: ScaleType = 'major';
 // NoteMap / a11y / motion tests) keep their today-identical geometry post-U0.
 const DEFAULT_ORIENTATION: Orientation = 'horizontal';
 const DEFAULT_HANDEDNESS: Handedness = 'right';
-const DEFAULT_DENSITY: Density = 'fit';
+const DEFAULT_DENSITY: ResolvedDensity = 'fit';
 // Every reference layer off by default (the S6 INITIAL_CONTROLS refs) — the
 // first paint is the bare map a reviewer diffs against §12.
 

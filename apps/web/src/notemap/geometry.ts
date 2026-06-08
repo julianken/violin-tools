@@ -14,7 +14,7 @@ import {
   type OpenString,
 } from '@violin-tools/theory';
 
-import type { Density, Handedness, Orientation } from './mapView';
+import type { Handedness, Orientation, ResolvedDensity } from './mapView';
 
 /**
  * §12.1 — the SVG canvas. `width:100%`, `height:auto`, `min-width:760px` are CSS
@@ -120,7 +120,7 @@ export function crossOrder(
 export interface AxisConfig {
   orientation: Orientation;
   handedness: Handedness;
-  density: Density;
+  density: ResolvedDensity;
 }
 
 /** An SVG `<line>`'s two endpoints in viewBox space. */
@@ -199,7 +199,7 @@ const HORIZONTAL_FIT_NECK_EXTENT = 760;
 
 // The neck-axis right margin: for horizontal+fit it is whatever brings the extent
 // to exactly 760; every other (orientation, density) keeps NECK_MARGIN.
-function neckMargin(orientation: Orientation, density: Density): number {
+function neckMargin(orientation: Orientation, density: ResolvedDensity): number {
   if (orientation === 'horizontal' && density === 'fit') {
     return HORIZONTAL_FIT_NECK_EXTENT - neckPos(COLUMN_COUNT - 1, density);
   }
@@ -218,7 +218,7 @@ const CROSS_V = { base: 56, step: 82 };
 const CROSS_MARGIN_H = VIEWBOX_HEIGHT - (CROSS_H.base + 3 * CROSS_H.step); // = 58 → height 264
 const CROSS_MARGIN_V = 50;
 
-function neckPos(offset: number, density: Density): number {
+function neckPos(offset: number, density: ResolvedDensity): number {
   const n = density === 'fit' ? NECK_FIT : NECK_COMFORT;
   return offset === 0 ? n.open : n.base + (offset - 1) * n.step;
 }

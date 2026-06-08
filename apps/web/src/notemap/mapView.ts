@@ -8,7 +8,15 @@
 export type Orientation = 'vertical' | 'horizontal';
 export type OrientationMode = 'auto' | Orientation;
 export type Handedness = 'right' | 'left';
-export type Density = 'fit' | 'comfort';
+// `Density` is the STORED, mode-level type — what the user picks and what
+// persists. 'auto' means "derive from the resolved orientation"; an explicit
+// 'fit'/'comfort' persists and wins. `ResolvedDensity` is the RENDER type: the
+// concrete value the geometry/render path consumes after `resolveDensity` has
+// erased 'auto'. Re-typing every render consumer to `ResolvedDensity` makes
+// passing an unresolved (possibly-'auto') `Density` into geometry a COMPILE
+// error — the structural guard FINDING 1 asks for.
+export type Density = 'auto' | 'fit' | 'comfort';
+export type ResolvedDensity = 'fit' | 'comfort';
 
 export interface MapView {
   orientation: OrientationMode;
@@ -18,7 +26,7 @@ export interface MapView {
 
 export const DEFAULT_MAP_VIEW: MapView = {
   orientation: 'auto',
-  density: 'comfort',
+  density: 'auto',
   handedness: 'right',
 };
 
@@ -27,10 +35,21 @@ export function resolveOrientation(mode: OrientationMode, isLandscape: boolean):
   return mode;
 }
 
+// Resolve the stored density MODE to a concrete render density: an explicit
+// choice is returned verbatim (it persists and wins); 'auto' derives from the
+// resolved orientation — horizontal → 'fit' (the byte-identical §12.1 desktop
+// neck), vertical → 'comfort' (the wider mobile neck). This is the policy the
+// AppShell density override is replaced by (U2); the render path only ever sees
+// a `ResolvedDensity`.
+export function resolveDensity(mode: Density, orientation: Orientation): ResolvedDensity {
+  if (mode !== 'auto') return mode;
+  return orientation === 'horizontal' ? 'fit' : 'comfort';
+}
+
 export const MAP_VIEW_KEY = 'vt:notemap-view';
 
 const ORIENTATIONS: readonly OrientationMode[] = ['auto', 'vertical', 'horizontal'];
-const DENSITIES: readonly Density[] = ['fit', 'comfort'];
+const DENSITIES: readonly Density[] = ['auto', 'fit', 'comfort'];
 const HANDEDNESS: readonly Handedness[] = ['right', 'left'];
 
 function pick<T extends string>(allowed: readonly T[], value: unknown, fallback: T): T {
