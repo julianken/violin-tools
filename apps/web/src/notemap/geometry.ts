@@ -140,6 +140,24 @@ const NECK_FIT = { open: OPEN_X, base: STOPPED_BASE_X, step: STOPPED_STEP_X };
 const NECK_COMFORT = { open: 30, base: 86, step: 56 };
 const NECK_MARGIN = 36;
 
+// §12.1 horizontal viewBox width literal. The shipped desktop render is 760-wide
+// (Content.tsx hardcodes '0 0 760 264'); the last fit column sits at
+// neckPos(14,'fit') = 668, so horizontal+fit needs a right margin of
+// 760 − 668 = 92 — wider than NECK_MARGIN — to make the extent byte-identical to
+// the live <svg> AND keep the STRING_X2=724 string-line end 760−724 = 36px inside
+// the box (a real NECK_MARGIN of right margin). COMFORT and VERTICAL keep the
+// plain NECK_MARGIN; only horizontal+fit gets this enlarged margin.
+const HORIZONTAL_FIT_NECK_EXTENT = 760;
+
+// The neck-axis right margin: for horizontal+fit it is whatever brings the extent
+// to exactly 760; every other (orientation, density) keeps NECK_MARGIN.
+function neckMargin(orientation: Orientation, density: Density): number {
+  if (orientation === 'horizontal' && density === 'fit') {
+    return HORIZONTAL_FIT_NECK_EXTENT - neckPos(COLUMN_COUNT - 1, density);
+  }
+  return NECK_MARGIN;
+}
+
 // Cross-axis (across the strings). Horizontal reuses the §12.1 string y-values
 // (base 68, step 46) so horizontal+fit reproduces the legacy 264 height exactly;
 // vertical packs the 4 strings across a narrow phone.
@@ -163,7 +181,8 @@ export function axisOf(config: AxisConfig): MapLayout {
   const cross = orientation === 'horizontal' ? CROSS_H : CROSS_V;
   const crossMargin = orientation === 'horizontal' ? CROSS_MARGIN_H : CROSS_MARGIN_V;
 
-  const neckExtent = neckPos(COLUMN_COUNT - 1, density) + NECK_MARGIN;
+  const neckExtent =
+    neckPos(COLUMN_COUNT - 1, density) + neckMargin(orientation, density);
   const crossExtent = cross.base + 3 * cross.step + crossMargin;
 
   const crossPos = (stringIndex: number): number =>

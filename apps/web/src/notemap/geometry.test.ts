@@ -119,4 +119,38 @@ describe('axisOf (orientation/handedness/density projection)', () => {
     const comfortGap = comfort.dotCenter(0, 2).cy - comfort.dotCenter(0, 1).cy;
     expect(comfortGap).toBeGreaterThan(fitGap);
   });
+
+  // U0 (S16 ph2): horizontal+fit is the shipped desktop render — its viewBox is
+  // the §12.1 '0 0 760 264' literal Content.tsx hardcodes, NOT 704. The neck's
+  // right margin must be wide enough that the 668 last-column + a real margin
+  // reaches 760 and the STRING_X2=724 string-line end sits 36px inside the box.
+  it('horizontal+right+fit viewBox is the §12.1 desktop literal (0 0 760 264)', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    expect(layout.viewBox).toBe('0 0 760 264');
+    expect(layout.viewBoxWidth).toBe(760);
+  });
+  it('horizontal+right+fit keeps the 724 string-line end inside the box (≥ 724 + 36)', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    expect(layout.viewBoxWidth).toBeGreaterThanOrEqual(724 + 36);
+  });
+  it('VIEWBOX constant equals axisOf horizontal+right+fit viewBox', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    expect(VIEWBOX).toBe(layout.viewBox);
+  });
+  // Pin the OTHER extents so the horizontal-fit margin change did not perturb them.
+  it('horizontal+right+comfort extent is unperturbed (0 0 850 264)', () => {
+    expect(axisOf({ orientation: 'horizontal', handedness: 'right', density: 'comfort' }).viewBox).toBe(
+      '0 0 850 264',
+    );
+  });
+  it('vertical+right+comfort extent is unperturbed (0 0 352 850)', () => {
+    expect(axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' }).viewBox).toBe(
+      '0 0 352 850',
+    );
+  });
+  it('vertical+right+fit extent is unperturbed (0 0 352 704)', () => {
+    expect(axisOf({ orientation: 'vertical', handedness: 'right', density: 'fit' }).viewBox).toBe(
+      '0 0 352 704',
+    );
+  });
 });
