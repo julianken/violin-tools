@@ -112,6 +112,64 @@ describe('ViewRow — active segment tracks mapView state (aria-checked)', () =>
   });
 });
 
+describe('ViewRow — roving tabindex + arrow-key selection-follows-focus (§9.1 / §11.3)', () => {
+  // Each View radiogroup must implement the SAME keyboard contract the Root/Scale
+  // rows do (useRovingRadiogroup): exactly one pill tabbable at a time (the
+  // selected one), arrows move selection in the §9.1 left-to-right order with
+  // selection-follows-focus, Tab exits. A plain Tab-stop-per-option radiogroup is
+  // the ARIA anti-pattern §11.3 forbids — it tells AT "radio, N of M" but ignores
+  // the arrow keys the user is then told to use.
+
+  it('only the selected pill is tabbable (tabIndex 0); the rest are -1 (roving tabindex)', () => {
+    render(<ViewRow mapView={stubMapView({ mode: 'auto' })} />);
+    const group = screen.getByRole('radiogroup', { name: 'Orientation' });
+    const [auto, vertical, horizontal] = within(group).getAllByRole('radio');
+    expect(auto?.getAttribute('tabindex')).toBe('0');
+    expect(vertical?.getAttribute('tabindex')).toBe('-1');
+    expect(horizontal?.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it("ArrowRight on the selected Orientation pill selects the next option (calls setOrientation('vertical'))", () => {
+    const mapView = stubMapView({ mode: 'auto' });
+    render(<ViewRow mapView={mapView} />);
+    const group = screen.getByRole('radiogroup', { name: 'Orientation' });
+    fireEvent.keyDown(within(group).getByRole('radio', { name: 'Auto' }), { key: 'ArrowRight' });
+    expect(mapView.setOrientation).toHaveBeenCalledTimes(1);
+    expect(mapView.setOrientation).toHaveBeenCalledWith('vertical');
+  });
+
+  it("ArrowLeft on the selected Density pill selects the previous option (calls setDensity('auto'))", () => {
+    const mapView = stubMapView({ density: 'fit' });
+    render(<ViewRow mapView={mapView} />);
+    const group = screen.getByRole('radiogroup', { name: 'Density' });
+    fireEvent.keyDown(within(group).getByRole('radio', { name: 'Fit' }), { key: 'ArrowLeft' });
+    expect(mapView.setDensity).toHaveBeenCalledTimes(1);
+    expect(mapView.setDensity).toHaveBeenCalledWith('auto');
+  });
+
+  it("ArrowLeft on the first Orientation pill clamps (re-selects 'auto', never wraps to 'horizontal')", () => {
+    // Matches the Root/Scale clamp semantics in useRovingRadiogroup: at index 0 the
+    // move is Math.max(current-1, 0) = 0, so it re-selects the boundary value and
+    // never wraps around to the last option.
+    const mapView = stubMapView({ mode: 'auto' });
+    render(<ViewRow mapView={mapView} />);
+    const group = screen.getByRole('radiogroup', { name: 'Orientation' });
+    fireEvent.keyDown(within(group).getByRole('radio', { name: 'Auto' }), { key: 'ArrowLeft' });
+    expect(mapView.setOrientation).toHaveBeenCalledTimes(1);
+    expect(mapView.setOrientation).toHaveBeenCalledWith('auto');
+  });
+
+  it("Home/End jump to the ends of the Density group (calls setDensity('auto'/'comfort'))", () => {
+    const mapView = stubMapView({ density: 'fit' });
+    render(<ViewRow mapView={mapView} />);
+    const group = screen.getByRole('radiogroup', { name: 'Density' });
+    fireEvent.keyDown(within(group).getByRole('radio', { name: 'Fit' }), { key: 'End' });
+    expect(mapView.setDensity).toHaveBeenLastCalledWith('comfort');
+    fireEvent.keyDown(within(group).getByRole('radio', { name: 'Fit' }), { key: 'Home' });
+    expect(mapView.setDensity).toHaveBeenLastCalledWith('auto');
+  });
+});
+
 describe('ViewRow — clicking a segment calls the matching useMapView setter', () => {
   it("clicking 'Horizontal' calls setOrientation('horizontal')", () => {
     const mapView = stubMapView();

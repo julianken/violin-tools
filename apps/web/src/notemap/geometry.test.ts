@@ -155,6 +155,33 @@ describe('axisOf (orientation/handedness/density projection)', () => {
   });
 });
 
+// #79 carry-forward: crossPos derives the cross-axis slot via order.indexOf(stringIndex).
+// For any stringIndex outside 0..3 indexOf returns −1, which used to yield a silent
+// off-board coordinate (cross.base − cross.step) with no throw and no NaN — corrupting
+// the dot, the string line, and the string label together (all three consume crossPos).
+// The guard fails fast on the programmer error instead. The valid 0..3 paths stay
+// byte-identical — the §12.1 horizontal+right+fit pin at line 90-97 above re-runs green.
+describe('crossPos out-of-range guard (§12.1 / #79)', () => {
+  const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+
+  it('dotCenter throws RangeError above the valid range', () => {
+    expect(() => layout.dotCenter(4, 0)).toThrow(RangeError);
+  });
+  it('dotCenter throws below the valid range', () => {
+    expect(() => layout.dotCenter(-1, 0)).toThrow();
+  });
+  it('stringLine throws RangeError out of range', () => {
+    expect(() => layout.stringLine(4)).toThrow(RangeError);
+  });
+  it('stringLabelPos throws RangeError out of range', () => {
+    expect(() => layout.stringLabelPos(4)).toThrow(RangeError);
+  });
+  it('valid string indices still resolve (no throw at the 0 and 3 extremes)', () => {
+    expect(() => layout.dotCenter(0, 0)).not.toThrow();
+    expect(() => layout.dotCenter(3, 0)).not.toThrow();
+  });
+});
+
 // §12.1 / issue #78 Phase-2 density AC — "Density Fit shows all 15 positions with
 // no scroll; Comfort scrolls vertically only (no horizontal scroll in either)."
 // The pre-existing `axisOf` spacing test (comfort gap > fit gap) only proves the

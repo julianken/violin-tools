@@ -1,6 +1,6 @@
-// Controls — the §9.1 controls card: the three labeled rows (Root · Scale · Refs)
-// wired to the single app state. DESIGN.md §9.1 / §11.3 / §8.1 win on any
-// conflict (AGENTS.md).
+// Controls — the §9.1 controls card: the labeled rows (Root · Scale · Refs, plus
+// the View row when a mapView is threaded, S16 ph4) wired to the single app state.
+// DESIGN.md §9.1 / §11.3 / §8.1 win on any conflict (AGENTS.md).
 //
 // The card is the user's only way (in v1) to drive the note map: each row writes
 // the one `(root, scale, refs)` state, and the map re-derives + re-renders from
@@ -17,6 +17,7 @@ import './controls.css';
 import { RefsRow } from './RefsRow.tsx';
 import { RootRow } from './RootRow.tsx';
 import { ScaleRow } from './ScaleRow.tsx';
+import { ViewRow } from './ViewRow.tsx';
 
 interface ControlsProps extends ControlsApi {
   /**
@@ -28,11 +29,12 @@ interface ControlsProps extends ControlsApi {
    */
   orientation?: Orientation;
   /**
-   * The whole map-view api (§16) — used ONLY by the mobile sheet's View row (U4).
-   * The desktop three-row card render below is unchanged and does NOT consume it;
-   * it is threaded through so U4 can mount <ViewRow mapView={…}> inside the sheet.
-   * Optional so the desktop-card unit harness (which renders Controls directly with
-   * no mapView) keeps its byte-identical two-radiogroup card.
+   * The whole map-view api (§16) — when present, the desktop card NOW renders
+   * <ViewRow mapView={…}> as a 4th row (Orientation/Density/Handedness), the same
+   * shared component the mobile sheet uses (S16 ph4). Optional so the desktop-card
+   * unit harness (which renders Controls directly with no mapView, the unit path)
+   * keeps a byte-identical two-radiogroup card and never reads `mapView.mode` on
+   * `undefined`.
    */
   mapView?: MapViewApi;
 }
@@ -43,6 +45,7 @@ export function Controls({
   selectScale,
   toggleRef,
   orientation = 'horizontal',
+  mapView,
 }: ControlsProps) {
   return (
     <section className="controls" aria-label="Scale controls">
@@ -66,6 +69,19 @@ export function Controls({
           <RefsRow refs={state.refs} onToggle={toggleRef} orientation={orientation} />
         </div>
       </div>
+
+      {/* The View row (§16) — byte-identical to the mobile sheet's View row
+          (MobileControls.tsx). Rendered only when `mapView` is threaded, mirroring
+          Content's conditional spread: the mapView-absent unit harness keeps a
+          2-radiogroup card and never reads `mapView.mode` on `undefined`. */}
+      {mapView !== undefined && (
+        <div className="ctrl-row">
+          <div className="lab">View</div>
+          <div className="ctrl-slot">
+            <ViewRow mapView={mapView} />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

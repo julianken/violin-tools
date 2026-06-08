@@ -13,8 +13,8 @@
 // The body holds the SAME widgets as the desktop card — RootRow (presented as a 4×3
 // grid in the sheet, U5 CSS; still ONE `role="radiogroup"`, no new a11y), ScaleRow,
 // RefsRow (its §12.3 vertical-lock preserved, #80 unchanged) — then the View row
-// (orientation/density/handedness toggles) that the desktop card does not yet carry
-// (the desktop View row is Phase 4).
+// (orientation/density/handedness toggles). The desktop card now carries the same
+// View row too (the shared ViewRow component, S16 ph4).
 //
 // Open/close reuses `useDrawer` (open/close/toggle + Esc + focus-return to the peek
 // header via panelRef) — NO focus trap and NO body-scroll-lock: the sheet is
