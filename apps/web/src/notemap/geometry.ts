@@ -260,8 +260,13 @@ export function axisOf(config: AxisConfig): MapLayout {
     neckPos(COLUMN_COUNT - 1, density) + neckMargin(orientation, density);
   const crossExtent = cross.base + 3 * cross.step + crossMargin;
 
-  const crossPos = (stringIndex: number): number =>
-    cross.base + order.indexOf(stringIndex) * cross.step;
+  const crossPos = (stringIndex: number): number => {
+    const slot = order.indexOf(stringIndex);
+    if (slot === -1) {
+      throw new RangeError(`stringIndex ${stringIndex} out of range 0..3`);
+    }
+    return cross.base + slot * cross.step;
+  };
 
   const dotCenter = (stringIndex: number, columnOffset: number) => {
     const along = neckPos(columnOffset, density);
