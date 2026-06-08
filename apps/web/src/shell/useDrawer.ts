@@ -1,10 +1,12 @@
-// useDrawer — the mobile navigation drawer's open/close lifecycle and focus
-// management (DESIGN.md §10 responsive reflow). DESIGN.md wins on any conflict
-// (AGENTS.md). Below the §10 narrow breakpoint the 248px sidebar collapses to an
-// off-canvas drawer; this hook owns its STATE (open/closed), its keyboard
-// dismissal (Esc), and its focus contract (move focus into the panel on open,
-// return it to the trigger on close) — the a11y contract S10 set for any
-// off-canvas nav (focus trap-lite + Esc + focus-return + aria-expanded).
+// useDrawer — a non-modal open/close lifecycle + focus contract for an off-canvas
+// panel (DESIGN.md §10 responsive reflow). DESIGN.md wins on any conflict
+// (AGENTS.md). **As of S16 ph3 the mobile navigation drawer was DROPPED**; this
+// hook is retained and now backs the §10 mobile controls **bottom sheet** (and
+// stays available for a future bottom tab bar). It owns the panel STATE
+// (open/closed), keyboard dismissal (Esc), and the focus contract (move focus
+// into the panel on open, return it to the trigger on close) — the a11y contract
+// S10 set for any off-canvas surface (focus trap-lite + Esc + focus-return +
+// aria-expanded). The historical "drawer" naming below predates the ph3 repurpose.
 //
 // Motion model — the transitions-dev panel-reveal (07) technique: the drawer is
 // a translateX off-canvas panel whose `data-open` / `.is-open` class drives a
