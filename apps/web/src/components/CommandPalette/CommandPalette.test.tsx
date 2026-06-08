@@ -53,7 +53,11 @@ describe('entry paths (§9)', () => {
 
   it('clicking the sidebar search trigger opens the palette (§8.3)', () => {
     render(<AppShell />);
-    fireEvent.click(screen.getByRole('button', { name: /search scales and tools/i }));
+    // S16 ph3 (U7): the mobile top-bar search ALSO carries "Search scales and
+    // tools" and jsdom applies no media query, so scope to the sidebar (<header>
+    // banner) — the desktop palette opener.
+    const banner = screen.getByRole('banner');
+    fireEvent.click(within(banner).getByRole('button', { name: /search scales and tools/i }));
     expect(screen.getByRole('dialog', { name: 'Scale search' })).toBeInTheDocument();
   });
 });

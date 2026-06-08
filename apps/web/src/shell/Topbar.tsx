@@ -5,14 +5,17 @@
 // from real `(root, scale)` state — S14 replaced the hard-coded "A Major" with
 // the same `spell()`-derived name the H1 and the map labels use.
 //
-// S11 adds the mobile drawer trigger: a hamburger button that, BELOW the §10
-// narrow breakpoint, opens the off-canvas navigation drawer (the collapsed
-// sidebar). It is `.topbar-menu` — hidden at/above the breakpoint via CSS so the
-// desktop topbar is unchanged, shown only on narrow viewports. It carries
-// `aria-expanded` (drawer state), `aria-controls` (the drawer panel id), and an
-// accessible label so it is keyboard-operable and announced (S10 a11y contract).
+// S16 Phase 3 (U7) drops the mobile off-canvas drawer. The topbar no longer
+// carries the hamburger; instead it carries a MOBILE-ONLY search trigger (the
+// `.topbar-search` magnifier) that opens the command palette (`onOpenPalette` →
+// palette.open()). It is `display:none` at/above the §10 breakpoint and revealed
+// only in the narrow media block (the exact `.topbar-menu` precedent it replaces)
+// so it NEVER coexists with the retained sidebar search on desktop — keeping the
+// single "Search scales and tools" button at the default desktop viewport (and
+// the desktop snapshot byte-stable). It carries a 44px hit target and an
+// accessible name so it is keyboard-operable and announced (S10 a11y contract).
 
-import { IcMenu } from './icons';
+import { IcSearch } from './icons';
 
 interface TopbarProps {
   /**
@@ -21,10 +24,12 @@ interface TopbarProps {
    * agrees with the H1 and the map labels (one `spell()` engine).
    */
   scaleName: string;
-  /** Whether the mobile drawer is open — drives the trigger's `aria-expanded`. */
-  drawerOpen: boolean;
-  /** Toggle the mobile navigation drawer (the hamburger trigger calls this). */
-  onToggleDrawer: () => void;
+  /**
+   * Open the command palette — the mobile top-bar search trigger calls this
+   * (§8.3, §9). On desktop the search is CSS-hidden; the sidebar search stays the
+   * desktop palette opener.
+   */
+  onOpenPalette: () => void;
 }
 
 function shareScale(): void {
@@ -32,25 +37,23 @@ function shareScale(): void {
   // button ships visible and inert per §8.4.
 }
 
-export function Topbar({ scaleName, drawerOpen, onToggleDrawer }: TopbarProps) {
+export function Topbar({ scaleName, onOpenPalette }: TopbarProps) {
   return (
     <div className="topbar">
       <div className="topbar-left">
-        {/* Mobile drawer trigger — CSS-hidden at/above the §10 breakpoint, so the
-            desktop topbar is unchanged. Below it, this opens the off-canvas nav
-            drawer (the collapsed 248px sidebar). Keyboard-operable + announced:
-            `aria-expanded` tracks the drawer, `aria-controls` points at the panel
-            (`mobile-drawer`), and the accessible name names the action (S10). */}
+        {/* Mobile-only search trigger — CSS-hidden at/above the §10 breakpoint, so
+            the desktop topbar is unchanged and the sidebar search stays the sole
+            "Search scales and tools" button on desktop. Below the breakpoint this
+            opens the command palette. Keyboard-operable + announced: the accessible
+            name names the action; a 44px hit target meets WCAG 2.5.5 (shell.css). */}
         <button
           type="button"
-          className="topbar-menu"
-          aria-label="Open navigation"
-          aria-expanded={drawerOpen}
-          aria-controls="mobile-drawer"
-          onClick={onToggleDrawer}
+          className="topbar-search"
+          aria-label="Search scales and tools"
+          onClick={onOpenPalette}
         >
-          <span className="topbar-menu-ic" aria-hidden="true">
-            <IcMenu />
+          <span className="topbar-search-ic" aria-hidden="true">
+            <IcSearch />
           </span>
         </button>
 

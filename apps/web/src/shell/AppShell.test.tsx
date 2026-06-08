@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { MAP_VIEW_KEY } from '../notemap/mapView.ts';
@@ -52,5 +52,23 @@ describe('AppShell map-density wiring (U2)', () => {
     const svg = board();
     expect(svg.getAttribute('data-orientation')).toBe('vertical');
     expect(svg.getAttribute('viewBox')).toBe('0 0 352 704');
+  });
+});
+
+// S16 Phase 3 (U7) — the mobile off-canvas drawer is dropped. AppShell no longer
+// calls useDrawer, renders no `.drawer-scrim` backdrop, and the topbar carries no
+// "Open navigation" hamburger (the search relocates to a mobile-only top-bar
+// trigger instead). The sidebar search stays the desktop palette opener.
+describe('AppShell drawer drop (U7)', () => {
+  it('renders no drawer-scrim element', () => {
+    const { container } = render(<AppShell />);
+    expect(container.querySelector('.drawer-scrim')).toBeNull();
+  });
+
+  it('renders no "Open navigation" hamburger trigger', () => {
+    render(<AppShell />);
+    expect(
+      screen.queryByRole('button', { name: /open navigation/i }),
+    ).not.toBeInTheDocument();
   });
 });

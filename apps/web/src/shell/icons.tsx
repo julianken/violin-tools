@@ -23,25 +23,6 @@ export function IcScales() {
 }
 
 /**
- * `ic-menu` — the hamburger that opens the mobile navigation drawer (DESIGN.md
- * §10 responsive reflow). Three stacked rules on a 16×12 box, echoing the
- * Scales mark's stroked-line language so the chrome reads as one family. Only
- * shown below the §10 breakpoint (the topbar drawer trigger). `aria-hidden` —
- * the trigger button carries the accessible name ("Open navigation").
- */
-export function IcMenu() {
-  return (
-    <svg width="16" height="12" aria-hidden="true" focusable="false">
-      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-        <line x1="1" y1="2" x2="15" y2="2" />
-        <line x1="1" y1="6" x2="15" y2="6" />
-        <line x1="1" y1="10" x2="15" y2="10" />
-      </g>
-    </svg>
-  );
-}
-
-/**
  * `ic-search` — the magnifier that leads the sidebar search trigger (rendered
  * ~14px, stroked at {text3} via currentColor) (DESIGN.md §0, §8.3). The same
  * glyph leads the palette search row at a larger size; that consumer is a later
