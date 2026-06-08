@@ -7,7 +7,8 @@ import { expect, test } from '@playwright/test';
 // asserts the LIVE a11y contract against the SHIPPED bundle:
 //   • axe reports zero serious/critical violations (the durable regression gate);
 //   • the note map is ONE tab stop (roving tabindex) with verbatim §11.3 names;
-//   • the two radiogroups (Root, Scale) + the Refs group/checkbox cluster;
+//   • the five radiogroups (Root, Scale + the View row's Orientation/Density/
+//     Handedness) + the Refs group/checkbox cluster;
 //   • the command palette dialog / input / results names;
 //   • the skip link + the header/nav/main landmarks + document lang;
 //   • the custom {mint} :focus-visible ring actually paints on keyboard focus.
@@ -83,8 +84,14 @@ test.describe('§11.3 control roles + verbatim accessible names', () => {
     await page.goto('/');
     await expect(page.getByRole('radiogroup', { name: 'Root note' })).toBeVisible();
     await expect(page.getByRole('radiogroup', { name: 'Scale type' })).toBeVisible();
-    // Exactly two radiogroups — Refs must NOT be one.
-    await expect(page.getByRole('radiogroup')).toHaveCount(2);
+    // The desktop View row's three radiogroups are live here by name.
+    await expect(page.getByRole('radiogroup', { name: 'Orientation' })).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'Density' })).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'Handedness' })).toBeVisible();
+    // 5 radiogroups — Root, Scale + the View row's Orientation/Density/Handedness
+    // (the mobile sheet's same-named groups are display:none ≥760px, out of the a11y
+    // tree). Refs must NOT be one.
+    await expect(page.getByRole('radiogroup')).toHaveCount(5);
     const refs = page.getByRole('group', { name: 'Reference layers' });
     await expect(refs).toBeVisible();
     await expect(refs.getByRole('checkbox')).toHaveCount(4);
