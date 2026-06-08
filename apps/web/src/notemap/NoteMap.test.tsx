@@ -279,6 +279,50 @@ describe('§12.1 axis-aware dot placement', () => {
     expect(g3OpenCx).toBeLessThan(e5OpenCx);
   });
 
+  it('projects the static chrome through the axis (vertical string lines run down)', () => {
+    // U3a: the chrome (string lines / nut / guides / labels) follows the render
+    // axis. In vertical a string line runs DOWN the neck (x1===x2, y2>y1) at the
+    // string's cross x, matching the resolved layout.
+    const { svg } = renderBoard({
+      orientation: 'vertical',
+      handedness: 'right',
+      density: 'comfort',
+    });
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    const stringLines = Array.from(svg.querySelectorAll('line.string-line'));
+    expect(stringLines).toHaveLength(4);
+    // The G3 string (index 3) sits at the smallest cross x (56) in vertical+right.
+    const g3 = layout.stringLine(3);
+    const g3Line = stringLines.find((l) => l.getAttribute('x1') === String(g3.x1));
+    expect(g3Line?.getAttribute('x1')).toBe(g3Line?.getAttribute('x2')); // runs down
+    expect(g3Line?.getAttribute('x1')).toBe('56');
+    expect(Number(g3Line?.getAttribute('y2'))).toBeGreaterThan(
+      Number(g3Line?.getAttribute('y1')),
+    );
+  });
+
+  it('keeps ALL chrome <text> upright in vertical — no rotation/transform (§3, §8)', () => {
+    // CRUCIAL: a naive 90° map transform would rotate the labels. The chrome text
+    // (string names + the "open" label) must carry NO transform attribute so the
+    // glyphs stay upright on the vertical map.
+    const { svg } = renderBoard({
+      orientation: 'vertical',
+      handedness: 'right',
+      density: 'comfort',
+    });
+    const names = Array.from(svg.querySelectorAll('text.string-name'));
+    const open = svg.querySelector('text.open-label');
+    expect(names).toHaveLength(4);
+    expect(open).not.toBeNull();
+    for (const t of [...names, open]) {
+      expect(t?.getAttribute('transform')).toBeNull();
+    }
+    // The per-dot note labels stay upright too (the lbl <text>).
+    for (const lbl of Array.from(svg.querySelectorAll('g.note text.lbl'))) {
+      expect(lbl.getAttribute('transform')).toBeNull();
+    }
+  });
+
   it('keeps the 60 nodes and their identity across an orientation prop flip', () => {
     const { notes, rerender } = renderBoard({
       orientation: 'horizontal',

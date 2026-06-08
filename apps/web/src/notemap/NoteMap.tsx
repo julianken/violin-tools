@@ -39,17 +39,9 @@ import { RefLayers } from './RefLayers';
 import {
   axisOf,
   COLUMN_OFFSETS,
-  GUIDE_Y1,
-  GUIDE_Y2,
   LABEL_Y_OFFSET,
-  NUT,
-  OPEN_LABEL,
   STOPPED_OFFSETS,
-  STRING_LABEL_X,
-  STRING_X1,
-  STRING_X2,
   STRINGS,
-  xOf,
 } from './geometry';
 import type { Density, Handedness, Orientation } from './mapView';
 import { type MotionBuild, useDotPopReplay } from './motion';
@@ -214,58 +206,85 @@ export function NoteMap({
       {/* §12.3 reference overlays FIRST, so the tape/landmark bands paint BEHIND
           the note dots (SVG paints in document order). Their visibility is the
           `.hide` class driven by the Refs pills — mounted-but-hidden, never
-          unmounted (the S8 attach contract). */}
+          unmounted (the S8 attach contract).
+
+          U3b DEFERRAL (S16 ph2): RefLayers' band rects are still positioned on the
+          horizontal `xOf` axis — re-projecting them through the layout is a
+          follow-up unit. This is SAFE in Phase 2 only because INITIAL_CONTROLS.refs
+          default ALL FOUR off (controls.ts: {tapes:false, low2:false,
+          threeTape:false, landmarks:false}), so a default vertical render shows no
+          mis-projected bands. Do not enable a ref pill on the vertical map until
+          U3b lands. */}
       <RefLayers refs={refs} />
 
-      {/* Static chrome — guide lines, nut, string lines, labels. The guide
-          lines and nut are decorative (no meaning); they read as background. */}
+      {/* Static chrome — guide lines, nut, string lines, labels — all projected
+          through the resolved layout (§12.1) so they FOLLOW the render axis: in
+          vertical the string lines run down the neck, the guides cross the strings,
+          and the nut bars across the open end. The guide lines and nut are
+          decorative (no meaning); they read as background. CRUCIAL: every <text>
+          keeps its anchor as a pure {x,y} with NO transform, so the string-name and
+          "open" labels stay upright in both orientations (§3, §8). */}
       <g className="chrome" aria-hidden="true">
-        {STOPPED_OFFSETS.map((offset) => (
-          <line
-            key={`guide-${String(offset)}`}
-            className="guide"
-            x1={xOf(offset)}
-            y1={GUIDE_Y1}
-            x2={xOf(offset)}
-            y2={GUIDE_Y2}
-          />
-        ))}
-        <rect
-          className="nut"
-          x={NUT.x}
-          y={NUT.y}
-          width={NUT.width}
-          height={NUT.height}
-        />
-        {STRINGS.map((string) => (
-          <line
-            key={`string-${string.name}`}
-            className="string-line"
-            x1={STRING_X1}
-            y1={string.y}
-            x2={STRING_X2}
-            y2={string.y}
-          />
-        ))}
-        {STRINGS.map((string) => (
-          <text
-            key={`string-name-${string.name}`}
-            className="string-name"
-            x={STRING_LABEL_X}
-            y={string.y + LABEL_Y_OFFSET}
-            textAnchor="middle"
-          >
-            {string.name}
-          </text>
-        ))}
-        <text
-          className="open-label"
-          x={OPEN_LABEL.x}
-          y={OPEN_LABEL.y}
-          textAnchor="middle"
-        >
-          open
-        </text>
+        {STOPPED_OFFSETS.map((offset) => {
+          const guide = layout.guideLine(offset);
+          return (
+            <line
+              key={`guide-${String(offset)}`}
+              className="guide"
+              x1={guide.x1}
+              y1={guide.y1}
+              x2={guide.x2}
+              y2={guide.y2}
+            />
+          );
+        })}
+        {(() => {
+          const nut = layout.nutRect();
+          return (
+            <rect
+              className="nut"
+              x={nut.x}
+              y={nut.y}
+              width={nut.width}
+              height={nut.height}
+            />
+          );
+        })()}
+        {STRINGS.map((string, stringIndex) => {
+          const line = layout.stringLine(stringIndex);
+          return (
+            <line
+              key={`string-${string.name}`}
+              className="string-line"
+              x1={line.x1}
+              y1={line.y1}
+              x2={line.x2}
+              y2={line.y2}
+            />
+          );
+        })}
+        {STRINGS.map((string, stringIndex) => {
+          const pos = layout.stringLabelPos(stringIndex);
+          return (
+            <text
+              key={`string-name-${string.name}`}
+              className="string-name"
+              x={pos.x}
+              y={pos.y}
+              textAnchor="middle"
+            >
+              {string.name}
+            </text>
+          );
+        })}
+        {(() => {
+          const open = layout.openLabelPos();
+          return (
+            <text className="open-label" x={open.x} y={open.y} textAnchor="middle">
+              open
+            </text>
+          );
+        })()}
       </g>
 
       {/* The 60 persistent note markers (the §11.3 composite-widget members). The

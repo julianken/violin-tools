@@ -154,3 +154,116 @@ describe('axisOf (orientation/handedness/density projection)', () => {
     );
   });
 });
+
+// U3 (S16 ph2): the static chrome — string lines, position guides, the nut, and
+// the string-name / open labels — projected through the layout so it follows the
+// render axis. HORIZONTAL must reproduce today's §12.1 literals byte-identically;
+// VERTICAL swaps the axes and keeps every label clear of the dots.
+describe('chrome helpers (§12.1 — string lines / guides / nut / labels)', () => {
+  const COLUMN_COUNT = COLUMN_OFFSETS.length; // 15
+
+  describe('horizontal+right+fit reproduces the §12.1 literals byte-identically', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+
+    it('stringLine(i) === {x1:60, y1:STRINGS[i].y, x2:724, y2:STRINGS[i].y}', () => {
+      for (let i = 0; i < STRINGS.length; i++) {
+        expect(layout.stringLine(i)).toEqual({
+          x1: 60,
+          y1: STRINGS[i]!.y,
+          x2: 724,
+          y2: STRINGS[i]!.y,
+        });
+      }
+    });
+
+    it('guideLine(offset) === {x1:xOf(offset), y1:62, x2:xOf(offset), y2:212}', () => {
+      for (const offset of STOPPED_OFFSETS) {
+        expect(layout.guideLine(offset)).toEqual({
+          x1: xOf(offset),
+          y1: 62,
+          x2: xOf(offset),
+          y2: 212,
+        });
+      }
+    });
+
+    it('nutRect() === {x:58, y:62, width:5, height:150}', () => {
+      expect(layout.nutRect()).toEqual({ x: 58, y: 62, width: 5, height: 150 });
+    });
+
+    it('stringLabelPos(i) === {x:24, y:STRINGS[i].y+4}', () => {
+      for (let i = 0; i < STRINGS.length; i++) {
+        expect(layout.stringLabelPos(i)).toEqual({ x: 24, y: STRINGS[i]!.y + 4 });
+      }
+    });
+
+    it('openLabelPos() === {x:42, y:252}', () => {
+      expect(layout.openLabelPos()).toEqual({ x: 42, y: 252 });
+    });
+  });
+
+  describe('vertical+right+comfort swaps the axes, labels clear of dots', () => {
+    const config = { orientation: 'vertical', handedness: 'right', density: 'comfort' } as const;
+    const layout = axisOf(config);
+
+    it('stringLine runs ALONG the neck — constant cross coord (x), varying along (y)', () => {
+      for (let i = 0; i < STRINGS.length; i++) {
+        const line = layout.stringLine(i);
+        // x is the string's cross position and is constant; y spans the neck.
+        expect(line.x1).toBe(line.x2);
+        expect(line.x1).toBe(layout.dotCenter(i, 0).cx);
+        expect(line.y2).toBeGreaterThan(line.y1);
+      }
+    });
+
+    it("string 3 (G) sits at the smaller cross coord (56), string 0 (E) at the larger (302)", () => {
+      expect(layout.stringLine(3).x1).toBe(56);
+      expect(layout.stringLine(0).x1).toBe(302);
+      expect(layout.stringLine(3).x1).toBeLessThan(layout.stringLine(0).x1);
+    });
+
+    it('guideLine crosses the strings — constant along (y), varying cross (x)', () => {
+      const guide = layout.guideLine(1);
+      expect(guide.y1).toBe(guide.y2);
+      expect(guide.y1).toBe(layout.dotCenter(0, 1).cy);
+      expect(guide.x2).toBeGreaterThan(guide.x1);
+    });
+
+    it('nutRect is a bar across the strings at the open end (wide, thin)', () => {
+      const nut = layout.nutRect();
+      expect(nut.width).toBeGreaterThan(nut.height); // bars across, not down
+    });
+
+    // LABEL-OVERLAP (review finding): each string-name label box must NOT fall
+    // within 15px of any dot center on that string (clear of the open-column dot
+    // at cy=30). The label sits in the cross/neck margin, never on a dot.
+    it('each stringLabelPos clears every dot on its string by > 15px (no open-dot collision)', () => {
+      const offenders: { stringIndex: number; columnOffset: number; dist: number }[] = [];
+      for (let i = 0; i < STRINGS.length; i++) {
+        const label = layout.stringLabelPos(i);
+        for (const offset of COLUMN_OFFSETS) {
+          const dot = layout.dotCenter(i, offset);
+          const dist = Math.hypot(label.x - dot.cx, label.y - dot.cy);
+          if (dist <= 15) offenders.push({ stringIndex: i, columnOffset: offset, dist });
+        }
+      }
+      expect(offenders).toEqual([]);
+    });
+
+    it('keeps ALL <text> labels upright by carrying NO rotation — they are pure {x,y}', () => {
+      // The helpers return only coordinates (no rotate/transform field): the
+      // renderer places upright <text> at these points (§3, §8).
+      const sample = { ...layout.stringLabelPos(0), ...layout.openLabelPos() };
+      expect(Object.keys(sample).sort()).toEqual(['x', 'y']);
+    });
+  });
+
+  // The dot center is unchanged by adding chrome helpers — guard the U1 contract.
+  it('dotCenter is unchanged by the chrome helpers (horizontal+right+fit)', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    for (const offset of COLUMN_OFFSETS) {
+      expect(layout.dotCenter(0, offset)).toEqual({ cx: xOf(offset), cy: STRINGS[0]!.y });
+    }
+    expect(COLUMN_COUNT).toBe(15);
+  });
+});
