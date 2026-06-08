@@ -4,6 +4,7 @@ import { NoteMapLegend } from '../notemap/NoteMapLegend';
 import { axisOf } from '../notemap/geometry';
 import { type Handedness, type Orientation, type ResolvedDensity } from '../notemap/mapView';
 import { type MotionBuild } from '../notemap/motion';
+import { type MapViewApi } from '../notemap/useMapView';
 import { derive, scaleName } from '../state/controls';
 import { type ControlsApi } from '../state/useControls';
 
@@ -23,6 +24,15 @@ import { type ControlsApi } from '../state/useControls';
 interface ContentProps {
   /** The shared controls api, owned by AppShell so the palette can write it too. */
   controls: ControlsApi;
+  /**
+   * The whole map-view api (§16) — threaded down to <Controls> so the mobile
+   * sheet's View row can drive the orientation/density/handedness toggles. The
+   * resolved orientation/handedness/density props below feed the board/NoteMap
+   * RENDER path and are unchanged; `mapView` is used ONLY by the mobile sheet (the
+   * desktop card ignores it). Optional so a prop-absent Content render (a unit
+   * harness that only exercises the controls→map wiring) still mounts.
+   */
+  mapView?: MapViewApi;
   /**
    * The resolved render orientation (§12.1) — `'horizontal'` (desktop) |
    * `'vertical'` (mobile). Already resolved (never `'auto'`); AppShell does the
@@ -64,6 +74,7 @@ function resolveMotionBuild(): MotionBuild {
 
 export function Content({
   controls,
+  mapView,
   orientation = 'horizontal',
   handedness = 'right',
   density = 'fit',
@@ -110,6 +121,11 @@ export function Content({
         // in NoteMap while vertical (defense in depth). Forwarded so RefsRow can
         // dim/disable the pills.
         orientation={orientation}
+        // §16 — the whole map-view api, used ONLY by the mobile sheet's View row
+        // (U4). The desktop card ignores it. Spread conditionally so a mapView-
+        // absent Content render doesn't pass literal `undefined`
+        // (exactOptionalPropertyTypes).
+        {...(mapView !== undefined ? { mapView } : {})}
       />
 
       <div className="panelcard">

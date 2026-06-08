@@ -102,6 +102,7 @@ export function AppShell() {
         />
         <Content
           controls={controls}
+          mapView={mapView}
           orientation={mapView.orientation}
           handedness={mapView.handedness}
           density={density}
