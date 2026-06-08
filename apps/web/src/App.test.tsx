@@ -186,6 +186,49 @@ describe('App §11.3 live regions + sounding (S10)', () => {
   });
 });
 
+// S16 ph2 U4 — the live app mounts useMapView in AppShell and renders the map from
+// the RESOLVED view config. jsdom has no matchMedia → useIsLandscape=false → 'auto'
+// resolves to 'vertical', so these assert the vertical (mobile) render path: the
+// board viewBox is driven by the layout (not a literal) and carries
+// data-orientation='vertical'. The 60-node/one-tab-stop invariant, the two polite
+// live regions, and the value-pure 'A Major.' description (the re-announce-trap
+// mitigation is value-identity — describeMap stays a pure (root,scale,name) call,
+// NOT keyed on orientation) must all survive the live wiring.
+describe('App §12.1 resolved-view wiring (S16 ph2 U4)', () => {
+  it('drives the board viewBox from the layout (parses to 4 numbers, not a literal)', () => {
+    render(<App />);
+    const board = document.getElementById('board');
+    const viewBox = board?.getAttribute('viewBox');
+    expect(viewBox).not.toBeNull();
+    const parts = (viewBox ?? '').trim().split(/\s+/).map(Number);
+    expect(parts).toHaveLength(4);
+    for (const n of parts) expect(Number.isFinite(n)).toBe(true);
+  });
+
+  it('resolves to the vertical render in jsdom (no matchMedia → portrait)', () => {
+    render(<App />);
+    const board = document.getElementById('board');
+    expect(board?.getAttribute('data-orientation')).toBe('vertical');
+  });
+
+  it('still exposes 60 map markers with exactly one tab stop', () => {
+    const { container } = render(<App />);
+    expect(container.querySelectorAll('g.note')).toHaveLength(60);
+    expect(container.querySelectorAll('g.note[tabindex="0"]')).toHaveLength(1);
+  });
+
+  it('keeps exactly two polite live regions and a value-pure "A Major." description', () => {
+    const { container } = render(<App />);
+    const live = Array.from(container.querySelectorAll('[aria-live]'));
+    expect(live).toHaveLength(2);
+    for (const region of live) {
+      expect(region.getAttribute('aria-live')).toBe('polite');
+    }
+    const desc = container.querySelector('[data-live="map-description"]')?.textContent ?? '';
+    expect(desc.startsWith('A Major.')).toBe(true);
+  });
+});
+
 // S14 — the H1 heading and the breadcrumb active segment are §13 scale-aware: they
 // spell the selected key letter-correct (the same `spell()` engine the map labels
 // use). These mount the WHOLE app, change the selection, and assert all three

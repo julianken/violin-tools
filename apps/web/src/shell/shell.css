@@ -475,6 +475,14 @@ body {
   min-width: var(--board-min-width); /* 760px — holds width so the plate scrolls */
   height: auto;
 }
+/* §10/§12.1 (S16 ph2) — the vertical map is intrinsically narrow ('0 0 352 850'),
+ * so its min-width must drop to 0 to let it shrink to the plate width instead of
+ * inheriting the 760px horizontal floor and overflowing on a phone. `width:100%`
+ * still applies; only the floor changes. `data-orientation` is set on the <svg> by
+ * Content from the resolved orientation. The horizontal default keeps 760px. */
+.board[data-orientation='vertical'] {
+  min-width: 0;
+}
 
 /* ── .caveat / .legend — empty placeholders in S3 (§9) ──────────────────── */
 .caveat {

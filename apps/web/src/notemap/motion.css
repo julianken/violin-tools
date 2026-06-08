@@ -234,4 +234,20 @@
   .board[data-motion='snappy'] .dot-anim {
     animation: none;
   }
+
+  /* §7.4 / §11.4 orientation-flip clause (S16 ph2 U6) — FORWARD-PROOFING. The
+   * flip is already a SNAP today (no rule transitions `cx`/`cy` or a `.note <g>`
+   * transform, and a flip rewrites cx/cy ATTRIBUTES, which don't tween — so
+   * useOrientationSnap is motion-free by construction and needs nothing here).
+   * But if a later phase adds a board-scoped position transition (a density move,
+   * a `.note`/`.notes` transform tween), it MUST be zeroed under `reduce`, and it
+   * MUST carry the `.board[data-motion]` prefix to WIN the cascade — a media query
+   * adds no specificity, so the bare list above can't beat a `.board[data-motion]`
+   * rule. This selector reserves that win so a future transition is covered the
+   * moment it lands. */
+  .board[data-motion] .note,
+  .board[data-motion] .notes {
+    transition: none;
+    transition-delay: 0s;
+  }
 }

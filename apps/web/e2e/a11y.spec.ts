@@ -128,6 +128,56 @@ test.describe('§11.3 note map — one tab stop, roving, verbatim marker names',
     expect(focusedIsMarker).toBe(false);
   });
 
+  test('@ portrait (vertical map) arrows move in the matching SCREEN direction', async ({ page }) => {
+    // S16 ph2 (§11.3): the arrow-key → screen-direction mapping follows the render
+    // orientation. A PORTRAIT viewport (height > width) resolves the map to vertical
+    // (matchMedia landscape false → resolveOrientation('auto', false) === 'vertical'),
+    // where a string runs DOWN the screen and the strings sit side-by-side across.
+    // So ArrowDown moves ALONG a string (down = greater rect top) and ArrowRight
+    // CROSSES strings (changes x). This MUST read measured getBoundingClientRect
+    // deltas — jsdom can't compute SVG layout, so this proof lives only in e2e.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(page.locator('svg#board')).toBeVisible();
+    // Guard: the map really did resolve vertical (the whole test is about vertical).
+    await expect(page.locator('svg#board')).toHaveAttribute('data-orientation', 'vertical');
+
+    const rectOfTabStop = async (): Promise<{ top: number; left: number }> =>
+      page.locator('g.note[tabindex="0"]').evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top, left: r.left };
+      });
+
+    await page.locator('g.note[tabindex="0"]').focus();
+    const before = await rectOfTabStop();
+
+    // ArrowDown = ALONG the string in vertical → the focused marker moves DOWN.
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('g.note[tabindex="0"]')).toHaveCount(1); // still one stop
+    const afterDown = await rectOfTabStop();
+    expect(afterDown.top).toBeGreaterThan(before.top); // moved down the screen
+    // Down moves along ONE string (same column-of-dots position), so x is unchanged.
+    expect(Math.round(afterDown.left)).toBe(Math.round(before.left));
+
+    // CROSS axis (Left/Right in vertical) changes x. The A-Major entry string is E5,
+    // which in vertical+right sits at the RIGHTMOST cross position (crossOrder
+    // [3,2,1,0] = G,D,A,E left→right), so ArrowRight there would clamp at the edge.
+    // Step ArrowLeft once to leave the edge, then assert ArrowRight crosses BACK —
+    // proving the cross-axis key changes x (the §11.3 screen-direction match).
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.locator('g.note[tabindex="0"]')).toHaveCount(1);
+    const afterLeft = await rectOfTabStop();
+    expect(Math.round(afterLeft.left)).not.toBe(Math.round(afterDown.left)); // crossed left
+    expect(afterLeft.top).toBe(afterDown.top); // crossing keeps the same along position
+
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('g.note[tabindex="0"]')).toHaveCount(1); // still one stop
+    const afterRight = await rectOfTabStop();
+    expect(Math.round(afterRight.left)).not.toBe(Math.round(afterLeft.left)); // crossed strings
+    // ArrowRight crossed back toward the right edge (larger x) where we started.
+    expect(Math.round(afterRight.left)).toBe(Math.round(afterDown.left));
+  });
+
   test('marker names carry the verbatim §11.3 state suffixes and update on a key change', async ({
     page,
   }) => {

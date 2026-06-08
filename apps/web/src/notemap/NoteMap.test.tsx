@@ -2,6 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { NoteMap } from './NoteMap';
+import { axisOf } from './geometry';
 
 // NoteMap renders an SVG fragment (the inner content of `<svg id="board">`), so
 // every test mounts it inside an <svg> host and queries that subtree. These are
@@ -208,5 +209,138 @@ describe('NoteMap transition-readiness (§7.5 / §15.1)', () => {
     expect(sameNode?.classList.contains('is-off')).toBe(true);
     // Its label element still EXISTS (hidden-not-unmounted), just empty.
     expect(sameNode?.querySelector('text.lbl')).not.toBeNull();
+  });
+});
+
+describe('§12.1 axis-aware dot placement', () => {
+  // The 60 markers are walked in flat (stringIndex × columnOffset) order, so node
+  // `i*15 + o` is (string i, column offset o). COLUMN_OFFSETS is [0..14], so the
+  // flat column index IS the columnOffset. Sample the two open dots called out by
+  // the U1 spec: node 0 = open E5 (string 0, offset 0); node 15 = open A4
+  // (string 1, offset 0).
+  const dotCenterOf = (node: Element) => {
+    const dot = node.querySelector('circle.dot');
+    return { cx: dot?.getAttribute('cx'), cy: dot?.getAttribute('cy') };
+  };
+  const expectedCenter = (
+    layout: ReturnType<typeof axisOf>,
+    stringIndex: number,
+    columnOffset: number,
+  ) => {
+    const { cx, cy } = layout.dotCenter(stringIndex, columnOffset);
+    return { cx: String(cx), cy: String(cy) };
+  };
+
+  it('prop-absent default reproduces horizontal+right+fit centers (§12.1 regression)', () => {
+    // Render bare — no orientation/handedness/density props. After U0 this is the
+    // byte-identical horizontal-fit geometry, pinned at the render boundary.
+    const { notes } = renderBoard();
+    const nodes = notes();
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    // Sample a few nodes across both strings and a stopped column.
+    const samples: [number, number, number][] = [
+      [0, 0, 0], // node 0  — open E5  (string 0, offset 0)
+      [15, 1, 0], // node 15 — open A4  (string 1, offset 0)
+      [7, 0, 7], // node 7  — string 0, stopped column 7
+      [22, 1, 7], // node 22 — string 1, stopped column 7
+    ];
+    for (const [index, stringIndex, columnOffset] of samples) {
+      expect(dotCenterOf(nodes[index]!)).toEqual(
+        expectedCenter(layout, stringIndex, columnOffset),
+      );
+    }
+  });
+
+  it('vertical+comfort+right places dots on the swapped axis (G3 left of E5)', () => {
+    const { notes } = renderBoard({
+      orientation: 'vertical',
+      handedness: 'right',
+      density: 'comfort',
+    });
+    const nodes = notes();
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    const samples: [number, number, number][] = [
+      [0, 0, 0], // open E5
+      [15, 1, 0], // open A4
+      [45, 3, 0], // open G3 (string 3, offset 0)
+      [7, 0, 7], // string 0, column 7
+    ];
+    for (const [index, stringIndex, columnOffset] of samples) {
+      expect(dotCenterOf(nodes[index]!)).toEqual(
+        expectedCenter(layout, stringIndex, columnOffset),
+      );
+    }
+    // vertical+right puts G3 (string 3) open dot at a SMALLER cx than E5 (string 0)
+    // open dot (mirrors geometry.test.ts:106-109; G3 open cx=56, E5 open cx=302).
+    const g3OpenCx = Number(dotCenterOf(nodes[45]!).cx);
+    const e5OpenCx = Number(dotCenterOf(nodes[0]!).cx);
+    expect(g3OpenCx).toBe(56);
+    expect(e5OpenCx).toBe(302);
+    expect(g3OpenCx).toBeLessThan(e5OpenCx);
+  });
+
+  it('projects the static chrome through the axis (vertical string lines run down)', () => {
+    // U3a: the chrome (string lines / nut / guides / labels) follows the render
+    // axis. In vertical a string line runs DOWN the neck (x1===x2, y2>y1) at the
+    // string's cross x, matching the resolved layout.
+    const { svg } = renderBoard({
+      orientation: 'vertical',
+      handedness: 'right',
+      density: 'comfort',
+    });
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    const stringLines = Array.from(svg.querySelectorAll('line.string-line'));
+    expect(stringLines).toHaveLength(4);
+    // The G3 string (index 3) sits at the smallest cross x (56) in vertical+right.
+    const g3 = layout.stringLine(3);
+    const g3Line = stringLines.find((l) => l.getAttribute('x1') === String(g3.x1));
+    expect(g3Line?.getAttribute('x1')).toBe(g3Line?.getAttribute('x2')); // runs down
+    expect(g3Line?.getAttribute('x1')).toBe('56');
+    expect(Number(g3Line?.getAttribute('y2'))).toBeGreaterThan(
+      Number(g3Line?.getAttribute('y1')),
+    );
+  });
+
+  it('keeps ALL chrome <text> upright in vertical — no rotation/transform (§3, §8)', () => {
+    // CRUCIAL: a naive 90° map transform would rotate the labels. The chrome text
+    // (string names + the "open" label) must carry NO transform attribute so the
+    // glyphs stay upright on the vertical map.
+    const { svg } = renderBoard({
+      orientation: 'vertical',
+      handedness: 'right',
+      density: 'comfort',
+    });
+    const names = Array.from(svg.querySelectorAll('text.string-name'));
+    const open = svg.querySelector('text.open-label');
+    expect(names).toHaveLength(4);
+    expect(open).not.toBeNull();
+    for (const t of [...names, open]) {
+      expect(t?.getAttribute('transform')).toBeNull();
+    }
+    // The per-dot note labels stay upright too (the lbl <text>).
+    for (const lbl of Array.from(svg.querySelectorAll('g.note text.lbl'))) {
+      expect(lbl.getAttribute('transform')).toBeNull();
+    }
+  });
+
+  it('keeps the 60 nodes and their identity across an orientation prop flip', () => {
+    const { notes, rerender } = renderBoard({
+      orientation: 'horizontal',
+      handedness: 'right',
+      density: 'fit',
+    });
+    const before = notes();
+    expect(before).toHaveLength(60);
+    const beforeRefs = [...before];
+
+    rerender({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+
+    const after = notes();
+    expect(after).toHaveLength(60); // still 60 — nothing unmounted/remounted
+    // Same element objects, in the same order — React reused them by key (the key
+    // is (stringIndex, columnOffset), orientation-invariant).
+    for (let i = 0; i < 60; i++) {
+      expect(after[i]).toBe(beforeRefs[i]);
+    }
   });
 });

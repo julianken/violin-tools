@@ -31,26 +31,20 @@ import {
   type Root,
   type ScaleType,
 } from '@violin-tools/theory';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { INITIAL_CONTROLS, type RefsState } from '../state/controls';
 
 import { RefLayers } from './RefLayers';
 import {
+  axisOf,
   COLUMN_OFFSETS,
-  GUIDE_Y1,
-  GUIDE_Y2,
   LABEL_Y_OFFSET,
-  NUT,
-  OPEN_LABEL,
   STOPPED_OFFSETS,
-  STRING_LABEL_X,
-  STRING_X1,
-  STRING_X2,
   STRINGS,
-  xOf,
 } from './geometry';
-import { type MotionBuild, useDotPopReplay } from './motion';
+import type { Density, Handedness, Orientation } from './mapView';
+import { type MotionBuild, useDotPopReplay, useOrientationSnap } from './motion';
 import { useRovingNoteMap } from './useRovingNoteMap';
 import './motion.css';
 import './notemap.css';
@@ -87,6 +81,22 @@ interface NoteMapProps {
    */
   motion?: MotionBuild;
   /**
+   * The resolved render orientation (§12.1) — `'horizontal'` (desktop, default) |
+   * `'vertical'` (mobile). Already resolved from the user's mode (never `'auto'`);
+   * the AppShell does the matchMedia resolve and threads the concrete value (U2).
+   * Defaults to `'horizontal'` so a prop-absent render is the byte-identical
+   * desktop map.
+   */
+  orientation?: Orientation;
+  /** Player handedness (§12.5) — `'right'` (default) | `'left'`; mirrors the cross axis. */
+  handedness?: Handedness;
+  /**
+   * Neck-axis spacing (§12.1) — `'fit'` (default, the byte-identical desktop neck) |
+   * `'comfort'` (the wider mobile-vertical neck). Derived from orientation upstream;
+   * defaults to `'fit'` so the bare render reproduces today's geometry.
+   */
+  density?: Density;
+  /**
    * Announce a sounded note's spoken name (§11.3) — called on Enter/Space over a
    * marker so the shell's polite live region can speak it. Optional so the static
    * NoteMap (tests, the S5 default render) need not wire audio plumbing.
@@ -100,6 +110,12 @@ interface NoteMapProps {
 const DEFAULT_ROOT_PC = 9;
 const DEFAULT_ROOT: Root = 'A';
 const DEFAULT_SCALE: ScaleType = 'major';
+// §12.1 axis defaults — a prop-absent render is the byte-identical desktop map
+// (horizontal + right-handed + fit), so existing bare <NoteMap/> renders (the
+// NoteMap / a11y / motion tests) keep their today-identical geometry post-U0.
+const DEFAULT_ORIENTATION: Orientation = 'horizontal';
+const DEFAULT_HANDEDNESS: Handedness = 'right';
+const DEFAULT_DENSITY: Density = 'fit';
 // Every reference layer off by default (the S6 INITIAL_CONTROLS refs) — the
 // first paint is the bare map a reviewer diffs against §12.
 
@@ -115,15 +131,32 @@ export function NoteMap({
   scale = DEFAULT_SCALE,
   refs = INITIAL_CONTROLS.refs,
   motion = 'stateful',
+  orientation = DEFAULT_ORIENTATION,
+  handedness = DEFAULT_HANDEDNESS,
+  density = DEFAULT_DENSITY,
   onSoundNote,
 }: NoteMapProps) {
   const scaleSet = SCALE_INTERVALS[scale];
+
+  // The resolved §12.1 layout for this axis config. Memoized so `layout.dotCenter`
+  // is a stable reference across re-renders that don't change the axis — the U6
+  // snap-on-change guard keys on it, and a stable reference avoids needless marker
+  // rebuilds when only (root, scale) change.
+  const layout = useMemo(
+    () => axisOf({ orientation, handedness, density }),
+    [orientation, handedness, density],
+  );
 
   // The snappy build replays `dotPop` on each (root, scale) change via the
   // number-pop-in reflow trick (motion.ts). `changeKey` keys the effect on the
   // selection; the stateful build no-ops inside the hook.
   const notesRef = useRef<SVGGElement>(null);
   useDotPopReplay(notesRef, motion, `${String(rootPc)}-${scale}`);
+  // §7.4 / §11.4 — forward-proof the orientation flip as a SNAP: it already jumps
+  // (motion.css tweens only r/fill/stroke/opacity, and a flip rewrites cx/cy
+  // ATTRIBUTES, which don't tween), but this guards a future position transition so
+  // a flip never slides. Keyed on the resolved orientation; no-ops on first paint.
+  useOrientationSnap(notesRef, orientation);
 
   // Precompute the 60 markers in flat (stringIndex × columnOffset) order — the
   // same order the render walks — so the roving hook (§11.3) knows each marker's
@@ -134,14 +167,18 @@ export function NoteMap({
     COLUMN_OFFSETS.map((columnOffset, colIndex) => {
       const nodePc = nodePitchClass(string.pc, columnOffset);
       const state = classify(rootPc, scaleSet, nodePc);
+      // §12.1 — the dot center comes from the resolved axis layout, so a vertical
+      // / comfort config places the SAME node on the swapped axis. stringIndex
+      // stays 0..3 (the 4-element crossOrder), columnOffset stays 0..14.
+      const { cx, cy } = layout.dotCenter(stringIndex, columnOffset);
       return {
         index: stringIndex * columns + colIndex,
         stringIndex,
         columnOffset,
         nodePc,
         state,
-        cx: xOf(columnOffset),
-        cy: string.y,
+        cx,
+        cy,
         // §11.3 accessible name — the §13 spoken note name + state suffix
         // ("C sharp, root"), recomputed every render so it tracks (root, scale).
         name: noteMarkerName(nodePc, root, scale, state),
@@ -160,6 +197,10 @@ export function NoteMap({
     rows: STRINGS.length,
     columns,
     initialIndex: rootIndex,
+    // §11.3 — the arrow keys re-bind to the visual axis per orientation (and the
+    // cross-axis sign follows handedness); the flat index model is unchanged.
+    orientation,
+    handedness,
     onSound: (index) => {
       setSoundingIndex(index);
       const marker = markers[index];
@@ -174,58 +215,88 @@ export function NoteMap({
       {/* §12.3 reference overlays FIRST, so the tape/landmark bands paint BEHIND
           the note dots (SVG paints in document order). Their visibility is the
           `.hide` class driven by the Refs pills — mounted-but-hidden, never
-          unmounted (the S8 attach contract). */}
-      <RefLayers refs={refs} />
+          unmounted (the S8 attach contract).
 
-      {/* Static chrome — guide lines, nut, string lines, labels. The guide
-          lines and nut are decorative (no meaning); they read as background. */}
+          U3b DEFERRAL (S16 ph2, tracked in #80): RefLayers' band rects are still
+          positioned on the horizontal `xOf` axis — re-projecting them through
+          `axisOf` (so the bands/heel underline/`low 2` slide are axis-correct in
+          BOTH orientations, closing the Phase 2 AC) is the U3b unit. Until it lands
+          the broken state is made UNREACHABLE, not merely default-off:
+            • RefsRow disables every Refs pill on the vertical map (the user can't
+              toggle a layer on), AND
+            • RefLayers is SKIPPED entirely on the vertical render here (so even a
+              programmatically-set ref never paints a mis-projected band).
+          On horizontal the overlays render exactly as before. */}
+      {orientation === 'horizontal' && <RefLayers refs={refs} />}
+
+      {/* Static chrome — guide lines, nut, string lines, labels — all projected
+          through the resolved layout (§12.1) so they FOLLOW the render axis: in
+          vertical the string lines run down the neck, the guides cross the strings,
+          and the nut bars across the open end. The guide lines and nut are
+          decorative (no meaning); they read as background. CRUCIAL: every <text>
+          keeps its anchor as a pure {x,y} with NO transform, so the string-name and
+          "open" labels stay upright in both orientations (§3, §8). */}
       <g className="chrome" aria-hidden="true">
-        {STOPPED_OFFSETS.map((offset) => (
-          <line
-            key={`guide-${String(offset)}`}
-            className="guide"
-            x1={xOf(offset)}
-            y1={GUIDE_Y1}
-            x2={xOf(offset)}
-            y2={GUIDE_Y2}
-          />
-        ))}
-        <rect
-          className="nut"
-          x={NUT.x}
-          y={NUT.y}
-          width={NUT.width}
-          height={NUT.height}
-        />
-        {STRINGS.map((string) => (
-          <line
-            key={`string-${string.name}`}
-            className="string-line"
-            x1={STRING_X1}
-            y1={string.y}
-            x2={STRING_X2}
-            y2={string.y}
-          />
-        ))}
-        {STRINGS.map((string) => (
-          <text
-            key={`string-name-${string.name}`}
-            className="string-name"
-            x={STRING_LABEL_X}
-            y={string.y + LABEL_Y_OFFSET}
-            textAnchor="middle"
-          >
-            {string.name}
-          </text>
-        ))}
-        <text
-          className="open-label"
-          x={OPEN_LABEL.x}
-          y={OPEN_LABEL.y}
-          textAnchor="middle"
-        >
-          open
-        </text>
+        {STOPPED_OFFSETS.map((offset) => {
+          const guide = layout.guideLine(offset);
+          return (
+            <line
+              key={`guide-${String(offset)}`}
+              className="guide"
+              x1={guide.x1}
+              y1={guide.y1}
+              x2={guide.x2}
+              y2={guide.y2}
+            />
+          );
+        })}
+        {(() => {
+          const nut = layout.nutRect();
+          return (
+            <rect
+              className="nut"
+              x={nut.x}
+              y={nut.y}
+              width={nut.width}
+              height={nut.height}
+            />
+          );
+        })()}
+        {STRINGS.map((string, stringIndex) => {
+          const line = layout.stringLine(stringIndex);
+          return (
+            <line
+              key={`string-${string.name}`}
+              className="string-line"
+              x1={line.x1}
+              y1={line.y1}
+              x2={line.x2}
+              y2={line.y2}
+            />
+          );
+        })}
+        {STRINGS.map((string, stringIndex) => {
+          const pos = layout.stringLabelPos(stringIndex);
+          return (
+            <text
+              key={`string-name-${string.name}`}
+              className="string-name"
+              x={pos.x}
+              y={pos.y}
+              textAnchor="middle"
+            >
+              {string.name}
+            </text>
+          );
+        })}
+        {(() => {
+          const open = layout.openLabelPos();
+          return (
+            <text className="open-label" x={open.x} y={open.y} textAnchor="middle">
+              open
+            </text>
+          );
+        })()}
       </g>
 
       {/* The 60 persistent note markers (the §11.3 composite-widget members). The

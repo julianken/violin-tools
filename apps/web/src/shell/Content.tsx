@@ -1,6 +1,8 @@
 import { Controls } from '../controls/Controls';
 import { NoteMap } from '../notemap/NoteMap';
 import { NoteMapLegend } from '../notemap/NoteMapLegend';
+import { axisOf } from '../notemap/geometry';
+import { type Density, type Handedness, type Orientation } from '../notemap/mapView';
 import { type MotionBuild } from '../notemap/motion';
 import { derive, scaleName } from '../state/controls';
 import { type ControlsApi } from '../state/useControls';
@@ -22,6 +24,23 @@ interface ContentProps {
   /** The shared controls api, owned by AppShell so the palette can write it too. */
   controls: ControlsApi;
   /**
+   * The resolved render orientation (§12.1) — `'horizontal'` (desktop) |
+   * `'vertical'` (mobile). Already resolved (never `'auto'`); AppShell does the
+   * matchMedia resolve and threads the concrete value (U4). Content drives the
+   * board <svg> viewBox AND `data-orientation` from it, and forwards it to
+   * <NoteMap> so the parent box and the dot centers share ONE config. Defaults
+   * to `'horizontal'` so a prop-absent render is the byte-identical desktop map.
+   */
+  orientation?: Orientation;
+  /** Player handedness (§12.5) — `'right'` (default) | `'left'`; forwarded to <NoteMap>. */
+  handedness?: Handedness;
+  /**
+   * Neck-axis spacing (§12.1) — `'fit'` (default) | `'comfort'`. Derived from
+   * orientation upstream; forwarded to <NoteMap> so the viewBox and the dot
+   * centers agree (a Content/NoteMap config mismatch clips or squishes the map).
+   */
+  density?: Density;
+  /**
    * Announce a sounded note's spoken name (§11.3) up to the shell's polite live
    * region — threaded into the note map's Enter/Space sounding handler.
    */
@@ -41,7 +60,13 @@ function resolveMotionBuild(): MotionBuild {
     : 'stateful';
 }
 
-export function Content({ controls, onSoundNote }: ContentProps) {
+export function Content({
+  controls,
+  orientation = 'horizontal',
+  handedness = 'right',
+  density = 'fit',
+  onSoundNote,
+}: ContentProps) {
   // Pure derivation of the selected root's pitch class through the theory engine
   // (§12.5(b)) — never re-derived here. The map takes (rootPc, scale) and
   // classifies each node via `classify()` (it resolves the §12.5(a) interval set
@@ -51,6 +76,11 @@ export function Content({ controls, onSoundNote }: ContentProps) {
   // the map labels use, so the H1 and the fingerboard never disagree.
   const heading = scaleName(controls.state);
   const motion = resolveMotionBuild();
+  // §12.1 — the resolved layout drives the board's viewBox (horizontal+fit is the
+  // byte-identical '0 0 760 264' post-U0; vertical+comfort is '0 0 352 850'). The
+  // SAME (orientation, handedness, density) is forwarded to <NoteMap> below so the
+  // parent box and the dot centers never disagree (a mismatch clips/squishes).
+  const layout = axisOf({ orientation, handedness, density });
 
   return (
     <main id="main" className="content">
@@ -71,6 +101,13 @@ export function Content({ controls, onSoundNote }: ContentProps) {
         selectRoot={controls.selectRoot}
         selectScale={controls.selectScale}
         toggleRef={controls.toggleRef}
+        // §12.3 — the Refs overlays are still horizontal-axis-only (the band/heel/
+        // low-2 geometry is not yet projected through `axisOf`; that is the tracked
+        // U3b follow-up). On the vertical map the Refs pills are therefore disabled
+        // so a user cannot paint a mis-projected band; <RefLayers> is also skipped
+        // in NoteMap while vertical (defense in depth). Forwarded so RefsRow can
+        // dim/disable the pills.
+        orientation={orientation}
       />
 
       <div className="panelcard">
@@ -82,7 +119,9 @@ export function Content({ controls, onSoundNote }: ContentProps) {
           <svg
             id="board"
             className="board"
-            viewBox="0 0 760 264"
+            // §12.1 — the resolved layout's viewBox (U2): horizontal+fit is the
+            // shipped '0 0 760 264', vertical+comfort is '0 0 352 850'.
+            viewBox={layout.viewBox}
             // §11.3 — the composite-widget container. `role="group"` (not `img`)
             // so the focusable note markers inside are exposed to AT; the group's
             // accessible name stays "Full fingerboard note map". tabIndex={-1} so
@@ -94,6 +133,11 @@ export function Content({ controls, onSoundNote }: ContentProps) {
             // variable set (stateful property transitions vs the snappy dotPop
             // keyframe). motion.css keys every rule off this attribute.
             data-motion={motion}
+            // §10/§12.1 — drives `.board[data-orientation='vertical']{min-width:0}`
+            // (shell.css), so the intrinsically-narrow vertical SVG shrinks to the
+            // plate width instead of forcing the desktop 760px min-width and
+            // overflowing on a phone. Horizontal keeps the 760px floor.
+            data-orientation={orientation}
           >
             <NoteMap
               rootPc={rootPc}
@@ -101,6 +145,9 @@ export function Content({ controls, onSoundNote }: ContentProps) {
               scale={controls.state.scale}
               refs={controls.state.refs}
               motion={motion}
+              orientation={orientation}
+              handedness={handedness}
+              density={density}
               onSoundNote={onSoundNote}
             />
           </svg>

@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { render } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { render, renderHook } from '@testing-library/react';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { NoteMap } from './NoteMap';
+import type { Orientation } from './mapView';
+import { useOrientationSnap } from './motion';
 
 // motion.test — the Vitest (jsdom) half of the §7 motion verification (DESIGN.md
 // §7 wins on conflict, AGENTS.md). jsdom does NOT compute CSS transitions or run
@@ -334,8 +336,155 @@ describe('motion — the §7.4 reduced-motion gate is PRESENT (CSSMediaRule)', (
     );
     expect(scoped).toBeDefined();
     expect(scoped?.style.getPropertyValue('transition-delay')).toBe('0s');
+    // §7.4 / §11.4 orientation-flip forward-proofing clause (S16 ph2 U6): a future
+    // board-scoped position transition on `.note`/`.notes` must be zeroed here, and
+    // MUST carry the `.board[data-motion]` prefix to win the cascade against a build
+    // rule (a media query adds no specificity). Assert that reserved selector is
+    // present with transition:none — so the §7.4 contract covers a future move.
+    const positionSnap = inner.find(
+      (r) =>
+        r.style.transition === 'none' &&
+        r.selectorText.includes('.board[data-motion] .note') &&
+        r.selectorText.includes('.board[data-motion] .notes'),
+    );
+    expect(positionSnap).toBeDefined();
     // .pill:active transform:none
     const pillActive = inner.find((r) => r.selectorText === '.pill:active');
     expect(pillActive?.style.transform).toBe('none');
+  });
+});
+
+describe('motion — useOrientationSnap forward-proofing snap (S16 ph2 U6)', () => {
+  // The orientation flip ALREADY snaps by construction (motion.css transitions
+  // only r/fill/stroke/opacity, never cx/cy or a .note <g> transform, and a flip
+  // moves dots by rewriting cx/cy ATTRIBUTES, which don't tween). This hook is
+  // FORWARD-PROOFING: if a later phase adds a position transition, the orientation
+  // flip is already covered by suspending transitions + forcing one reflow on a
+  // change. It mirrors useDotPopReplay's mountedRef skip-first-paint + the
+  // motion.ts `getBoundingClientRect().width` reflow idiom. jsdom runs no
+  // transitions, so this is a structural + no-throw + reflow-call assertion.
+
+  it('is a no-op on first paint (mountedRef skips the initial mount)', () => {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const spy = vi.spyOn(group, 'getBoundingClientRect');
+    const notesRef = { current: group } satisfies React.RefObject<SVGGElement | null>;
+
+    renderHook(() => {
+      useOrientationSnap(notesRef, 'horizontal');
+    });
+
+    // First paint must not force a reflow — the first vertical paint is already a
+    // snap with no flash, so the hook does nothing until orientation CHANGES.
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('forces one reflow on the group when orientation CHANGES (skip-first then run)', () => {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const spy = vi.spyOn(group, 'getBoundingClientRect');
+    const notesRef = { current: group } satisfies React.RefObject<SVGGElement | null>;
+
+    const initialProps: { orientation: Orientation } = { orientation: 'horizontal' };
+    const { rerender } = renderHook(
+      ({ orientation }: { orientation: Orientation }) => {
+        useOrientationSnap(notesRef, orientation);
+      },
+      { initialProps },
+    );
+    expect(spy).not.toHaveBeenCalled(); // still skipped on first paint
+
+    rerender({ orientation: 'vertical' });
+    // The change forces exactly one reflow read (the canonical NOTEMAP idiom:
+    // suspend → getBoundingClientRect().width → restore).
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing when the orientation prop re-renders unchanged', () => {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const spy = vi.spyOn(group, 'getBoundingClientRect');
+    const notesRef = { current: group } satisfies React.RefObject<SVGGElement | null>;
+
+    const initialProps: { orientation: Orientation } = { orientation: 'horizontal' };
+    const { rerender } = renderHook(
+      ({ orientation }: { orientation: Orientation }) => {
+        useOrientationSnap(notesRef, orientation);
+      },
+      { initialProps },
+    );
+    rerender({ orientation: 'horizontal' }); // same value — effect dep unchanged
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('is a safe no-op when the ref is null (no group mounted yet)', () => {
+    const notesRef = { current: null } satisfies React.RefObject<SVGGElement | null>;
+    expect(() =>
+      renderHook(() => {
+        useOrientationSnap(notesRef, 'horizontal');
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe('motion — orientation flip morphs, never remounts (S16 ph2 U6)', () => {
+  // A flip moves the 60 dots' coordinates (cx/cy) — it does NOT rebuild the .notes
+  // group. The persistent key (stringIndex, columnOffset) is orientation-invariant,
+  // so React reuses the SAME elements; the snap moves coordinates in place.
+  function renderFlippable(orientation: 'horizontal' | 'vertical') {
+    const { container, rerender } = render(
+      <svg className="board" data-motion="stateful">
+        <NoteMap
+          motion="stateful"
+          orientation={orientation}
+          handedness="right"
+          density={orientation === 'horizontal' ? 'fit' : 'comfort'}
+        />
+      </svg>,
+    );
+    const board = container.querySelector<SVGSVGElement>('svg.board');
+    if (board === null) throw new Error('no board host');
+    return {
+      notes: () => Array.from(board.querySelectorAll<SVGGElement>('g.note')),
+      flip: (next: 'horizontal' | 'vertical') => {
+        rerender(
+          <svg className="board" data-motion="stateful">
+            <NoteMap
+              motion="stateful"
+              orientation={next}
+              handedness="right"
+              density={next === 'horizontal' ? 'fit' : 'comfort'}
+            />
+          </svg>,
+        );
+      },
+    };
+  }
+
+  it('keeps the same 60 g.note element identities across a vertical→horizontal flip', () => {
+    const { notes, flip } = renderFlippable('vertical');
+    const before = notes();
+    expect(before).toHaveLength(60);
+    const beforeRefs = [...before];
+
+    expect(() => {
+      flip('horizontal');
+    }).not.toThrow();
+
+    const after = notes();
+    expect(after).toHaveLength(60); // nothing unmounted/remounted on the flip
+    for (let i = 0; i < 60; i++) {
+      expect(after[i]).toBe(beforeRefs[i]); // same elements — coordinates moved, not rebuilt
+    }
+  });
+
+  it('preserves the --col / data-col stagger seam across the flip (S8 + e2e col 0 vs 14)', () => {
+    const { notes, flip } = renderFlippable('vertical');
+    flip('horizontal');
+    const all = notes();
+    // The first string's 15 columns still carry --col / data-col 0…14 in order —
+    // the stagger seam the e2e (col 0 vs col 14) and S8 depend on is untouched.
+    const firstRow = all.slice(0, 15);
+    firstRow.forEach((node, col) => {
+      expect(node.style.getPropertyValue('--col')).toBe(String(col));
+      expect(node.getAttribute('data-col')).toBe(String(col));
+    });
   });
 });
