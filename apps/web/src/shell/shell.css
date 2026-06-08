@@ -282,7 +282,7 @@ body {
   padding: 0 var(--space-800); /* 0 32px (§4.2) */
   border-bottom: 1px solid var(--hairline);
 }
-/* The left cluster groups the (mobile-only) drawer trigger with the breadcrumb so
+/* The left cluster groups the (mobile-only) search trigger with the breadcrumb so
  * they sit together on the left of the space-between bar. min-width:0 lets the
  * breadcrumb truncate (§10 — "the breadcrumb may truncate before the {ghost}
  * button wraps") rather than push the bar wider. */
@@ -292,13 +292,25 @@ body {
   gap: var(--space-200); /* 8px */
   min-width: 0;
 }
-/* ── .topbar-menu — the mobile drawer trigger (§10) ─────────────────────────
- * Hidden at/above the §10 breakpoint (the desktop topbar is unchanged); the
- * narrow media block at the foot of this file reveals it. Styled as a borderless
- * icon button in the topbar's text family; the {mint} :focus-visible ring (a11y.
- * css) handles keyboard focus. */
-.topbar-menu {
+/* ── .topbar-search — the MOBILE-ONLY search trigger (§10, U7) ──────────────────
+ * Replaces the dropped drawer hamburger: below the §10 breakpoint it opens the
+ * command palette. CRITICALLY scoped MOBILE-ONLY — `display:none` at/above the
+ * breakpoint (the exact `.topbar-menu` precedent), revealed `display:flex` only in
+ * the narrow media block at the foot of this file. This is load-bearing: the
+ * retained sidebar search ALSO carries the "Search scales and tools" accessible
+ * name, so an UNSCOPED top-bar search would (1) make the search role query match
+ * two elements at the default desktop viewport (Playwright strict-mode failure)
+ * and (2) move the desktop full-page snapshot. Mobile-only `display:none` keeps the
+ * two searches from ever coexisting in one viewport.
+ *
+ * Styled as a borderless icon button in the topbar's text family; the {mint}
+ * :focus-visible ring (a11y.css) handles keyboard focus. The painted box is the
+ * 32px nav-item square; a transparent `::before` overlay expands the POINTER/tap
+ * area to the §0 44px floor (WCAG 2.5.5), mirroring the a11y.css `.ni`/`.pill`
+ * hit-padding pattern (the visual box is unchanged). */
+.topbar-search {
   display: none; /* desktop: hidden — revealed in the narrow media block */
+  position: relative; /* positioning context for the ::before hit overlay */
   align-items: center;
   justify-content: center;
   flex: none;
@@ -312,13 +324,34 @@ body {
   color: var(--text2);
   cursor: pointer;
 }
-.topbar-menu:hover {
+.topbar-search:hover {
   background: var(--nav-hover-bg);
 }
-.topbar-menu-ic {
+/* 44px touch-target hit-padding (§10/§16, WCAG 2.5.5) — a transparent overlay that
+ * grows the tap area to the §0 floor without changing the painted 32px box. */
+.topbar-search::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: var(--touch-target-min); /* 44px */
+  min-height: var(--touch-target-min); /* 44px */
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+.topbar-search-ic {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 14px; /* ic-search rendered ~14px (§8.3, §0) */
+  height: 14px;
+  color: var(--text3);
+}
+.topbar-search-ic svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ── .crumb — breadcrumb (§3, §9) ───────────────────────────────────────── */
@@ -520,34 +553,18 @@ body {
   color: var(--text2);
 }
 
-/* ── drawer scrim — backdrop behind the open mobile drawer (§10) ─────────────
- * Hidden entirely on desktop (display:none); the narrow media block flips it to
- * a fixed full-inset backdrop. It fades on its own opacity timeline (the §7
- * `--overlay-out` token, both directions, reduced-motion-guarded below), mirrors
- * the palette scrim's language at a lighter scrim, and sits just BELOW the drawer
- * (z 39 < drawer 40) so the drawer reads above it. Click closes the drawer
- * (AppShell). */
-.drawer-scrim {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 39;
-  background: var(--overlay-scrim); /* black @ 55% (§7.5) — shared scrim token */
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--overlay-out) var(--ease-standard); /* 180ms both ways */
-}
-
 /* ════════════════════════════════════════════════════════════════════════════
- * §10 RESPONSIVE REFLOW — the real mobile layout (S11)
+ * §10 RESPONSIVE REFLOW — the real mobile layout (S11, drawer dropped in U7)
  * ════════════════════════════════════════════════════════════════════════════
  * Below the §10 breakpoint the desktop two-column shell reflows to a single full-
- * width column: the 248px sidebar collapses to an off-canvas DRAWER (toggled by
- * the topbar hamburger), the content + note-map plate take the full viewport
- * width, the controls keep wrapping (controls.css `.pill-track` flex-wrap), and
- * NOTHING pushes the page wider than the viewport — `document.scrollingElement.
- * scrollWidth <= clientWidth` at 390px (the note-map SVG keeps its 760px min-
- * width but scrolls INSIDE `.panel`, never widening the shell).
+ * width column: the 248px sidebar is HIDDEN (the mobile top-bar search trigger and
+ * the controls bottom sheet take over its role; U7 dropped the off-canvas drawer),
+ * the content + note-map plate take the full viewport width, the controls swap to
+ * the mobile bottom sheet whose peek header IS the summary (controls.css), and
+ * NOTHING pushes the page wider
+ * than the viewport — `document.scrollingElement.scrollWidth <= clientWidth` at
+ * 390px (the note-map SVG keeps its 760px min-width but scrolls INSIDE `.panel`,
+ * never widening the shell).
  *
  * The desktop layout at/above the breakpoint is untouched — every rule here is
  * scoped inside the media query.
@@ -557,68 +574,37 @@ body {
  * property would not resolve in the media condition). It mirrors
  * `--shell-min-width` in tokens.css 1:1 (§0 / §10). */
 @media (max-width: 760px) {
-  /* The shell stacks: the drawer is taken out of flow (fixed), so `.main` is the
-   * only in-flow child and gets the full width. */
+  /* The shell stacks: the rail is hidden, so `.main` is the only in-flow child
+   * and gets the full width. */
   .app {
     display: block;
   }
 
-  /* The rail becomes an off-canvas drawer: fixed, full-height, slid LEFT off
-   * screen at rest, transformed back in when `.is-open`. This is the transitions-
-   * dev panel-reveal (07) technique — a translateX transform driven by a state
-   * class, no motion library — with values from §7: the `--state-color` (200ms)
-   * duration and the standard ease for a crisp, non-bouncy reveal (a spring
-   * bounce on a full-height nav panel reads as jitter, so the §7 spring easings
-   * are deliberately NOT used here; §7's standard ease is the right value).
-   * `width:var(--sidebar-w)` keeps the SAME 248px content width as desktop, so
-   * the rail's internals never reflow — only its position changes. */
+  /* The 248px rail is removed on mobile (the drawer it used to become is gone —
+   * U7). `display:none` keeps its search/nav/theme out of the a11y tree + tab
+   * order at this breakpoint, so the mobile top-bar search is the sole "Search
+   * scales and tools" button below 760px. */
   .side {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 40; /* above the scrim (39) and the content */
-    height: 100vh;
-    height: 100dvh; /* dvh where supported — full height on mobile chrome */
-    width: var(--sidebar-w); /* 248px — internals unchanged */
-    max-width: 86vw; /* never wider than the viewport on a tiny phone */
-    transform: translateX(-100%); /* off-canvas at rest */
-    /* `visibility:hidden` while off-canvas removes the closed drawer's focusable
-     * contents (search, Scales link, theme) from the TAB ORDER — without it, a
-     * keyboard user could Tab into an invisible off-screen drawer (an off-canvas
-     * a11y hazard). It is delayed (`visibility 0s var(--state-color)`) so the
-     * slide-OUT is visible before the panel is hidden; on open it flips to
-     * visible immediately. The slide is the transitions-dev panel-reveal (07)
-     * transform; values from §7 (`--state-color`, standard ease). */
-    visibility: hidden;
-    transition:
-      transform var(--state-color) var(--ease-standard),
-      visibility 0s linear var(--state-color); /* hide AFTER the slide-out */
-    /* No drop shadow: the drawer is an overlay-tier surface, so the {overlay-scrim}
-     * dimmed page is its depth cue (§5). The command palette is the product's one
-     * heavy shadow; a shadow on a near-black panel would read as haze, not lift. */
-    /* The drawer can scroll internally if its content exceeds a short viewport. */
-    overflow-y: auto;
-  }
-  .side.is-open {
-    transform: translateX(0); /* slid in */
-    visibility: visible;
-    transition:
-      transform var(--state-color) var(--ease-standard),
-      visibility 0s linear 0s; /* visible immediately on open */
+    display: none;
   }
 
-  /* The scrim activates below the breakpoint and paints while the drawer is open. */
-  .drawer-scrim {
-    display: block;
-  }
-  .drawer-scrim.is-open {
-    opacity: 1;
-    pointer-events: auto;
+  /* The mobile-only top-bar search trigger appears (hidden on desktop). */
+  .topbar-search {
+    display: flex;
   }
 
-  /* The topbar hamburger trigger appears (hidden on desktop). */
-  .topbar-menu {
-    display: inline-flex;
+  /* Hide the desktop controls CARD below the breakpoint — the mobile bottom sheet
+   * (its peek header IS the summary; controls.css) is the surface here. This MUST
+   * live in shell.css
+   * (alongside the base `.controls{display:flex}` above) rather than controls.css:
+   * the bundle loads controls.css BEFORE shell.css, so a `.controls{display:none}`
+   * in a controls.css media block (equal specificity, no var() in the media
+   * feature) is OVERRIDDEN by shell.css's later base `display:flex`. Co-locating
+   * the override with the base rule makes source order win it. `display:none` (not
+   * visibility/opacity) keeps the hidden card's radiogroups/checkboxes out of the
+   * a11y tree + tab order, so the desktop strict-count e2e stays exact. */
+  .controls {
+    display: none;
   }
 
   /* The content column is now full width (no rail beside it). The desktop side
@@ -637,15 +623,7 @@ body {
   }
 }
 
-/* ── §7.4 reduced motion — the drawer + scrim appear without animation ───────
- * Under `reduce` the drawer slide and the scrim fade are removed (the §7.4
- * contract: motion is opt-in, every transition gated on the OS setting). The
- * drawer still opens/closes — only the TRANSITION is dropped, so it snaps to its
- * open/closed transform instantly. This mirrors how palette.css / motion.css
- * each carry their own §7.4 block for the motion they author. */
-@media (prefers-reduced-motion: reduce) {
-  .side,
-  .drawer-scrim {
-    transition: none;
-  }
-}
+/* §7.4 reduced motion — shell.css authored only the mobile drawer slide + scrim
+ * fade, both dropped in U7, so this file no longer needs a `prefers-reduced-motion`
+ * block. The mobile bottom-sheet motion carries its own §7.4 guard in controls.css;
+ * palette.css / motion.css each carry theirs for the motion they author. */

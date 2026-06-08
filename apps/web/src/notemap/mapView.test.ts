@@ -3,6 +3,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import {
   DEFAULT_MAP_VIEW,
   resolveOrientation,
+  resolveDensity,
   loadMapView,
   storeMapView,
   MAP_VIEW_KEY,
@@ -20,10 +21,21 @@ describe('resolveOrientation (rotation-aware auto)', () => {
   });
 });
 
+describe('resolveDensity (explicit wins, auto derives from orientation)', () => {
+  it('an explicit density is returned verbatim, ignoring orientation', () => {
+    expect(resolveDensity('fit', 'vertical')).toBe('fit');
+    expect(resolveDensity('comfort', 'horizontal')).toBe('comfort');
+  });
+  it("'auto' derives from the resolved orientation: horizontal → fit, vertical → comfort", () => {
+    expect(resolveDensity('auto', 'horizontal')).toBe('fit');
+    expect(resolveDensity('auto', 'vertical')).toBe('comfort');
+  });
+});
+
 describe('DEFAULT_MAP_VIEW', () => {
-  it('defaults to auto / comfort / right', () => {
+  it('defaults to auto / auto / right', () => {
     const v: MapView = DEFAULT_MAP_VIEW;
-    expect(v).toEqual({ orientation: 'auto', density: 'comfort', handedness: 'right' });
+    expect(v).toEqual({ orientation: 'auto', density: 'auto', handedness: 'right' });
   });
 });
 
@@ -36,12 +48,18 @@ describe('persistence (explicit choices only)', () => {
     storeMapView({ orientation: 'horizontal', density: 'fit', handedness: 'left' });
     expect(loadMapView()).toEqual({ orientation: 'horizontal', density: 'fit', handedness: 'left' });
   });
+  it("accepts each stored density mode ('fit' | 'comfort' | 'auto')", () => {
+    for (const density of ['fit', 'comfort', 'auto'] as const) {
+      storeMapView({ orientation: 'horizontal', density, handedness: 'right' });
+      expect(loadMapView().density).toBe(density);
+    }
+  });
   it('falls back to defaults on a corrupt value', () => {
     localStorage.setItem(MAP_VIEW_KEY, '{not json');
     expect(loadMapView()).toEqual(DEFAULT_MAP_VIEW);
   });
-  it('ignores unknown fields and keeps valid ones', () => {
+  it("ignores unknown fields and falls a garbage density back to 'auto'", () => {
     localStorage.setItem(MAP_VIEW_KEY, JSON.stringify({ orientation: 'vertical', density: 'bogus', handedness: 'left', x: 1 }));
-    expect(loadMapView()).toEqual({ orientation: 'vertical', density: 'comfort', handedness: 'left' });
+    expect(loadMapView()).toEqual({ orientation: 'vertical', density: 'auto', handedness: 'left' });
   });
 });

@@ -10,6 +10,7 @@
 // controls.css styles the pills/highlight that mount into each `.ctrl-slot`.
 
 import { type Orientation } from '../notemap/mapView.ts';
+import { type MapViewApi } from '../notemap/useMapView.ts';
 import { type ControlsApi } from '../state/useControls.ts';
 
 import './controls.css';
@@ -26,6 +27,14 @@ interface ControlsProps extends ControlsApi {
    * Defaults to `'horizontal'` so an orientation-absent render keeps today's pills.
    */
   orientation?: Orientation;
+  /**
+   * The whole map-view api (§16) — used ONLY by the mobile sheet's View row (U4).
+   * The desktop three-row card render below is unchanged and does NOT consume it;
+   * it is threaded through so U4 can mount <ViewRow mapView={…}> inside the sheet.
+   * Optional so the desktop-card unit harness (which renders Controls directly with
+   * no mapView) keeps its byte-identical two-radiogroup card.
+   */
+  mapView?: MapViewApi;
 }
 
 export function Controls({

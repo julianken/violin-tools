@@ -245,8 +245,9 @@
   --palette-row-h: 40px;
   --board-viewbox: 0 0 760 264;
   --board-min-width: 760px; /* §10/§12.1 HORIZONTAL/desktop floor only — the vertical map sets .board min-width:0 (shell.css) so it fits a phone instead of forcing this 760px (S16 ph2) */
-  --shell-min-width: 760px; /* §10 mobile-reflow breakpoint: below this the sidebar collapses to a drawer + the page reflows to one column; on DESKTOP/horizontal the plate scrolls the 760px SVG inside itself, on mobile the map renders vertical and fits the plate width (no 760px scroll) (§10/§12.1, S16 ph2) */
+  --shell-min-width: 760px; /* §10 mobile-reflow breakpoint: below this the sidebar is hidden (its off-canvas drawer was dropped in S16 ph3) + the page reflows to one column with a controls bottom sheet; on DESKTOP/horizontal the plate scrolls the 760px SVG inside itself, on mobile the map renders vertical and fits the plate width (no 760px scroll) (§10/§12.1, S16 ph3) */
   --touch-target-min: 44px; /* WCAG 2.5.5 floor for any pointer target */
+  --sheet-peek-h: 52px; /* §10 mobile bottom-sheet PEEK band — touch-target-min (44px summary-row tap height) + space-200 (8px handle gutter) = 52px on the 4px scale (S16 ph3) */
 }
 
 /*

@@ -1,5 +1,3 @@
-import { type Ref } from 'react';
-
 import { IcScales, IcSearch } from './icons';
 
 // The 248px sticky left rail (DESIGN.md §9 tree, §4.2). Children render in the
@@ -9,13 +7,11 @@ import { IcScales, IcSearch } from './icons';
 // LIVE trigger that opens the command palette (§8.3 — a button that opens the
 // palette, not an inline text input).
 //
-// S11 responsive role: this SAME element is BOTH the desktop rail (sticky 248px)
-// AND the mobile off-canvas drawer (DESIGN.md §10). Above the §10 breakpoint it
-// renders unchanged (no drawer chrome applies); below it, CSS transforms it
-// off-canvas and `.is-open` slides it in. The shell passes a `panelRef` (so the
-// drawer hook can move focus into it on open), `tabIndex={-1}` (so it can receive
-// that focus), and `onNavigate` (so activating the search or the Scales link
-// dismisses the drawer on mobile). None of this changes the desktop rendering.
+// S16 Phase 3 (U7) drops the mobile off-canvas drawer: this element is now the
+// desktop rail only (no off-canvas drawer chrome). Below the §10 breakpoint the
+// rail is hidden (shell.css) and the mobile surfaces — the top-bar search trigger
+// and the controls bottom sheet — take over. The sidebar search KEEPS its label
+// and stays the desktop palette opener.
 
 // The three "soon" tools, in display order, with their Unicode glyph characters
 // (DESIGN.md §0 `icon.glyph-char`, §8.2) — set as text, never custom SVG.
@@ -28,43 +24,16 @@ const SOON_TOOLS = [
 interface SidebarProps {
   /** Open the command palette — the search trigger calls this (§8.3, §9). */
   onOpenPalette: () => void;
-  /**
-   * Dismiss the mobile drawer after a navigation action (search opened, Scales
-   * chosen). A no-op on desktop where the rail is always visible (§10).
-   */
-  onNavigate: () => void;
-  /**
-   * Ref to the rail root, attached so the drawer hook can move focus into the
-   * panel on open (the panel is `tabIndex={-1}`) (§10 / S10 focus contract).
-   */
-  panelRef: Ref<HTMLElement>;
-  /** Whether the drawer is currently open — drives the `.is-open` slide (§10). */
-  drawerOpen: boolean;
 }
 
-export function Sidebar({ onOpenPalette, onNavigate, panelRef, drawerOpen }: SidebarProps) {
+export function Sidebar({ onOpenPalette }: SidebarProps) {
   return (
-    <header
-      ref={panelRef}
-      id="mobile-drawer"
-      // tabIndex -1 so the drawer hook can move focus to the panel on open
-      // (focus then steps INTO the drawer on the next Tab) without making the
-      // rail a tab stop in the normal desktop flow (§10 / S10).
-      tabIndex={-1}
-      className={`side${drawerOpen ? ' is-open' : ''}`}
-    >
+    <header className="side">
       <div className="brand">
         Violin Tools<span className="brand-dot">.</span>
       </div>
 
-      <button
-        type="button"
-        className="search"
-        onClick={() => {
-          onOpenPalette();
-          onNavigate();
-        }}
-      >
+      <button type="button" className="search" onClick={onOpenPalette}>
         <span className="search-ic">
           <IcSearch />
         </span>
@@ -75,7 +44,7 @@ export function Sidebar({ onOpenPalette, onNavigate, panelRef, drawerOpen }: Sid
       <div className="sec-h">Tools</div>
 
       <nav className="nav" aria-label="Tools">
-        <a className="ni active" href="#board" aria-current="page" onClick={onNavigate}>
+        <a className="ni active" href="#board" aria-current="page">
           <span className="ic">
             <IcScales />
           </span>

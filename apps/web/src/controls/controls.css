@@ -111,3 +111,244 @@
   z-index: 0;
   pointer-events: none;
 }
+
+/* ══ U5: responsive controls swap + mobile bottom-sheet presentation (§10/§16) ══
+ *
+ * Phase 3 mounts BOTH the desktop card and the mobile surface; CSS toggles which
+ * shows, and the hide is PINNED to `display:none` (FINDINGS 3, 6) — never
+ * visibility:hidden / opacity / transform-offscreen — so the hidden surface's
+ * radiogroups/checkboxes LEAVE the accessibility tree at the other breakpoint.
+ * That is what keeps the desktop strict counts in a11y.spec exact (radiogroup
+ * count, Refs checkbox count, the single search button at the default desktop
+ * viewport). The §10 breakpoint is 760px (it mirrors `--shell-min-width`; CSS
+ * media features cannot take `var()`, so the literal lives here exactly as in
+ * shell.css). DESIGN.md §10/§16/§9.1 win on any conflict (AGENTS.md). */
+
+/* The MOBILE surface (the single bottom sheet whose peek header IS the summary) is
+ * hidden in the base (desktop) cascade and revealed only inside the narrow media
+ * block below — the exact `.topbar-menu` precedent — so it never coexists with the
+ * desktop card and is absent from the desktop a11y tree (≥760px). */
+.mobile-controls {
+  display: none;
+}
+
+/* The sheet's scrollable CONTENT region is out of flow while the sheet is
+ * closed/peek — its Root/Scale/Refs/View rows are out of the tab order + the
+ * a11y tree until expanded — and revealed when the sheet carries
+ * `data-open='true'`. (MobileControls also sets an INLINE display while closed so
+ * jsdom, which applies no media queries, reflects the closed state; this CSS owns
+ * the OPEN layout, where the inline display is removed.) */
+.mc-sheet-body {
+  display: none;
+  /* The body is the sheet's scroll region (the sheet box caps at max-height; U6),
+   * with §4.2 inner padding + an inter-row gap matching the desktop card. */
+  flex-direction: column;
+  gap: var(--space-300); /* 12px — same inner gap as the desktop .controls card */
+  padding: var(--space-400); /* 16px (§4.2) */
+  overflow-y: auto;
+}
+.mc-sheet[data-open='true'] .mc-sheet-body {
+  display: flex;
+}
+
+/* Inside the open sheet every pill track widens its inter-pill gap to
+ * `--space-200` (8px) so the centered 44px ::before hit-pads stop overlapping
+ * (the WCAG 2.5.5 collision at the desktop 4px gap). The desktop `.pill-track`
+ * base rule above keeps its 4px `--space-100` gap untouched. */
+.mc-sheet .pill-track {
+  gap: var(--space-200); /* 8px (§4.2) — clears the 44px hit-pad collision */
+}
+
+/* Root, in the sheet, lays out as a 4×3 grid (12 pills → 4 columns × 3 rows).
+ * Scoped by the Root track's stable `aria-label` so ONLY Root becomes a grid
+ * (Scale keeps the flex-wrap row). `grid-auto-flow: row` (the default) fills
+ * left-to-right then top-to-bottom, so the §9.1 ascending-chromatic order IS the
+ * grid reading order — arrow-key / focus order is unchanged. */
+.mc-sheet .pill-track[aria-label='Root note'] {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-200); /* 8px — same as the sheet track gap above */
+}
+
+/* The 1-D `.pill-highlight` (a translateX element) has no meaning in the 2-D
+ * grid, so it is hidden inside the sheet's Root grid context; the active pill's
+ * `.is-active` wash (which RootRow already renders) carries the selection there.
+ * The DESKTOP row keeps its highlight — only the in-sheet grid drops it. */
+.mc-sheet .pill-track[aria-label='Root note'] .pill-highlight {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  /* The mobile surface appears (hidden in the base cascade above). */
+  .mobile-controls {
+    display: block;
+  }
+  /* NOTE: hiding the desktop `.controls` CARD below this breakpoint lives in
+   * shell.css's matching `@media (max-width: 760px)` block, NOT here. The bundle
+   * loads controls.css BEFORE shell.css, so a `.controls{display:none}` placed
+   * here (equal specificity; a media query adds none) would be overridden by
+   * shell.css's later base `.controls{display:flex}`. Co-locating the override
+   * with that base rule is what makes source order win it. */
+}
+
+/* ══ U7: mobile peek header + sheet chrome (close) (§9.1/§10/§16) ═══════════════
+ *
+ * The visible mobile controls chrome the U5 swap reveals: the bottom-pinned PEEK
+ * HEADER (the SINGLE trigger — drag-grip + summary text + expand chevron, which IS
+ * the always-visible peek band) and the explicit CLOSE button in the body. There is
+ * NO separate in-flow summary bar (FINDINGS 2/3/6/7: the old `.mc-summary` bar was a
+ * redundant third "A Major" and off the brainstormed design — consolidated into the
+ * sheet's peek header). Every color/space/radius resolves to a §0 token; the 44px
+ * floor is `--touch-target-min`. DESIGN.md §9.1/§10/§16 win on any conflict
+ * (AGENTS.md). */
+
+/* The peek header — the sheet's always-visible peek band AND its single trigger. It
+ * fills the §0 peek band (`--sheet-peek-h`, ≥ the WCAG 2.5.5 44px floor) so it is a
+ * real tap target on its OWN box (the centered ::before hit-pad pattern only covers
+ * `.pill`/`.ni`/`.theme`, not this header). A grip pip · the summary text · an
+ * expand chevron sit in one row; tapping anywhere toggles peek↔expand. */
+.mc-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-200); /* 8px between grip / text / chevron */
+  width: 100%;
+  min-height: var(--sheet-peek-h); /* the peek band the closed sheet shows (≥44px) */
+  padding: var(--space-200) var(--space-400); /* 8px 16px (§4.2) */
+  border: none;
+  background: transparent; /* the sheet box (.controls-sheet) paints the surface */
+  color: var(--text);
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  text-align: left;
+  cursor: pointer;
+}
+/* The grip pip — a centered {hairline3} bar pinned to the header's top edge so the
+ * peek band still reads as a draggable handle. Decorative (the header is the
+ * target); positioned absolute so it does not push the text/chevron row. */
+.mc-grip {
+  position: absolute;
+  top: var(--space-200); /* 8px from the top edge */
+  left: 50%;
+  width: var(--space-800); /* 32px grip */
+  height: 4px; /* the §0 4px micro step */
+  transform: translateX(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--hairline3);
+}
+.mc-header-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The expand chevron — points up at peek (the sheet expands UP). Its color is set
+ * here; the §7 rotate-on-expand tween + its reduced-motion gate live in the U6
+ * motion section below, alongside the sheet's own translateY motion. */
+.mc-chevron {
+  flex: none;
+  color: var(--text2);
+}
+
+/* The explicit close button — a right-aligned pill-shaped tap target inside the
+ * body. It reuses the §8.4 ghost-button visuals (border + transparent fill) and
+ * meets the 44px floor on its own min-height. */
+.mc-close {
+  align-self: flex-end;
+  min-height: var(--touch-target-min); /* 44px — WCAG 2.5.5 */
+  padding: var(--space-200) var(--space-400); /* 8px 16px */
+  background: transparent;
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  cursor: pointer;
+}
+.mc-close:hover {
+  border-color: var(--hairline3);
+}
+
+/* ══ U6: bottom-sheet motion — transitions-dev panel-reveal (#07), §7/§10 ═══════
+ *
+ * The non-modal sheet slides peek↔expand as a transitions-dev panel-reveal (07),
+ * applied TRANSFORM-ONLY on translateY — the SAME deliberate trim the in-tree tape
+ * slide uses (motion.css): #07's stock opacity-fade + filter-blur are dropped so
+ * the peek band stays LEGIBLE (opacity stays 1, no blur). It is the §7
+ * `--state-color` (200ms) `--ease-standard` pair — NO spring (a bounce on a panel
+ * enter reads as jitter; §0's spring/overshoot easings are guarded "never chrome")
+ * and NO motion library. `data-open` drives the transform (set by MobileControls,
+ * the same hook the tape band uses).
+ *
+ * NON-MODAL: the sheet sits at z-40 — a peer of the removed §10 drawer (`.side`
+ * was z-40), below the palette overlay (z-50) — and ships NO full overlay scrim;
+ * the page behind it stays live (dismissal is the close button + Esc + the handle,
+ * per MobileControls/useDrawer). The transform is on the sheet CHROME and is purely
+ * visual: the content REGION's `display` toggle (U5: `.mc-sheet-body`) is what
+ * gates tab order + the a11y tree, independent of this slide.
+ *
+ * `.controls-sheet` is the sheet-chrome motion class; MobileControls' `.mc-sheet`
+ * carries it alongside its structural class so the data-open transform lands on the
+ * positioned sheet. DESIGN.md §7/§10 win on any conflict (AGENTS.md). */
+.controls-sheet {
+  position: fixed;
+  /* Anchor the sheet to the viewport bottom edge, full width (§10). Without an
+   * inset a `position:fixed` box would stay at its static in-flow origin and take
+   * content width, so the translateY peek math below would be meaningless — these
+   * four are what make it an actual bottom sheet. */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40; /* peer of the removed §10 drawer; below the palette overlay (z-50) */
+  /* The expanded sheet caps at most of the viewport and scrolls within (the body
+   * is the scroll region, U7) so a tall sheet never runs off the top of a short
+   * phone. The peek band (§0 --sheet-peek-h) is always at least visible. */
+  max-height: 88vh;
+  /* The sheet body (§0 --surface card) with a top hairline + top-only frame
+   * radius (it meets the bottom edge, so only the top corners round). A non-modal
+   * sheet MUST be opaque or the page behind shows through (FINDINGS 2, 6, 7); the
+   * §5 modal shadow lifts it off the live page below it. */
+  background: var(--surface);
+  border-top: 1px solid var(--hairline);
+  border-top-left-radius: var(--radius-frame); /* 14px (§0) */
+  border-top-right-radius: var(--radius-frame);
+  box-shadow: var(--elevation-modal); /* §5 — the float that reads it as a sheet */
+  /* PEEK: slid down by its full height minus the visible peek band (§0
+   * --sheet-peek-h = 52px). transform-only — opacity stays 1, no filter blur. */
+  transform: translateY(calc(100% - var(--sheet-peek-h)));
+  transition: transform var(--state-color) var(--ease-standard); /* 200ms (§7) */
+}
+
+/* EXPAND: the sheet rests at its natural position (fully revealed). */
+.controls-sheet[data-open='true'] {
+  transform: translateY(0);
+}
+
+/* The expand chevron flips up→down once expanded (the peek header's affordance),
+ * tweened on the same §7 `--state-color` (200ms) `--ease-standard` pair as the
+ * sheet slide — transform-only, no spring, no motion library. */
+.mc-chevron {
+  transition: transform var(--state-color) var(--ease-standard); /* 200ms (§7) */
+}
+.controls-sheet[data-open='true'] .mc-chevron {
+  transform: rotate(180deg);
+}
+
+/* §7.4 reduced-motion gate — a single block at the SAME specificity as the base
+ * `.controls-sheet` rule (a media query adds no specificity, so the bare class
+ * selector matches and this `none` wins the cascade). Under `reduce` the sheet
+ * snaps peek↔expand with no slide and the chevron flips with no rotate tween; the
+ * end-state transforms above still apply. */
+@media (prefers-reduced-motion: reduce) {
+  .controls-sheet {
+    transition: none;
+  }
+  .mc-chevron {
+    transition: none;
+  }
+}

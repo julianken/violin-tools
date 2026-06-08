@@ -59,9 +59,13 @@ describe('App shell', () => {
     expect(screen.getAllByRole('radiogroup')).toHaveLength(2);
   });
 
-  it('renders the search trigger as a button with a ⌘K chip and the theme toggle inert', () => {
+  it('renders the sidebar search trigger as a button with a ⌘K chip and the theme toggle inert', () => {
     render(<App />);
-    const search = screen.getByRole('button', { name: /search scales and tools/i });
+    // S16 ph3 (U7): the mobile top-bar search ALSO carries "Search scales and
+    // tools", and jsdom applies no media query (so both are in the tree). Scope to
+    // the sidebar (<header> banner) — the desktop palette opener with the ⌘K chip.
+    const banner = screen.getByRole('banner');
+    const search = within(banner).getByRole('button', { name: /search scales and tools/i });
     expect(search).toBeInTheDocument();
     expect(within(search).getByText('⌘K')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /dark/i })).toHaveAttribute(
@@ -71,63 +75,12 @@ describe('App shell', () => {
   });
 });
 
-// S11 — the responsive shell wiring at the App level: the topbar drawer trigger
-// (the hamburger), its ARIA contract (aria-expanded / aria-controls / accessible
-// name), that toggling it opens/closes the sidebar drawer (the `.side.is-open`
-// class the CSS slide keys off), and that a nav action inside the drawer closes
-// it. These mount the whole App so the Topbar → AppShell → Sidebar drawer plumbing
-// is exercised end-to-end. jsdom can't compute the media query or the slide, so
-// these assert the STATE + ARIA the CSS reflow keys off, not pixel geometry.
-describe('App §10 responsive drawer (S11)', () => {
-  it('exposes a labeled drawer trigger with aria-controls pointing at the drawer panel', () => {
-    render(<App />);
-    const trigger = screen.getByRole('button', { name: 'Open navigation' });
-    expect(trigger).toHaveAttribute('aria-controls', 'mobile-drawer');
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    // The panel it controls exists and carries that id (the sidebar <header>).
-    const banner = screen.getByRole('banner');
-    expect(banner).toHaveAttribute('id', 'mobile-drawer');
-  });
-
-  it('toggling the trigger opens then closes the drawer (the .is-open slide state)', () => {
-    render(<App />);
-    const trigger = screen.getByRole('button', { name: 'Open navigation' });
-    const banner = screen.getByRole('banner');
-    // Closed at rest — no `.is-open` on the rail, aria-expanded false.
-    expect(banner.classList.contains('is-open')).toBe(false);
-
-    fireEvent.click(trigger);
-    expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    expect(banner.classList.contains('is-open')).toBe(true);
-
-    fireEvent.click(trigger);
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    expect(banner.classList.contains('is-open')).toBe(false);
-  });
-
-  it('Escape closes an open drawer', () => {
-    render(<App />);
-    const trigger = screen.getByRole('button', { name: 'Open navigation' });
-    const banner = screen.getByRole('banner');
-    fireEvent.click(trigger);
-    expect(banner.classList.contains('is-open')).toBe(true);
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(banner.classList.contains('is-open')).toBe(false);
-    expect(trigger).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  it('activating the in-drawer Scales nav link closes the drawer', () => {
-    render(<App />);
-    const trigger = screen.getByRole('button', { name: 'Open navigation' });
-    const banner = screen.getByRole('banner');
-    fireEvent.click(trigger);
-    expect(banner.classList.contains('is-open')).toBe(true);
-    // The Scales link lives inside the drawer; clicking it dismisses the drawer.
-    const scales = within(banner).getByRole('link', { name: 'Scales' });
-    fireEvent.click(scales);
-    expect(banner.classList.contains('is-open')).toBe(false);
-  });
-});
+// S16 ph3 (U7) — the mobile off-canvas drawer is dropped. The hamburger ("Open
+// navigation") trigger and the `#mobile-drawer` panel chrome are gone; the mobile
+// search relocates to a top-bar trigger that opens the palette, and the sidebar is
+// the desktop rail only. The former `App §10 responsive drawer (S11)` describe
+// block was removed wholesale (the behavior it pinned no longer exists). The
+// mobile sheet + top-bar search are exercised at a real viewport in the e2e (U9).
 
 // S10 — the cross-cutting a11y wiring at the shell level: the two §11.3 polite
 // live regions (sounding + map description), live-region politeness, and that the

@@ -1,11 +1,25 @@
 import { Controls } from '../controls/Controls';
+import { MobileControls } from '../controls/MobileControls';
 import { NoteMap } from '../notemap/NoteMap';
 import { NoteMapLegend } from '../notemap/NoteMapLegend';
 import { axisOf } from '../notemap/geometry';
-import { type Density, type Handedness, type Orientation } from '../notemap/mapView';
+import { type Handedness, type Orientation, type ResolvedDensity } from '../notemap/mapView';
 import { type MotionBuild } from '../notemap/motion';
-import { derive, scaleName } from '../state/controls';
+import { type MapViewApi } from '../notemap/useMapView';
+import { derive, REF_PILLS, scaleName, type ControlsState } from '../state/controls';
 import { type ControlsApi } from '../state/useControls';
+
+// §10/§16 summary text — the scale name plus any active reference layers, the
+// mobile summary shown in the sheet's peek header ("A Major · Tapes", "A Major" with
+// no refs). It derives from the SAME `controls.state` AppShell's describeMap reads,
+// so the summary and the map never disagree. Active refs are listed in the §9.1
+// REF_PILLS order using their pill labels, joined with ", "; the scale name and the
+// refs cluster are separated by a §13 middle dot.
+function summarize(state: ControlsState): string {
+  const activeRefs = REF_PILLS.filter(({ key }) => state.refs[key]).map(({ label }) => label);
+  const name = scaleName(state);
+  return activeRefs.length === 0 ? name : `${name} · ${activeRefs.join(', ')}`;
+}
 
 // The max-880px content column (DESIGN.md §9 tree, §4.2). It emits the slot set
 // in §9-tree order — kicker · toolhead · controls · panelcard · caveat · legend.
@@ -24,6 +38,15 @@ interface ContentProps {
   /** The shared controls api, owned by AppShell so the palette can write it too. */
   controls: ControlsApi;
   /**
+   * The whole map-view api (§16) — threaded down to <Controls> so the mobile
+   * sheet's View row can drive the orientation/density/handedness toggles. The
+   * resolved orientation/handedness/density props below feed the board/NoteMap
+   * RENDER path and are unchanged; `mapView` is used ONLY by the mobile sheet (the
+   * desktop card ignores it). Optional so a prop-absent Content render (a unit
+   * harness that only exercises the controls→map wiring) still mounts.
+   */
+  mapView?: MapViewApi;
+  /**
    * The resolved render orientation (§12.1) — `'horizontal'` (desktop) |
    * `'vertical'` (mobile). Already resolved (never `'auto'`); AppShell does the
    * matchMedia resolve and threads the concrete value (U4). Content drives the
@@ -35,11 +58,13 @@ interface ContentProps {
   /** Player handedness (§12.5) — `'right'` (default) | `'left'`; forwarded to <NoteMap>. */
   handedness?: Handedness;
   /**
-   * Neck-axis spacing (§12.1) — `'fit'` (default) | `'comfort'`. Derived from
-   * orientation upstream; forwarded to <NoteMap> so the viewBox and the dot
-   * centers agree (a Content/NoteMap config mismatch clips or squishes the map).
+   * Neck-axis spacing (§12.1) — `'fit'` (default) | `'comfort'`. The RESOLVED
+   * render type (`ResolvedDensity`, never `'auto'`): the AppShell resolves the
+   * stored mode via `resolveDensity` (U2) before threading it here. Forwarded to
+   * <NoteMap> so the viewBox and the dot centers agree (a Content/NoteMap config
+   * mismatch clips or squishes the map).
    */
-  density?: Density;
+  density?: ResolvedDensity;
   /**
    * Announce a sounded note's spoken name (§11.3) up to the shell's polite live
    * region — threaded into the note map's Enter/Space sounding handler.
@@ -62,6 +87,7 @@ function resolveMotionBuild(): MotionBuild {
 
 export function Content({
   controls,
+  mapView,
   orientation = 'horizontal',
   handedness = 'right',
   density = 'fit',
@@ -96,6 +122,11 @@ export function Content({
         <div className="formula" />
       </div>
 
+      {/* The DESKTOP controls card (§9.1) — shown ≥760px, `display:none` <760px
+          (U6 CSS). The mobile MobileControls surface below mounts alongside it and
+          is shown <760px; BOTH mount and CSS toggles which is visible (FINDING 6 —
+          the hidden surface is display:none so its radiogroups/checkboxes leave the
+          a11y tree, keeping the desktop strict-count e2e exact). */}
       <Controls
         state={controls.state}
         selectRoot={controls.selectRoot}
@@ -108,7 +139,28 @@ export function Content({
         // in NoteMap while vertical (defense in depth). Forwarded so RefsRow can
         // dim/disable the pills.
         orientation={orientation}
+        // §16 — the whole map-view api, used ONLY by the mobile sheet's View row
+        // (U4). The desktop card ignores it. Spread conditionally so a mapView-
+        // absent Content render doesn't pass literal `undefined`
+        // (exactOptionalPropertyTypes).
+        {...(mapView !== undefined ? { mapView } : {})}
       />
+
+      {/* The MOBILE controls surface (§10/§16) — a single non-modal bottom sheet
+          whose peek header IS the summary (it expands up to the controls body),
+          shown <760px and `display:none` ≥760px (U6 CSS). It needs the whole map-view
+          api (its View row drives orientation/density/handedness), so it mounts only
+          when `mapView` is threaded — the Content unit harness (which exercises only
+          the controls→map wiring, no mapView) renders just the desktop card, keeping
+          its H1/board assertions unambiguous. */}
+      {mapView !== undefined && (
+        <MobileControls
+          controls={controls}
+          mapView={mapView}
+          orientation={orientation}
+          summaryText={summarize(controls.state)}
+        />
+      )}
 
       <div className="panelcard">
         {/* The note-map plate: `overflow-x:auto`, inner SVG holds its 760px

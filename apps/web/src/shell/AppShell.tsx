@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { usePaletteController } from '../components/CommandPalette/usePaletteController';
 import { describeMap } from '../notemap/describeMap';
-import { type Density } from '../notemap/mapView';
+import { resolveDensity } from '../notemap/mapView';
 import { useMapView } from '../notemap/useMapView';
 import { scaleName, SCALE_DISPLAY_NAME } from '../state/controls';
 import { useControls } from '../state/useControls';
@@ -11,7 +11,6 @@ import { useControls } from '../state/useControls';
 import { Content } from './Content';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-import { useDrawer } from './useDrawer';
 
 // The §9 app shell: a flex row of `.side` (the fixed rail) and `.main` (the
 // fluid column). The DOM matches the §9 tree exactly — `.app` → `.side` /
@@ -34,24 +33,20 @@ export function AppShell() {
   // §12.1 — the resolved note-map view. useMapView reads matchMedia at first paint
   // (no flash), so `mapView.orientation` is already concrete ('horizontal' on a
   // desktop-like landscape viewport, 'vertical' on portrait/mobile — and 'vertical'
-  // under jsdom, which has no matchMedia). Phase 2 is AUTO-only — no toggle UI yet
-  // (Phase 3) — so DERIVE density from the resolved orientation rather than reading
-  // mapView.density (which defaults to 'comfort'): horizontal stays 'fit' to keep
-  // the §12.1 desktop-horizontal regression invariant byte-identical, vertical is
-  // 'comfort'. We do NOT pass mapView.mode (it can be 'auto', which axisOf rejects
-  // and dotCenter needs resolved). The resolved {orientation, handedness, density}
-  // flows into <Content>, which forwards the SAME config to the board <svg> and
-  // <NoteMap> so the parent box and the dot centers never disagree.
+  // under jsdom, which has no matchMedia). Density flows through `resolveDensity`
+  // (the U1 policy): an explicit stored 'fit'/'comfort' persists and WINS, while
+  // the default 'auto' derives from the resolved orientation — horizontal → 'fit'
+  // (the byte-identical §12.1 desktop neck), vertical → 'comfort' (the wider mobile
+  // neck). The result is a `ResolvedDensity` (never 'auto'), so the render path is
+  // type-safe (U1) and a manual setDensity now reaches the board. We pass the
+  // RESOLVED orientation (never mapView.mode, which can be 'auto' that axisOf
+  // rejects and dotCenter needs resolved). The resolved {orientation, handedness,
+  // density} flows into <Content>, which forwards the SAME config to the board
+  // <svg> and <NoteMap> so the parent box and the dot centers never disagree.
   const mapView = useMapView();
-  const density: Density = mapView.orientation === 'horizontal' ? 'fit' : 'comfort';
+  const density = resolveDensity(mapView.density, mapView.orientation);
   // The palette open/close lifecycle + the global ⌘K / Ctrl-K toggle (§9).
   const palette = usePaletteController();
-  // The mobile navigation drawer (§10): below the narrow breakpoint the 248px
-  // sidebar collapses to an off-canvas drawer the topbar hamburger toggles. The
-  // hook owns the open/close state, Esc-to-close, and the focus contract (focus
-  // into the panel on open, back to the trigger on close). It is inert on desktop
-  // where CSS keeps the rail always visible.
-  const drawer = useDrawer();
 
   // §11.3 polite live regions: one announces the current sounding note name
   // (Enter/Space over a map marker), one carries the string-by-string map text
@@ -72,34 +67,16 @@ export function AppShell() {
       <a className="skip-link" href="#board">
         Skip to note map
       </a>
-      {/* The mobile drawer scrim — a backdrop behind the open drawer that dims
-          the content and closes the drawer on click/tap (§10). It is rendered
-          only below the §10 breakpoint (CSS `display:none` on desktop) and only
-          painted while the drawer is open (`.is-open`); above the breakpoint it
-          never shows, so the desktop shell is unchanged. `aria-hidden` — it is
-          pure chrome; the Esc key and the trigger carry the a11y affordance. */}
-      <div
-        className={`drawer-scrim${drawer.isOpen ? ' is-open' : ''}`}
-        aria-hidden="true"
-        onClick={drawer.close}
-      />
-      <Sidebar
-        onOpenPalette={palette.open}
-        onNavigate={drawer.close}
-        panelRef={drawer.panelRef}
-        drawerOpen={drawer.isOpen}
-      />
+      <Sidebar onOpenPalette={palette.open} />
       <div className="main">
         {/* The breadcrumb's active segment is the §13 spelled selection, shared
             with the Content H1 + the map labels via one `spell()` engine. The
-            topbar also carries the mobile drawer trigger (§10). */}
-        <Topbar
-          scaleName={scaleName(controls.state)}
-          drawerOpen={drawer.isOpen}
-          onToggleDrawer={drawer.toggle}
-        />
+            topbar also carries the mobile-only search trigger that opens the
+            palette (§8.3, §10); the desktop topbar is unchanged. */}
+        <Topbar scaleName={scaleName(controls.state)} onOpenPalette={palette.open} />
         <Content
           controls={controls}
+          mapView={mapView}
           orientation={mapView.orientation}
           handedness={mapView.handedness}
           density={density}
