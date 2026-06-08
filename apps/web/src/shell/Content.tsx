@@ -38,12 +38,13 @@ interface ContentProps {
   /** The shared controls api, owned by AppShell so the palette can write it too. */
   controls: ControlsApi;
   /**
-   * The whole map-view api (§16) — threaded down to <Controls> so the mobile
-   * sheet's View row can drive the orientation/density/handedness toggles. The
-   * resolved orientation/handedness/density props below feed the board/NoteMap
-   * RENDER path and are unchanged; `mapView` is used ONLY by the mobile sheet (the
-   * desktop card ignores it). Optional so a prop-absent Content render (a unit
-   * harness that only exercises the controls→map wiring) still mounts.
+   * The whole map-view api (§16) — threaded down so the View row can drive the
+   * orientation/density/handedness toggles. It now feeds BOTH the desktop card's
+   * View row (<Controls> mounts <ViewRow> when mapView is present, S16 ph4) AND the
+   * mobile sheet's View row. The resolved orientation/handedness/density props
+   * below feed the board/NoteMap RENDER path and are unchanged. Optional so a
+   * prop-absent Content render (a unit harness that only exercises the controls→map
+   * wiring) still mounts the 2-radiogroup desktop card.
    */
   mapView?: MapViewApi;
   /**
@@ -139,10 +140,11 @@ export function Content({
         // in NoteMap while vertical (defense in depth). Forwarded so RefsRow can
         // dim/disable the pills.
         orientation={orientation}
-        // §16 — the whole map-view api, used ONLY by the mobile sheet's View row
-        // (U4). The desktop card ignores it. Spread conditionally so a mapView-
-        // absent Content render doesn't pass literal `undefined`
-        // (exactOptionalPropertyTypes).
+        // §16 — the whole map-view api. When present, <Controls> mounts the View
+        // row as a 4th desktop card row (S16 ph4); it ALSO feeds the mobile sheet's
+        // View row below. Spread conditionally so a mapView-absent Content render
+        // doesn't pass literal `undefined` (exactOptionalPropertyTypes), keeping the
+        // unit-harness desktop card at two radiogroups.
         {...(mapView !== undefined ? { mapView } : {})}
       />
 

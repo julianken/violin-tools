@@ -4,11 +4,17 @@ import { describe, expect, it } from 'vitest';
 import App from './App.tsx';
 
 // Shell smoke test (S3). Asserts the structural contract the later steps depend
-// on: real landmarks, the single active nav item, and the three controls-row
-// roles — including that Refs is an ARIA `group`, NOT a radiogroup (the §9.1
-// prose calls all three radiogroups, but Refs is multi-select; S6 reconciles the
-// DESIGN lines). These are behaviour-level assertions, not snapshots, so they
-// survive cosmetic change while pinning the load-bearing structure.
+// on: real landmarks, the single active nav item, and the four desktop controls-row
+// roles — Root/Scale as radiogroups, Refs as an ARIA `group` (NOT a radiogroup —
+// the §9.1 prose calls all radiogroups, but Refs is multi-select; S6 reconciles the
+// DESIGN lines), and the View row's three radiogroups (Orientation/Density/
+// Handedness, S16 ph4). The full App supplies a real mapView via AppShell, so the
+// desktop card mounts <ViewRow> → five radiogroups total (Root + Scale + the View
+// row's three). The count is five and NOT eight because the App's mobile sheet body
+// is `display:none` at peek (MobileControls.tsx) — jsdom honors inline display:none
+// in getComputedStyle, so the sheet's same-named View groups are out of the a11y
+// tree. These are behaviour-level assertions, not snapshots, so they survive
+// cosmetic change while pinning the load-bearing structure.
 describe('App shell', () => {
   it('renders the header / nav / main landmarks', () => {
     render(<App />);
@@ -47,7 +53,7 @@ describe('App shell', () => {
     }
   });
 
-  it('exposes the three controls rows with Root/Scale as radiogroups and Refs as a group', () => {
+  it('exposes the four desktop controls rows: Root/Scale + View (Orientation/Density/Handedness) as radiogroups, Refs as a group', () => {
     render(<App />);
     expect(screen.getByRole('radiogroup', { name: 'Root note' })).toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: 'Scale type' })).toBeInTheDocument();
@@ -56,7 +62,19 @@ describe('App shell', () => {
     expect(
       screen.queryByRole('radiogroup', { name: 'Reference layers' }),
     ).not.toBeInTheDocument();
-    expect(screen.getAllByRole('radiogroup')).toHaveLength(2);
+    // S16 ph4 — the desktop card now carries the View row, so its three segmented
+    // controls join Root + Scale as radiogroups. The single-match getByRole holds
+    // (despite the mobile sheet carrying same-named View groups) ONLY because the
+    // sheet's body is display:none at peek and so out of the jsdom a11y tree.
+    expect(screen.getByRole('radiogroup', { name: 'Orientation' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Density' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Handedness' })).toBeInTheDocument();
+    // Five — NOT eight — radiogroups: Root + Scale + the desktop View row's three.
+    // The App's mobile sheet body is display:none at peek (MobileControls.tsx), so
+    // its three same-named View radiogroups (and Root/Scale) are out of the a11y
+    // tree (jsdom honors inline display:none in getComputedStyle), making the count
+    // exact at the desktop card's five.
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(5);
   });
 
   it('renders the sidebar search trigger as a button with a ⌘K chip and the theme toggle inert', () => {

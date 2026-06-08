@@ -1,9 +1,10 @@
-// ViewRow — the §16 mobile-sheet View row: three labeled segmented controls
-// (Orientation · Density · Handedness) wired to the useMapView setters. DESIGN.md
-// §10/§16 win on any conflict (AGENTS.md).
+// ViewRow — the §16 View row: three labeled segmented controls (Orientation ·
+// Density · Handedness) wired to the useMapView setters. DESIGN.md §10/§16 win on
+// any conflict (AGENTS.md).
 //
-// Mounted ONLY inside the mobile sheet (U4) — nothing extra renders on desktop
-// (the desktop View row is Phase 4). Each control is a `role="radiogroup"` of
+// Mounted in BOTH the mobile sheet and the desktop controls card (the desktop View
+// row shipped in S16 ph4 — the same component, no desktop-only variant). Each
+// control is a `role="radiogroup"` of
 // `role="radio"` `.pill`s (the same radiogroup/pill ARIA the Root/Scale rows use —
 // no new custom a11y). The active segment reflects the user's STORED choice, not
 // the resolved value: Orientation highlights `mapView.mode` ('auto' stays selected

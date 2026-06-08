@@ -1,8 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { type MapViewApi } from '../notemap/useMapView.ts';
 import { Content } from '../shell/Content.tsx';
 import { useControls } from '../state/useControls.ts';
+
+import { Controls } from './Controls.tsx';
 
 // Controls-card integration tests (§9.1 / §11.3 / §8.1 / §12.5). These mount the
 // live Content and assert the controls drive the map. S9 lifted the `(root,
@@ -45,8 +48,20 @@ function setup() {
   };
 }
 
+// The desktop controls card is 2 radiogroups WITHOUT a mapView (the ContentHarness
+// path: the View row gates on mapView, so the no-mapView desktop card renders only
+// Root/Scale/Refs) and 5 WITH it (the new direct-<Controls> path below: Root +
+// Scale + the View row's Orientation/Density/Handedness). The 5-radiogroup case
+// renders <Controls> DIRECTLY (not via <Content>) precisely so it mounts ONLY the
+// desktop card: <Content> would ALSO mount <MobileControls> (it gates on the same
+// `mapView !== undefined`), and although the mobile sheet's same-named View groups
+// are display:none at peek (so getAllByRole would still yield 5), routing through
+// <Content> would make the count SILENTLY depend on that collapsed-body
+// display:none and break if a future change opened the sheet by default. Rendering
+// <Controls> alone avoids the mobile double-mount, so the count and the by-name
+// lookups are unambiguous with NO display:none dependency.
 describe('controls ARIA roles (§11.3)', () => {
-  it('has exactly 2 radiogroups (Root, Scale) and a Refs group — not a radiogroup', () => {
+  it('has exactly 2 radiogroups (Root, Scale) and a Refs group — not a radiogroup (no mapView)', () => {
     setup();
     expect(screen.getAllByRole('radiogroup')).toHaveLength(2);
     expect(screen.getByRole('group', { name: 'Reference layers' })).toBeInTheDocument();
@@ -58,6 +73,59 @@ describe('controls ARIA roles (§11.3)', () => {
     expect(within(root).getAllByRole('radio')).toHaveLength(12);
     expect(within(scale).getAllByRole('radio')).toHaveLength(7);
     expect(within(refs).getAllByRole('checkbox')).toHaveLength(4);
+  });
+});
+
+// S16 ph4 — with a mapView threaded, the desktop card mounts <ViewRow> as a 4th
+// row, so it carries FIVE radiogroups (Root + Scale + Orientation/Density/
+// Handedness). Render <Controls> DIRECTLY (not via <Content>) so only the desktop
+// card mounts — no <MobileControls> double, an unambiguous 5 with NO display:none
+// dependency. The stub mapView mirrors MobileControls.test's stubMapView shape.
+function stubMapView(): MapViewApi {
+  return {
+    mode: 'auto',
+    orientation: 'horizontal',
+    density: 'auto',
+    handedness: 'right',
+    setOrientation: vi.fn(),
+    setDensity: vi.fn(),
+    setHandedness: vi.fn(),
+  };
+}
+
+// Render <Controls> with the REAL controls api (the rows write it) plus the stub
+// mapView — the desktop-card direct path (mirrors ContentHarness, but mounts ONLY
+// the card). A tiny harness so useControls() runs inside a component.
+function ControlsHarness({ mapView }: { mapView: MapViewApi }) {
+  return <Controls {...useControls()} mapView={mapView} />;
+}
+
+describe('desktop View row mounted via mapView (§16, S16 ph4)', () => {
+  it('renders 5 radiogroups (Root/Scale + Orientation/Density/Handedness) and keeps Refs a group', () => {
+    render(<ControlsHarness mapView={stubMapView()} />);
+    expect(screen.getAllByRole('radiogroup')).toHaveLength(5);
+    expect(screen.getByRole('radiogroup', { name: 'Root note' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Scale type' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Orientation' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Density' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'Handedness' })).toBeInTheDocument();
+    // Refs stays a multi-select `group`, NOT a radiogroup.
+    expect(screen.getByRole('group', { name: 'Reference layers' })).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Reference layers' })).not.toBeInTheDocument();
+  });
+
+  it('the View row exposes 3 segmented controls of role=radio .pills (Orientation 3, Density 3, Handedness 2)', () => {
+    render(<ControlsHarness mapView={stubMapView()} />);
+    const orientation = screen.getByRole('radiogroup', { name: 'Orientation' });
+    const density = screen.getByRole('radiogroup', { name: 'Density' });
+    const handedness = screen.getByRole('radiogroup', { name: 'Handedness' });
+    expect(within(orientation).getAllByRole('radio')).toHaveLength(3);
+    expect(within(density).getAllByRole('radio')).toHaveLength(3);
+    expect(within(handedness).getAllByRole('radio')).toHaveLength(2);
+    // The pills carry the shared `.pill` primitive (no new a11y).
+    for (const pill of within(orientation).getAllByRole('radio')) {
+      expect(pill.classList.contains('pill')).toBe(true);
+    }
   });
 });
 
