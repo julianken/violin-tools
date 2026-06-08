@@ -111,3 +111,77 @@
   z-index: 0;
   pointer-events: none;
 }
+
+/* ══ U5: responsive controls swap + mobile bottom-sheet presentation (§10/§16) ══
+ *
+ * Phase 3 mounts BOTH the desktop card and the mobile surface; CSS toggles which
+ * shows, and the hide is PINNED to `display:none` (FINDINGS 3, 6) — never
+ * visibility:hidden / opacity / transform-offscreen — so the hidden surface's
+ * radiogroups/checkboxes LEAVE the accessibility tree at the other breakpoint.
+ * That is what keeps the desktop strict counts in a11y.spec exact (radiogroup
+ * count, Refs checkbox count, the single search button at the default desktop
+ * viewport). The §10 breakpoint is 760px (it mirrors `--shell-min-width`; CSS
+ * media features cannot take `var()`, so the literal lives here exactly as in
+ * shell.css). DESIGN.md §10/§16/§9.1 win on any conflict (AGENTS.md). */
+
+/* The MOBILE surface (summary bar + sheet) is hidden in the base (desktop)
+ * cascade and revealed only inside the narrow media block below — the exact
+ * `.topbar-menu` precedent — so it never coexists with the desktop card and is
+ * absent from the desktop a11y tree (≥760px). */
+.mobile-controls {
+  display: none;
+}
+
+/* The sheet's scrollable CONTENT region is out of flow while the sheet is
+ * closed/peek — its Root/Scale/Refs/View rows are out of the tab order + the
+ * a11y tree until expanded — and revealed when the sheet carries
+ * `data-open='true'`. (MobileControls also sets an INLINE display while closed so
+ * jsdom, which applies no media queries, reflects the closed state; this CSS owns
+ * the OPEN layout, where the inline display is removed.) */
+.mc-sheet-body {
+  display: none;
+}
+.mc-sheet[data-open='true'] .mc-sheet-body {
+  display: block;
+}
+
+/* Inside the open sheet every pill track widens its inter-pill gap to
+ * `--space-200` (8px) so the centered 44px ::before hit-pads stop overlapping
+ * (the WCAG 2.5.5 collision at the desktop 4px gap). The desktop `.pill-track`
+ * base rule above keeps its 4px `--space-100` gap untouched. */
+.mc-sheet .pill-track {
+  gap: var(--space-200); /* 8px (§4.2) — clears the 44px hit-pad collision */
+}
+
+/* Root, in the sheet, lays out as a 4×3 grid (12 pills → 4 columns × 3 rows).
+ * Scoped by the Root track's stable `aria-label` so ONLY Root becomes a grid
+ * (Scale keeps the flex-wrap row). `grid-auto-flow: row` (the default) fills
+ * left-to-right then top-to-bottom, so the §9.1 ascending-chromatic order IS the
+ * grid reading order — arrow-key / focus order is unchanged. */
+.mc-sheet .pill-track[aria-label='Root note'] {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-200); /* 8px — same as the sheet track gap above */
+}
+
+/* The 1-D `.pill-highlight` (a translateX element) has no meaning in the 2-D
+ * grid, so it is hidden inside the sheet's Root grid context; the active pill's
+ * `.is-active` wash (which RootRow already renders) carries the selection there.
+ * The DESKTOP row keeps its highlight — only the in-sheet grid drops it. */
+.mc-sheet .pill-track[aria-label='Root note'] .pill-highlight {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  /* The desktop controls card is hidden on a phone — `display:none` so its
+   * radiogroups/checkboxes leave the a11y tree (the mobile sheet is the surface
+   * below this breakpoint). */
+  .controls {
+    display: none;
+  }
+
+  /* The mobile surface appears (hidden in the base cascade above). */
+  .mobile-controls {
+    display: block;
+  }
+}

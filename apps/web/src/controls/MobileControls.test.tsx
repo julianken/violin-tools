@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { type MapViewApi } from '../notemap/useMapView.ts';
 import { useControls } from '../state/useControls.ts';
@@ -143,5 +146,187 @@ describe('MobileControls — dismissal (useDrawer contract, non-modal)', () => {
     // Opening must not impose a body-scroll lock (no body-scroll-lock, per useDrawer).
     fireEvent.click(screen.getByRole('button', { name: /^scale controls:/i }));
     expect(document.body.style.overflow).toBe('');
+  });
+});
+
+// ── U5: controls.css — responsive surface swap + mobile sheet presentation ────
+//
+// The vite config sets `css: false`, so the `import './controls.css'` in the
+// component is a no-op under test and jsdom computes NO layout. So — exactly like
+// motion.test.tsx — we read the SHIPPED controls.css off disk, inject it as a
+// <style>, and inspect the PARSED CSSOM (not getComputedStyle, which jsdom can't
+// resolve for media queries / attribute selectors). These are source-level rule
+// presence assertions ("string/class presence, not computed display"); the
+// MEASURED geometry (4 column x-offsets, 3 row y-offsets, ≥8px adjacent gap, and
+// the display:none-at-desktop a11y-tree exclusion via strict role counts) lives in
+// the e2e (U8/U9) where real Chromium computes layout and the a11y tree.
+//
+// Reading the SHIPPED file (never a fixture copy) means a value/selector drift in
+// controls.css fails this gate.
+
+// One outer describe owns the stylesheet injection so it is appended ONLY for the
+// CSSOM-inspection tests and removed afterward (afterAll). It must NOT leak into
+// the render-based tests above: the base `.mobile-controls { display:none }` rule
+// would otherwise hide the whole surface in jsdom (no active media query at the
+// default viewport), and the role queries above (which skip hidden elements)
+// would fail. Scoping the inject to this describe keeps both halves honest.
+describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM)', () => {
+  const controlsCss = readFileSync(
+    resolve(process.cwd(), 'src/controls/controls.css'),
+    'utf8',
+  );
+
+  let controlsStyle: HTMLStyleElement;
+
+  beforeAll(() => {
+    controlsStyle = document.createElement('style');
+    controlsStyle.textContent = controlsCss;
+    document.head.appendChild(controlsStyle);
+  });
+
+  afterAll(() => {
+    controlsStyle.remove();
+  });
+
+  /** The parsed controls.css stylesheet (throws if jsdom didn't parse it). */
+  function controlsSheet(): CSSStyleSheet {
+    const s = controlsStyle.sheet;
+    if (s === null) throw new Error('controls.css stylesheet not parsed');
+    return s;
+  }
+
+  /** Top-level (non-media) style rules in controls.css. */
+  function topLevelRules(): CSSStyleRule[] {
+    return Array.from(controlsSheet().cssRules).filter(
+      (r): r is CSSStyleRule => r instanceof CSSStyleRule,
+    );
+  }
+
+  /** Style rules inside the `@media (max-width: 760px)` block. */
+  function narrowMediaRules(): CSSStyleRule[] {
+    const media = Array.from(controlsSheet().cssRules).filter(
+      (r): r is CSSMediaRule => r instanceof CSSMediaRule,
+    );
+    // The §10 breakpoint mirrors --shell-min-width (760px); CSS media features
+    // can't take var(), so the literal lives here exactly as in shell.css.
+    const narrow = media.find((r) => r.media.mediaText.includes('760px'));
+    if (narrow === undefined) {
+      throw new Error('no @media (max-width: 760px) block in controls.css');
+    }
+    return Array.from(narrow.cssRules).filter(
+      (r): r is CSSStyleRule => r instanceof CSSStyleRule,
+    );
+  }
+
+  /** First top-level rule whose selector matches `sel`. */
+  function topRule(sel: string): CSSStyleRule | undefined {
+    return topLevelRules().find((r) => r.selectorText === sel);
+  }
+
+  describe('responsive surface hide is display:none-only (FINDINGS 3, 6)', () => {
+    it('hides the desktop .controls card with display:none INSIDE @media (max-width: 760px)', () => {
+      const hide = narrowMediaRules().find((r) => r.selectorText === '.controls');
+      expect(hide).toBeDefined();
+      expect(hide?.style.display).toBe('none');
+    });
+
+    it('hides the mobile surface (.mobile-controls) with display:none at ≥760px (base rule)', () => {
+      // Mirrors the .topbar-menu precedent: hidden in the base (desktop) cascade,
+      // revealed inside the narrow media block — so it leaves the a11y tree ≥760px.
+      const base = topRule('.mobile-controls');
+      expect(base).toBeDefined();
+      expect(base?.style.display).toBe('none');
+      const reveal = narrowMediaRules().find(
+        (r) => r.selectorText === '.mobile-controls',
+      );
+      expect(reveal).toBeDefined();
+      expect(reveal?.style.display).not.toBe('none');
+    });
+
+    it('uses ONLY display:none to hide — never visibility/opacity/transform-offscreen', () => {
+      // The hide mechanism MUST drop the hidden surface from the a11y tree; a
+      // visibility:hidden / opacity:0 / off-screen transform would leave its
+      // radiogroups/checkboxes in the tree and break the desktop strict counts.
+      for (const r of [topRule('.mobile-controls'), topRule('.mc-sheet-body')]) {
+        expect(r).toBeDefined();
+        expect(r?.style.visibility).not.toBe('hidden');
+        expect(r?.style.opacity).toBe('');
+      }
+    });
+
+    it('keeps the CLOSED/peek sheet body out of flow (display:none), revealed only when data-open', () => {
+      // Closed/peek: the scrollable content region is display:none so its pills are
+      // out of the tab order + a11y tree; [data-open='true'] reveals it.
+      const closed = topRule('.mc-sheet-body');
+      expect(closed).toBeDefined();
+      expect(closed?.style.display).toBe('none');
+      const open = topLevelRules().find(
+        (r) =>
+          r.selectorText.includes("[data-open='true']") &&
+          r.selectorText.includes('.mc-sheet-body'),
+      );
+      expect(open).toBeDefined();
+      expect(open?.style.display).not.toBe('none');
+      expect(open?.style.display).not.toBe('');
+    });
+  });
+
+  describe('mobile Root 4×3 grid + ≥8px sheet pill spacing', () => {
+    it('lays the in-sheet Root track out as a 4-column grid (12 pills → 4×3 reading order)', () => {
+      // Scoped to the Root track inside the sheet by its stable aria-label, so ONLY
+      // Root becomes a grid (Scale keeps the flex-wrap row). 4 columns × 12 pills =
+      // 3 rows; grid auto-flow row preserves the §9.1 ascending-chromatic order.
+      const grid = topLevelRules().find(
+        (r) =>
+          r.selectorText.includes('.mc-sheet') &&
+          r.selectorText.includes("[aria-label='Root note']") &&
+          r.style.display === 'grid',
+      );
+      expect(grid).toBeDefined();
+      expect(grid?.style.gridTemplateColumns).toMatch(/repeat\(\s*4\s*,/);
+    });
+
+    it('hides the 1-D .pill-highlight inside the sheet grid (2-D relies on .is-active wash)', () => {
+      // The translateX highlight has no meaning in a 2-D grid; hide it in the sheet
+      // grid context and rely on RootRow's .is-active pill wash. The DESKTOP row
+      // keeps its highlight (asserted below).
+      const hidden = topLevelRules().find(
+        (r) =>
+          r.selectorText.includes('.mc-sheet') &&
+          r.selectorText.includes("[aria-label='Root note']") &&
+          r.selectorText.includes('.pill-highlight') &&
+          r.style.display === 'none',
+      );
+      expect(hidden).toBeDefined();
+    });
+
+    it('sets the in-sheet pill gap to ≥8px (--space-200) so the 44px hit-pads stop colliding', () => {
+      // WCAG 2.5.5: the centered 44px ::before hit-pads overlap at the 4px desktop
+      // gap; the sheet widens it to --space-200 (8px).
+      const sheetTrack = topLevelRules().find(
+        (r) =>
+          r.selectorText.includes('.mc-sheet') &&
+          r.selectorText.includes('.pill-track') &&
+          r.style.gap !== '',
+      );
+      expect(sheetTrack).toBeDefined();
+      expect(sheetTrack?.style.gap).toBe('var(--space-200)');
+    });
+  });
+
+  describe('desktop controls.css behaviour stays byte-stable', () => {
+    it('keeps the desktop .pill-track gap at 4px (--space-100) untouched', () => {
+      const base = topRule('.pill-track');
+      expect(base).toBeDefined();
+      expect(base?.style.gap).toBe('var(--space-100)');
+    });
+
+    it('keeps the desktop .pill-highlight rule (not globally hidden)', () => {
+      // The grid hides the highlight ONLY in the sheet context; the desktop row's
+      // base .pill-highlight rule is unchanged and never display:none.
+      const base = topRule('.pill-highlight');
+      expect(base).toBeDefined();
+      expect(base?.style.display).not.toBe('none');
+    });
   });
 });
