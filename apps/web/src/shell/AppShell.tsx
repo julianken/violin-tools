@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { usePaletteController } from '../components/CommandPalette/usePaletteController';
 import { describeMap } from '../notemap/describeMap';
-import { type Density } from '../notemap/mapView';
+import { resolveDensity } from '../notemap/mapView';
 import { useMapView } from '../notemap/useMapView';
 import { scaleName, SCALE_DISPLAY_NAME } from '../state/controls';
 import { useControls } from '../state/useControls';
@@ -34,16 +34,18 @@ export function AppShell() {
   // §12.1 — the resolved note-map view. useMapView reads matchMedia at first paint
   // (no flash), so `mapView.orientation` is already concrete ('horizontal' on a
   // desktop-like landscape viewport, 'vertical' on portrait/mobile — and 'vertical'
-  // under jsdom, which has no matchMedia). Phase 2 is AUTO-only — no toggle UI yet
-  // (Phase 3) — so DERIVE density from the resolved orientation rather than reading
-  // mapView.density (which defaults to 'comfort'): horizontal stays 'fit' to keep
-  // the §12.1 desktop-horizontal regression invariant byte-identical, vertical is
-  // 'comfort'. We do NOT pass mapView.mode (it can be 'auto', which axisOf rejects
-  // and dotCenter needs resolved). The resolved {orientation, handedness, density}
-  // flows into <Content>, which forwards the SAME config to the board <svg> and
-  // <NoteMap> so the parent box and the dot centers never disagree.
+  // under jsdom, which has no matchMedia). Density flows through `resolveDensity`
+  // (the U1 policy): an explicit stored 'fit'/'comfort' persists and WINS, while
+  // the default 'auto' derives from the resolved orientation — horizontal → 'fit'
+  // (the byte-identical §12.1 desktop neck), vertical → 'comfort' (the wider mobile
+  // neck). The result is a `ResolvedDensity` (never 'auto'), so the render path is
+  // type-safe (U1) and a manual setDensity now reaches the board. We pass the
+  // RESOLVED orientation (never mapView.mode, which can be 'auto' that axisOf
+  // rejects and dotCenter needs resolved). The resolved {orientation, handedness,
+  // density} flows into <Content>, which forwards the SAME config to the board
+  // <svg> and <NoteMap> so the parent box and the dot centers never disagree.
   const mapView = useMapView();
-  const density: Density = mapView.orientation === 'horizontal' ? 'fit' : 'comfort';
+  const density = resolveDensity(mapView.density, mapView.orientation);
   // The palette open/close lifecycle + the global ⌘K / Ctrl-K toggle (§9).
   const palette = usePaletteController();
   // The mobile navigation drawer (§10): below the narrow breakpoint the 248px
