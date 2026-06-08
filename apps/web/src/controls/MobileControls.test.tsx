@@ -39,7 +39,10 @@ function stubMapView(overrides: Partial<MapViewApi> = {}): MapViewApi {
 
 // Render MobileControls with the REAL controls api (the integration seam the rows
 // write) so the Root/Scale/Refs rows are genuinely wired, plus a stub mapView.
-function MobileControlsHarness(props: { summaryText?: string; orientation?: 'horizontal' | 'vertical' }) {
+function MobileControlsHarness(props: {
+  summaryText?: string;
+  orientation?: 'horizontal' | 'vertical';
+}) {
   const controls = useControls();
   return (
     <MobileControls
@@ -171,10 +174,7 @@ describe('MobileControls — dismissal (useDrawer contract, non-modal)', () => {
 // default viewport), and the role queries above (which skip hidden elements)
 // would fail. Scoping the inject to this describe keeps both halves honest.
 describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM)', () => {
-  const controlsCss = readFileSync(
-    resolve(process.cwd(), 'src/controls/controls.css'),
-    'utf8',
-  );
+  const controlsCss = readFileSync(resolve(process.cwd(), 'src/controls/controls.css'), 'utf8');
 
   let controlsStyle: HTMLStyleElement;
 
@@ -213,9 +213,7 @@ describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM
     if (narrow === undefined) {
       throw new Error('no @media (max-width: 760px) block in controls.css');
     }
-    return Array.from(narrow.cssRules).filter(
-      (r): r is CSSStyleRule => r instanceof CSSStyleRule,
-    );
+    return Array.from(narrow.cssRules).filter((r): r is CSSStyleRule => r instanceof CSSStyleRule);
   }
 
   /** First top-level rule whose selector matches `sel`. */
@@ -236,9 +234,7 @@ describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM
       const base = topRule('.mobile-controls');
       expect(base).toBeDefined();
       expect(base?.style.display).toBe('none');
-      const reveal = narrowMediaRules().find(
-        (r) => r.selectorText === '.mobile-controls',
-      );
+      const reveal = narrowMediaRules().find((r) => r.selectorText === '.mobile-controls');
       expect(reveal).toBeDefined();
       expect(reveal?.style.display).not.toBe('none');
     });
@@ -327,6 +323,117 @@ describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM
       const base = topRule('.pill-highlight');
       expect(base).toBeDefined();
       expect(base?.style.display).not.toBe('none');
+    });
+  });
+
+  // ── U6: sheet motion — transitions-dev #07 transform-only translateY ────────
+  //
+  // The sheet is transitions-dev panel-reveal (#07) applied TRANSFORM-ONLY on
+  // translateY (the same trim the in-tree tape slide uses): peek =
+  // translateY(calc(100% - var(--sheet-peek-h))), expand = translateY(0), tweened
+  // on --state-color (200ms) --ease-standard. Opacity stays 1 and there is NO
+  // filter blur (so the peek band is legible). NON-modal: the sheet sits at z-40
+  // (peer of the removed drawer, below the palette z-50) with no overlay scrim.
+  // Reduced-motion: a single specificity-matched block sets transition:none so it
+  // wins the cascade. Values trace to §0 by name; NO spring, no motion library.
+  // These are source-level rule-presence assertions (CSSOM); the SETTLED transform
+  // and the reduced-motion snap are measured in the e2e (U8).
+  describe('U6 — sheet motion is #07 transform-only translateY (§7/§10)', () => {
+    /** The base `.controls-sheet` motion rule (peek transform + transition). */
+    function sheetRule(): CSSStyleRule | undefined {
+      return topRule('.controls-sheet');
+    }
+
+    it('peeks via translateY(calc(100% - var(--sheet-peek-h))) on the sheet chrome', () => {
+      const r = sheetRule();
+      expect(r).toBeDefined();
+      // transform-only translateY: peek slides the sheet down by its full height
+      // minus the visible peek band.
+      expect(r?.style.transform).toMatch(
+        /translateY\(\s*calc\(100% - var\(--sheet-peek-h\)\)\s*\)/,
+      );
+    });
+
+    it('expands to translateY(0) when data-open=true', () => {
+      const open = topLevelRules().find(
+        (r) =>
+          r.selectorText.includes('.controls-sheet') &&
+          r.selectorText.includes("[data-open='true']"),
+      );
+      expect(open).toBeDefined();
+      expect(open?.style.transform).toMatch(/translateY\(\s*0\w*\s*\)/);
+    });
+
+    it('tweens ONLY transform on --state-color (200ms) --ease-standard — NO spring', () => {
+      const r = sheetRule();
+      expect(r).toBeDefined();
+      const t = r?.style.transition ?? '';
+      expect(t).toContain('transform');
+      expect(t).toContain('var(--state-color)');
+      expect(t).toContain('var(--ease-standard)');
+      // No spring/overshoot easing on chrome (§0 easing guards); no opacity tween.
+      expect(t).not.toContain('ease-spring');
+      expect(t).not.toContain('ease-overshoot');
+      expect(t).not.toContain('opacity');
+    });
+
+    it('is transform-only: opacity stays 1 and there is NO filter blur (peek legible)', () => {
+      const r = sheetRule();
+      expect(r).toBeDefined();
+      // The deliberate trim from stock #07: no opacity fade, no blur, so the peek
+      // band stays readable.
+      expect(r?.style.opacity).not.toBe('0');
+      expect(r?.style.filter).toBe('');
+    });
+
+    it('sits at z-40 (peer of the removed drawer, below the palette z-50), non-modal', () => {
+      const r = sheetRule();
+      expect(r).toBeDefined();
+      expect(r?.style.zIndex).toBe('40');
+      // Non-modal: no full overlay scrim rule ships with the sheet.
+      const scrim = topLevelRules().find(
+        (rr) => rr.selectorText.includes('.controls-sheet') && rr.selectorText.includes('scrim'),
+      );
+      expect(scrim).toBeUndefined();
+    });
+
+    it('gates motion under prefers-reduced-motion: reduce with a specificity-matched none', () => {
+      // A single @media (prefers-reduced-motion: reduce){ .controls-sheet{ transition:none } }
+      // at the SAME specificity as the base rule so it wins the cascade.
+      const reduce = Array.from(controlsSheet().cssRules)
+        .filter((r): r is CSSMediaRule => r instanceof CSSMediaRule)
+        .find((r) => r.media.mediaText.includes('prefers-reduced-motion'));
+      expect(reduce).toBeDefined();
+      const rule = Array.from(reduce?.cssRules ?? [])
+        .filter((r): r is CSSStyleRule => r instanceof CSSStyleRule)
+        .find((r) => r.selectorText === '.controls-sheet');
+      expect(rule).toBeDefined();
+      expect(rule?.style.transition).toBe('none');
+    });
+  });
+
+  // ── U6: --sheet-peek-h token declared in DESIGN.md §0 FIRST, then mirrored ───
+  //
+  // Token presence is verifiable here: the §0 layout block declares `sheet-peek-h`
+  // (with a derivation comment, checked by the design-reviewer), and tokens.css
+  // mirrors `--sheet-peek-h`. Reading the SHIPPED files (never a fixture) means a
+  // drift in either file fails this gate. Vitest cwd is apps/web, so DESIGN.md is
+  // two levels up at the repo root.
+  describe('U6 — --sheet-peek-h declared in §0 first, mirrored into tokens.css', () => {
+    it('declares sheet-peek-h in the DESIGN.md §0 layout block', () => {
+      const design = readFileSync(resolve(process.cwd(), '../../DESIGN.md'), 'utf8');
+      // §0 declares it after touch-target-min, on the 4px scale, value in px.
+      expect(design).toMatch(/sheet-peek-h:\s*"\d+px"/);
+    });
+
+    it('mirrors --sheet-peek-h into the tokens.css layout block (same px value)', () => {
+      const design = readFileSync(resolve(process.cwd(), '../../DESIGN.md'), 'utf8');
+      const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+      const designVal = /sheet-peek-h:\s*"(\d+px)"/.exec(design)?.[1];
+      const tokensVal = /--sheet-peek-h:\s*(\d+px)/.exec(tokens)?.[1];
+      expect(designVal).toBeDefined();
+      expect(tokensVal).toBeDefined();
+      expect(tokensVal).toBe(designVal);
     });
   });
 });

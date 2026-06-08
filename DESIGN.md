@@ -262,6 +262,12 @@ layout:
   board-min-width:  "760px"   # HORIZONTAL/desktop floor only; the vertical map sets .board min-width:0 (shell.css) so it fits a phone (§10/§12.1)
   shell-min-width:  "760px"   # the §10 mobile-reflow breakpoint: below this the sidebar collapses to a drawer + the page reflows to one column; on desktop/horizontal the plate scrolls the 760px SVG inside itself, on a portrait phone the map renders vertical and fits the plate width — no 760px scroll (§10/§12.1)
   touch-target-min: "44px"    # WCAG 2.5.5 floor for any pointer target
+  sheet-peek-h:     "52px"    # mobile (§10) bottom-sheet PEEK band height — the slice
+                              # left on screen at translateY(calc(100% - sheet-peek-h)).
+                              # Derived on the 4px scale (not a bare magic number):
+                              # touch-target-min (44px, the summary-row tap height) +
+                              # space-200 (8px, a §4 component gutter for the drag
+                              # handle to breathe above it) = 52px (13× the 4px base).
 
 icon:
   # The product ships NO third-party icon library and NO <symbol>/<use> sprite.

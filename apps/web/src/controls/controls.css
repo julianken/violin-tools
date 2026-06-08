@@ -185,3 +185,48 @@
     display: block;
   }
 }
+
+/* ══ U6: bottom-sheet motion — transitions-dev panel-reveal (#07), §7/§10 ═══════
+ *
+ * The non-modal sheet slides peek↔expand as a transitions-dev panel-reveal (07),
+ * applied TRANSFORM-ONLY on translateY — the SAME deliberate trim the in-tree tape
+ * slide uses (motion.css): #07's stock opacity-fade + filter-blur are dropped so
+ * the peek band stays LEGIBLE (opacity stays 1, no blur). It is the §7
+ * `--state-color` (200ms) `--ease-standard` pair — NO spring (a bounce on a panel
+ * enter reads as jitter; §0's spring/overshoot easings are guarded "never chrome")
+ * and NO motion library. `data-open` drives the transform (set by MobileControls,
+ * the same hook the tape band uses).
+ *
+ * NON-MODAL: the sheet sits at z-40 — a peer of the removed §10 drawer (`.side`
+ * was z-40), below the palette overlay (z-50) — and ships NO full overlay scrim;
+ * the page behind it stays live (dismissal is the close button + Esc + the handle,
+ * per MobileControls/useDrawer). The transform is on the sheet CHROME and is purely
+ * visual: the content REGION's `display` toggle (U5: `.mc-sheet-body`) is what
+ * gates tab order + the a11y tree, independent of this slide.
+ *
+ * `.controls-sheet` is the sheet-chrome motion class; MobileControls' `.mc-sheet`
+ * carries it alongside its structural class so the data-open transform lands on the
+ * positioned sheet. DESIGN.md §7/§10 win on any conflict (AGENTS.md). */
+.controls-sheet {
+  position: fixed;
+  z-index: 40; /* peer of the removed §10 drawer; below the palette overlay (z-50) */
+  /* PEEK: slid down by its full height minus the visible peek band (§0
+   * --sheet-peek-h = 52px). transform-only — opacity stays 1, no filter blur. */
+  transform: translateY(calc(100% - var(--sheet-peek-h)));
+  transition: transform var(--state-color) var(--ease-standard); /* 200ms (§7) */
+}
+
+/* EXPAND: the sheet rests at its natural position (fully revealed). */
+.controls-sheet[data-open='true'] {
+  transform: translateY(0);
+}
+
+/* §7.4 reduced-motion gate — a single block at the SAME specificity as the base
+ * `.controls-sheet` rule (a media query adds no specificity, so the bare class
+ * selector matches and this `none` wins the cascade). Under `reduce` the sheet
+ * snaps peek↔expand with no slide; the end-state transforms above still apply. */
+@media (prefers-reduced-motion: reduce) {
+  .controls-sheet {
+    transition: none;
+  }
+}

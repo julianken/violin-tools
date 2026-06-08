@@ -94,7 +94,7 @@ export function MobileControls({
       <section
         id={SHEET_ID}
         ref={panelRef}
-        className="mc-sheet"
+        className="mc-sheet controls-sheet"
         data-open={isOpen}
         tabIndex={-1}
         aria-label="Scale controls"
