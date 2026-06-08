@@ -560,7 +560,8 @@ body {
  * width column: the 248px sidebar is HIDDEN (the mobile top-bar search trigger and
  * the controls bottom sheet take over its role; U7 dropped the off-canvas drawer),
  * the content + note-map plate take the full viewport width, the controls swap to
- * the mobile summary bar + sheet (controls.css), and NOTHING pushes the page wider
+ * the mobile bottom sheet whose peek header IS the summary (controls.css), and
+ * NOTHING pushes the page wider
  * than the viewport — `document.scrollingElement.scrollWidth <= clientWidth` at
  * 390px (the note-map SVG keeps its 760px min-width but scrolls INSIDE `.panel`,
  * never widening the shell).
@@ -592,8 +593,9 @@ body {
     display: flex;
   }
 
-  /* Hide the desktop controls CARD below the breakpoint — the mobile summary bar
-   * + bottom sheet (controls.css) is the surface here. This MUST live in shell.css
+  /* Hide the desktop controls CARD below the breakpoint — the mobile bottom sheet
+   * (its peek header IS the summary; controls.css) is the surface here. This MUST
+   * live in shell.css
    * (alongside the base `.controls{display:flex}` above) rather than controls.css:
    * the bundle loads controls.css BEFORE shell.css, so a `.controls{display:none}`
    * in a controls.css media block (equal specificity, no var() in the media

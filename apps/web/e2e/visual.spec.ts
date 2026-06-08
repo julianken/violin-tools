@@ -9,11 +9,11 @@ import { expect, test } from '@playwright/test';
 // stays 248px, plate horizontal-scrolls, everything else unchanged) was RETIRED by
 // S11 (#39 / PR #72), which shipped a TRUE mobile reflow. S16 ph3 then DROPPED the
 // off-canvas drawer entirely: below 760px the 248px sidebar is hidden, the mobile
-// top-bar search trigger + the controls SUMMARY BAR / non-modal bottom sheet take
-// over, the content + plate go full width, and the page never overflows
-// horizontally at 390px. So the 390×844 capture here asserts the SHIPPED mobile
-// surface (summary bar, no drawer) + the no-horizontal-overflow invariant, NOT the
-// dead narrow floor. The exhaustive reflow behavior is in responsive.spec.ts; this
+// top-bar search trigger + a single non-modal controls bottom sheet (whose peek
+// header IS the summary) take over, the content + plate go full width, and the page
+// never overflows horizontally at 390px. So the 390×844 capture here asserts the
+// SHIPPED mobile surface (the bottom-sheet peek header, no drawer, no separate
+// summary bar) + the no-horizontal-overflow invariant, NOT the dead narrow floor. The exhaustive reflow behavior is in responsive.spec.ts; this
 // spec adds the pixel snapshots the capstone calls for plus the load-bearing layout
 // invariants at each viewport.
 //
@@ -83,9 +83,9 @@ test.describe('S13 visual — mobile 390×844 (the shipped reflow, no overflow)'
     // §10: the H1 is 32px at every width.
     expect(metrics.h1FontSize).toBe('32px');
     // The reflow tell (S16 ph3): the 248px rail is hidden (no off-canvas drawer),
-    // and the mobile controls summary bar is the controls surface.
+    // and the mobile controls sheet's peek header is the controls surface.
     expect(metrics.sideDisplay).toBe('none');
-    await expect(page.getByRole('button', { name: /^Scale controls:/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Scale controls,/ })).toBeVisible();
 
     await expect(page).toHaveScreenshot('scales-mobile-390x844.png', { fullPage: true });
   });

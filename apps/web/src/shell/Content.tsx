@@ -9,8 +9,8 @@ import { type MapViewApi } from '../notemap/useMapView';
 import { derive, REF_PILLS, scaleName, type ControlsState } from '../state/controls';
 import { type ControlsApi } from '../state/useControls';
 
-// §10/§16 summary-bar text — the scale name plus any active reference layers, the
-// one-tap mobile summary the sheet expands from ("A Major · Tapes", "A Major" with
+// §10/§16 summary text — the scale name plus any active reference layers, the
+// mobile summary shown in the sheet's peek header ("A Major · Tapes", "A Major" with
 // no refs). It derives from the SAME `controls.state` AppShell's describeMap reads,
 // so the summary and the map never disagree. Active refs are listed in the §9.1
 // REF_PILLS order using their pill labels, joined with ", "; the scale name and the
@@ -146,12 +146,13 @@ export function Content({
         {...(mapView !== undefined ? { mapView } : {})}
       />
 
-      {/* The MOBILE controls surface (§10/§16) — a one-tap summary bar + non-modal
-          bottom sheet, shown <760px and `display:none` ≥760px (U6 CSS). It needs
-          the whole map-view api (its View row drives orientation/density/handedness),
-          so it mounts only when `mapView` is threaded — the Content unit harness
-          (which exercises only the controls→map wiring, no mapView) renders just the
-          desktop card, keeping its H1/board assertions unambiguous. */}
+      {/* The MOBILE controls surface (§10/§16) — a single non-modal bottom sheet
+          whose peek header IS the summary (it expands up to the controls body),
+          shown <760px and `display:none` ≥760px (U6 CSS). It needs the whole map-view
+          api (its View row drives orientation/density/handedness), so it mounts only
+          when `mapView` is threaded — the Content unit harness (which exercises only
+          the controls→map wiring, no mapView) renders just the desktop card, keeping
+          its H1/board assertions unambiguous. */}
       {mapView !== undefined && (
         <MobileControls
           controls={controls}

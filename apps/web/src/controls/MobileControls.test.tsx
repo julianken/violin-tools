@@ -9,18 +9,22 @@ import { useControls } from '../state/useControls.ts';
 
 import { MobileControls } from './MobileControls.tsx';
 
-// MobileControls — the §10/§16 mobile controls surface: a one-tap SUMMARY BAR that
-// opens a NON-MODAL bottom sheet (peek→expand) hosting the Root 4×3 grid + Scale +
-// Refs + View rows. Tested IN ISOLATION (FINDING 3): jsdom applies no CSS media
-// queries (and so no display:none-from-media), so the desktop card vs. mobile sheet
-// can't be CSS-toggled apart. Mounting MobileControls ALONE keeps role queries
-// unambiguous — the only radiogroups in the document are this surface's.
+// MobileControls — the §10/§16 mobile controls surface: ONE non-modal bottom sheet
+// whose PEEK state IS the summary. A header row pinned to the bottom edge (the
+// drag handle + the summary text + an expand chevron) is the SINGLE trigger; tapping
+// it expands the sheet UPWARD to reveal the body (Root 4×3 grid · Scale · Refs · View).
+// There is NO separate summary bar in the content flow.
 //
-// The sheet's scrollable content region uses an INLINE display:none while closed
+// Tested IN ISOLATION (FINDING 3): jsdom applies no CSS media queries (and so no
+// display:none-from-media), so the desktop card vs. mobile sheet can't be
+// CSS-toggled apart. Mounting MobileControls ALONE keeps role queries unambiguous —
+// the only radiogroups in the document are this surface's.
+//
+// The sheet's scrollable content region uses an INLINE display:none while at peek
 // (the U6 CSS transform is keyed off data-open separately) — jsdom DOES reflect an
 // inline display:none into getComputedStyle, so dom-testing-library excludes the
-// closed sheet's rows from the a11y tree exactly as it would in a browser. That is
-// why "clicking reveals the rows" is a real assertion here, not a CSS no-op.
+// peek sheet's rows from the a11y tree exactly as it would in a browser. That is
+// why "expanding reveals the rows" is a real assertion here, not a CSS no-op.
 
 // A complete MapViewApi stub with spied setters (the View row only needs the
 // stored modes + the setters; the sheet itself drives open/close via useDrawer).
@@ -54,40 +58,55 @@ function MobileControlsHarness(props: {
   );
 }
 
-// The sheet container (the element whose id the summary bar's aria-controls points
+// The single peek-header trigger — its accessible name leads with the control
+// purpose ("Scale controls,") then the live summary.
+function peekHeader(): HTMLElement {
+  return screen.getByRole('button', { name: /^scale controls,/i });
+}
+
+// The sheet container (the element whose id the peek header's aria-controls points
 // at) — scope sheet-internal role queries to it so they are unambiguous.
 function sheet(): HTMLElement {
-  const trigger = screen.getByRole('button', { name: /^scale controls:/i });
-  const sheetId = trigger.getAttribute('aria-controls');
-  if (sheetId === null) throw new Error('summary trigger has no aria-controls');
+  const sheetId = peekHeader().getAttribute('aria-controls');
+  if (sheetId === null) throw new Error('peek header has no aria-controls');
   const el = document.getElementById(sheetId);
   if (el === null) throw new Error(`no sheet with id ${sheetId}`);
   return el;
 }
 
-describe('MobileControls — summary bar trigger (§10/§16)', () => {
-  it('shows the summary text and is collapsed (aria-expanded=false) initially', () => {
+describe('MobileControls — peek header is the single trigger (§10/§16)', () => {
+  it('shows the summary text in the peek header and is collapsed (aria-expanded=false) initially', () => {
     render(<MobileControlsHarness summaryText="A Major · Tapes" />);
-    const trigger = screen.getByRole('button', { name: /^scale controls:/i });
+    const trigger = peekHeader();
     expect(trigger).toHaveTextContent('A Major · Tapes');
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    // The trigger controls the sheet by id.
+    // The header controls the sheet by id.
     expect(trigger.getAttribute('aria-controls')).toBe(sheet().id);
   });
 
-  it('does not expose the sheet rows while collapsed (closed content is out of the a11y tree)', () => {
+  it('has NO separate summary bar in the content flow — the peek header is the only trigger', () => {
+    render(<MobileControlsHarness summaryText="A Major · Tapes" />);
+    // Exactly one button leads with "Scale controls," — the peek header. There is no
+    // redundant in-flow summary bar above the sheet (the old .mc-summary is gone).
+    expect(screen.getAllByRole('button', { name: /^scale controls,/i })).toHaveLength(1);
+    // The peek header IS inside the sheet region (it pins the sheet to the bottom),
+    // not a standalone in-flow element.
+    expect(sheet().contains(peekHeader())).toBe(true);
+  });
+
+  it('does not expose the sheet body rows while at peek (closed body is out of the a11y tree)', () => {
     render(<MobileControlsHarness />);
-    // Closed: the inline display:none on the content region excludes every row.
+    // Peek: the inline display:none on the body region excludes every row.
     expect(within(sheet()).queryByRole('radiogroup', { name: 'Root note' })).toBeNull();
     expect(within(sheet()).queryByRole('radiogroup', { name: 'Scale type' })).toBeNull();
     expect(within(sheet()).queryByRole('group', { name: 'Reference layers' })).toBeNull();
   });
 });
 
-describe('MobileControls — open reveals the rows (peek→expand)', () => {
-  it('clicking the summary bar expands it and reveals Root, Scale, Refs, and the three View rows', () => {
+describe('MobileControls — activating the peek header expands the sheet (peek→expand)', () => {
+  it('clicking the peek header expands it and reveals Root, Scale, Refs, and the three View rows', () => {
     render(<MobileControlsHarness />);
-    const trigger = screen.getByRole('button', { name: /^scale controls:/i });
+    const trigger = peekHeader();
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
@@ -104,16 +123,16 @@ describe('MobileControls — open reveals the rows (peek→expand)', () => {
 
   it('renders the Root grid as the SAME radiogroup (one Root note radiogroup, 12 radios)', () => {
     render(<MobileControlsHarness />);
-    fireEvent.click(screen.getByRole('button', { name: /^scale controls:/i }));
+    fireEvent.click(peekHeader());
     const rootGroup = within(sheet()).getByRole('radiogroup', { name: 'Root note' });
     expect(within(rootGroup).getAllByRole('radio')).toHaveLength(12);
   });
 });
 
 describe('MobileControls — dismissal (useDrawer contract, non-modal)', () => {
-  it('Escape closes the sheet and returns focus to the summary trigger', () => {
+  it('Escape closes the sheet and returns focus to the peek header', () => {
     render(<MobileControlsHarness />);
-    const trigger = screen.getByRole('button', { name: /^scale controls:/i });
+    const trigger = peekHeader();
     act(() => {
       trigger.focus();
     });
@@ -124,18 +143,18 @@ describe('MobileControls — dismissal (useDrawer contract, non-modal)', () => {
       fireEvent.keyDown(window, { key: 'Escape' });
     });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    // useDrawer focus-return: focus lands back on the opener (the summary trigger).
+    // useDrawer focus-return: focus lands back on the opener (the peek header).
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('the explicit close button closes the sheet', () => {
+  it('toggling the peek header again collapses the expanded sheet', () => {
     render(<MobileControlsHarness />);
-    const trigger = screen.getByRole('button', { name: /^scale controls:/i });
+    const trigger = peekHeader();
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
-    // The close button lives inside the sheet (visible once expanded).
-    fireEvent.click(within(sheet()).getByRole('button', { name: /close/i }));
+    // The header is the toggle — clicking it while expanded collapses the sheet.
+    fireEvent.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
@@ -147,7 +166,7 @@ describe('MobileControls — dismissal (useDrawer contract, non-modal)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
 
     // Opening must not impose a body-scroll lock (no body-scroll-lock, per useDrawer).
-    fireEvent.click(screen.getByRole('button', { name: /^scale controls:/i }));
+    fireEvent.click(peekHeader());
     expect(document.body.style.overflow).toBe('');
   });
 });
@@ -273,8 +292,8 @@ describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM
     });
 
     it('keeps the CLOSED/peek sheet body out of flow (display:none), revealed only when data-open', () => {
-      // Closed/peek: the scrollable content region is display:none so its pills are
-      // out of the tab order + a11y tree; [data-open='true'] reveals it.
+      // Peek: the scrollable body region is display:none so its pills are out of the
+      // tab order + a11y tree; [data-open='true'] reveals it.
       const closed = topRule('.mc-sheet-body');
       expect(closed).toBeDefined();
       expect(closed?.style.display).toBe('none');
@@ -348,15 +367,12 @@ describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM
     });
   });
 
-  // ── U7: summary bar + sheet chrome are STYLED (FINDINGS 2, 3, 6, 7) ──────────
+  // ── U7: peek header + sheet chrome are STYLED (FINDINGS 2, 3, 6, 7) ───────────
   //
-  // The bottom sheet was position:fixed with ONLY a translateY transform — no
-  // inset, no width, no background — so it neither anchored to the viewport bottom
-  // nor was opaque; and .mc-summary / .mc-handle / .mc-close had NO CSS at all, so
-  // the summary bar failed the WCAG 2.5.5 44px floor and the handle/close were
-  // zero/auto-size invisible buttons. These assert the chrome now ships: the sheet
-  // is a bottom-anchored, opaque, sized box; the summary bar meets 44px on its own
-  // height; the handle fills the peek band; the close button meets 44px. (CSSOM
+  // The single peek header IS the summary: a bottom-pinned header row (drag-grip +
+  // summary text + expand chevron) that meets the WCAG 2.5.5 44px floor on its own
+  // box and reads as the sheet's top band. The sheet anchors to the viewport bottom,
+  // full width, opaque (a non-modal sheet must not be transparent). (CSSOM
   // rule-presence; the MEASURED geometry is the e2e U8/U9 at a real viewport.)
   describe('U7 — sheet anchors to the viewport bottom and is opaque (FINDINGS 2, 6, 7)', () => {
     it('anchors the .controls-sheet to the bottom edge, full width, so the peek math means something', () => {
@@ -378,19 +394,13 @@ describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM
     });
   });
 
-  describe('U7 — summary bar / handle / close are styled + meet the 44px floor (FINDINGS 3, 7)', () => {
-    it('gives .mc-summary its own 44px min-height (the ::before hit-pad does not cover it)', () => {
-      const r = topRule('.mc-summary');
+  describe('U7 — peek header / close are styled + meet the 44px floor (FINDINGS 3, 7)', () => {
+    it('fills the .mc-header to the §0 peek-band height and meets the 44px floor (a real tap target)', () => {
+      const r = topRule('.mc-header');
       expect(r).toBeDefined();
-      // WCAG 2.5.5: the a11y.css ::before hit-pad targets only .pill/.ni/.theme, so
-      // the summary bar must meet the floor on its OWN box.
-      expect(r?.style.minHeight).toBe('var(--touch-target-min)');
-    });
-
-    it('fills the .mc-handle to the §0 peek-band height (a real tap target, not zero-size)', () => {
-      const r = topRule('.mc-handle');
-      expect(r).toBeDefined();
-      expect(r?.style.height).toBe('var(--sheet-peek-h)');
+      // The peek header IS the peek band: it fills --sheet-peek-h (≥ touch-target-min)
+      // and is the always-visible summary the sheet pokes above the bottom edge.
+      expect(r?.style.minHeight).toBe('var(--sheet-peek-h)');
       expect(r?.style.width).toBe('100%');
     });
 

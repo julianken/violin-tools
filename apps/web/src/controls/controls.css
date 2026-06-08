@@ -124,10 +124,10 @@
  * media features cannot take `var()`, so the literal lives here exactly as in
  * shell.css). DESIGN.md §10/§16/§9.1 win on any conflict (AGENTS.md). */
 
-/* The MOBILE surface (summary bar + sheet) is hidden in the base (desktop)
- * cascade and revealed only inside the narrow media block below — the exact
- * `.topbar-menu` precedent — so it never coexists with the desktop card and is
- * absent from the desktop a11y tree (≥760px). */
+/* The MOBILE surface (the single bottom sheet whose peek header IS the summary) is
+ * hidden in the base (desktop) cascade and revealed only inside the narrow media
+ * block below — the exact `.topbar-menu` precedent — so it never coexists with the
+ * desktop card and is absent from the desktop a11y tree (≥760px). */
 .mobile-controls {
   display: none;
 }
@@ -191,28 +191,32 @@
    * with that base rule is what makes source order win it. */
 }
 
-/* ══ U7: mobile summary bar + sheet chrome (handle · close) (§9.1/§10/§16) ══════
+/* ══ U7: mobile peek header + sheet chrome (close) (§9.1/§10/§16) ═══════════════
  *
- * The visible mobile controls chrome the U5 swap reveals: the in-flow SUMMARY BAR
- * (the one-tap trigger), the sheet's drag HANDLE (the peek band), and the explicit
- * CLOSE button. Every color/space/radius resolves to a §0 token; the 44px floor is
- * `--touch-target-min`. FINDINGS 2/3/6/7: these were entirely unstyled, so the
- * summary failed WCAG 2.5.5 and the handle/close were zero/auto-size invisible
- * buttons. DESIGN.md §9.1/§10/§16 win on any conflict (AGENTS.md). */
+ * The visible mobile controls chrome the U5 swap reveals: the bottom-pinned PEEK
+ * HEADER (the SINGLE trigger — drag-grip + summary text + expand chevron, which IS
+ * the always-visible peek band) and the explicit CLOSE button in the body. There is
+ * NO separate in-flow summary bar (FINDINGS 2/3/6/7: the old `.mc-summary` bar was a
+ * redundant third "A Major" and off the brainstormed design — consolidated into the
+ * sheet's peek header). Every color/space/radius resolves to a §0 token; the 44px
+ * floor is `--touch-target-min`. DESIGN.md §9.1/§10/§16 win on any conflict
+ * (AGENTS.md). */
 
-/* The summary bar — a full-width §0 --surface row that reads as a card and meets
- * the WCAG 2.5.5 44px floor on its OWN height (the centered ::before hit-pad
- * pattern only covers `.pill`/`.ni`/`.theme`, not this bar — FINDING 3/7). */
-.mc-summary {
+/* The peek header — the sheet's always-visible peek band AND its single trigger. It
+ * fills the §0 peek band (`--sheet-peek-h`, ≥ the WCAG 2.5.5 44px floor) so it is a
+ * real tap target on its OWN box (the centered ::before hit-pad pattern only covers
+ * `.pill`/`.ni`/`.theme`, not this header). A grip pip · the summary text · an
+ * expand chevron sit in one row; tapping anywhere toggles peek↔expand. */
+.mc-header {
+  position: relative;
   display: flex;
   align-items: center;
+  gap: var(--space-200); /* 8px between grip / text / chevron */
   width: 100%;
-  min-height: var(--touch-target-min); /* 44px — WCAG 2.5.5 on the bar's own box */
+  min-height: var(--sheet-peek-h); /* the peek band the closed sheet shows (≥44px) */
   padding: var(--space-200) var(--space-400); /* 8px 16px (§4.2) */
-  margin-bottom: var(--space-400); /* 16px — same rhythm as the .controls card */
-  background: var(--surface); /* §2.1 stepped-up surface (matches the card) */
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-card); /* 12px (§0) */
+  border: none;
+  background: transparent; /* the sheet box (.controls-sheet) paints the surface */
   color: var(--text);
   font-family: var(--family-ui);
   font-size: 13px;
@@ -221,39 +225,32 @@
   text-align: left;
   cursor: pointer;
 }
-.mc-summary:hover {
-  border-color: var(--hairline3);
+/* The grip pip — a centered {hairline3} bar pinned to the header's top edge so the
+ * peek band still reads as a draggable handle. Decorative (the header is the
+ * target); positioned absolute so it does not push the text/chevron row. */
+.mc-grip {
+  position: absolute;
+  top: var(--space-200); /* 8px from the top edge */
+  left: 50%;
+  width: var(--space-800); /* 32px grip */
+  height: 4px; /* the §0 4px micro step */
+  transform: translateX(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--hairline3);
 }
-.mc-summary-text {
+.mc-header-text {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* The drag handle — the always-visible peek band's tap target. It is a real
- * pointer/keyboard target (one of the non-modal dismissal set: handle + Esc +
- * close), so it fills the §0 52px peek band and meets the 44px floor; the
- * {hairline3} grip pip is drawn with the `::before` overlay below. */
-.mc-handle {
-  display: block;
-  width: 100%;
-  height: var(--sheet-peek-h); /* 52px — the peek band the closed sheet shows */
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-}
-/* The grip pip — a centered {hairline3} bar so the peek band reads as a handle. */
-.mc-handle::before {
-  content: '';
-  display: block;
-  width: var(--space-800); /* 32px grip */
-  height: 4px; /* the §0 4px micro step */
-  margin: var(--space-200) auto 0; /* 8px from the top edge, centered */
-  border-radius: var(--radius-pill);
-  background: var(--hairline3);
+/* The expand chevron — points up at peek (the sheet expands UP). Its color is set
+ * here; the §7 rotate-on-expand tween + its reduced-motion gate live in the U6
+ * motion section below, alongside the sheet's own translateY motion. */
+.mc-chevron {
+  flex: none;
+  color: var(--text2);
 }
 
 /* The explicit close button — a right-aligned pill-shaped tap target inside the
@@ -332,12 +329,26 @@
   transform: translateY(0);
 }
 
+/* The expand chevron flips up→down once expanded (the peek header's affordance),
+ * tweened on the same §7 `--state-color` (200ms) `--ease-standard` pair as the
+ * sheet slide — transform-only, no spring, no motion library. */
+.mc-chevron {
+  transition: transform var(--state-color) var(--ease-standard); /* 200ms (§7) */
+}
+.controls-sheet[data-open='true'] .mc-chevron {
+  transform: rotate(180deg);
+}
+
 /* §7.4 reduced-motion gate — a single block at the SAME specificity as the base
  * `.controls-sheet` rule (a media query adds no specificity, so the bare class
  * selector matches and this `none` wins the cascade). Under `reduce` the sheet
- * snaps peek↔expand with no slide; the end-state transforms above still apply. */
+ * snaps peek↔expand with no slide and the chevron flips with no rotate tween; the
+ * end-state transforms above still apply. */
 @media (prefers-reduced-motion: reduce) {
   .controls-sheet {
+    transition: none;
+  }
+  .mc-chevron {
     transition: none;
   }
 }

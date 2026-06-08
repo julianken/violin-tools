@@ -20,8 +20,9 @@ import { type Page, expect, test } from '@playwright/test';
 //     stale horizontal behavior at mobile portrait;
 //   • the sidebar is HIDDEN below the breakpoint (S16 ph3 dropped the off-canvas
 //     drawer; the mobile top-bar search trigger + the controls bottom sheet take
-//     over its role) and the mobile controls are a SUMMARY BAR that opens a
-//     NON-MODAL bottom sheet (peek→expand, Esc closes, focus returns to the bar);
+//     over its role) and the mobile controls are a SINGLE NON-MODAL bottom sheet
+//     whose PEEK HEADER IS the summary (activating it expands the sheet up; Esc
+//     closes, focus returns to the peek header; no separate in-flow summary bar);
 //   • the controls wrap (not one pill per line);
 //   • at 1440×900 the desktop shell is UNCHANGED (248px sidebar; no mobile search
 //     trigger; the desktop controls card, not the mobile sheet).
@@ -151,7 +152,7 @@ test.describe('§10 mobile reflow @ 390×844 — no horizontal page overflow', (
     // S16 ph3: the Root pills live in the bottom sheet as a 4×3 grid (not a
     // wrapping flex row on the page). Open the sheet, then assert the 12 pills lay
     // out across multiple rows AND multiple columns (a grid, not one-per-line).
-    await page.getByRole('button', { name: /^Scale controls:/ }).click();
+    await page.getByRole('button', { name: /^Scale controls,/ }).click();
     const rootGroup = page.getByRole('radiogroup', { name: 'Root note' });
     const boxes = await rootGroup.locator('.pill').evaluateAll((pills) =>
       pills.map((p) => {
@@ -170,13 +171,15 @@ test.describe('§10 mobile reflow @ 390×844 — no horizontal page overflow', (
   });
 });
 
-test.describe('§10/§16 mobile controls — summary bar + non-modal bottom sheet (S16 ph3)', () => {
+test.describe('§10/§16 mobile controls — single bottom sheet, peek header expands (S16 ph3)', () => {
   // S16 ph3 dropped the off-canvas drawer (the topbar hamburger / "Open navigation"
-  // trigger / .side.is-open slide are GONE). Below the breakpoint the controls are a
-  // one-tap SUMMARY BAR that opens a NON-MODAL bottom sheet (peek→expand). The bar's
-  // accessible name leads with "Scale controls: " then the live summary, so it is
-  // matched by that prefix.
-  const summaryBar = (page: Page) => page.getByRole('button', { name: /^Scale controls:/ });
+  // trigger / .side.is-open slide are GONE) AND consolidated the mobile controls to
+  // ONE non-modal bottom sheet whose PEEK band IS the summary: a bottom-pinned PEEK
+  // HEADER (drag-grip + summary text + expand chevron) is the SINGLE trigger — there
+  // is NO separate in-flow summary bar. The header's accessible name leads with
+  // "Scale controls, " then the live summary, so it is matched by that prefix; it
+  // lives INSIDE the sheet (it pins the sheet to the bottom edge).
+  const peekHeader = (page: Page) => page.getByRole('button', { name: /^Scale controls,/ });
 
   test('the drawer is gone: the 248px rail is display:none and there is no "Open navigation"', async ({
     page,
@@ -194,20 +197,41 @@ test.describe('§10/§16 mobile controls — summary bar + non-modal bottom shee
     await expect(page.getByRole('button', { name: 'Search scales and tools' })).toBeVisible();
   });
 
-  test('the summary bar opens the bottom sheet and reveals the controls (peek→expand)', async ({
+  test('the peek header IS the single trigger — no redundant in-flow summary bar', async ({
     page,
   }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/');
-    const bar = summaryBar(page);
-    await expect(bar).toBeVisible();
-    await expect(bar).toHaveAttribute('aria-expanded', 'false');
-    // The bar meets the WCAG 2.5.5 44px floor on its OWN box (U7 CSS).
-    const barHeight = await bar.evaluate((el) => Math.round(el.getBoundingClientRect().height));
-    expect(barHeight).toBeGreaterThanOrEqual(44);
+    // Exactly ONE control leads with "Scale controls," — the sheet's peek header.
+    // The old standalone summary bar in the content flow is gone (no third "A Major"
+    // under the H1 + breadcrumb).
+    await expect(peekHeader(page)).toHaveCount(1);
+    // It lives INSIDE the sheet it controls (it is the sheet's bottom-pinned band),
+    // not a separate in-flow element above it.
+    const header = peekHeader(page);
+    const sheetId = await header.getAttribute('aria-controls');
+    expect(sheetId).not.toBeNull();
+    const inSheet = await header.evaluate((el, id) => el.closest(`#${id}`) !== null, sheetId ?? '');
+    expect(inSheet).toBe(true);
+  });
 
-    // The sheet the bar controls; closed, its body rows are out of the a11y tree.
-    const sheetId = await bar.getAttribute('aria-controls');
+  test('the peek header expands the bottom sheet and reveals the controls (peek→expand)', async ({
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE);
+    await page.goto('/');
+    const header = peekHeader(page);
+    await expect(header).toBeVisible();
+    await expect(header).toHaveAttribute('aria-expanded', 'false');
+    // The header meets the WCAG 2.5.5 44px floor on its OWN box (U7 CSS — it fills
+    // the §0 peek band).
+    const headerHeight = await header.evaluate((el) =>
+      Math.round(el.getBoundingClientRect().height),
+    );
+    expect(headerHeight).toBeGreaterThanOrEqual(44);
+
+    // The sheet the header controls; at peek, its body rows are out of the a11y tree.
+    const sheetId = await header.getAttribute('aria-controls');
     expect(sheetId).not.toBeNull();
     const sheet = page.locator(`#${sheetId ?? ''}`);
     // The sheet is a NON-MODAL bottom sheet: position:fixed, anchored to the bottom
@@ -230,8 +254,8 @@ test.describe('§10/§16 mobile controls — summary bar + non-modal bottom shee
     expect(closed.role).not.toBe('dialog'); // non-modal
 
     // Open it: the four controls rows (Root/Scale/Refs/View) become reachable.
-    await bar.click();
-    await expect(bar).toHaveAttribute('aria-expanded', 'true');
+    await header.click();
+    await expect(header).toHaveAttribute('aria-expanded', 'true');
     await expect(sheet.getByRole('radiogroup', { name: 'Root note' })).toBeVisible();
     await expect(sheet.getByRole('radiogroup', { name: 'Orientation' })).toBeVisible();
 
@@ -243,20 +267,34 @@ test.describe('§10/§16 mobile controls — summary bar + non-modal bottom shee
     expect(overflow).toBe(false);
   });
 
-  test('Escape closes the non-modal sheet and returns focus to the summary bar', async ({
+  test('Escape closes the non-modal sheet and returns focus to the peek header', async ({
     page,
   }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/');
-    const bar = summaryBar(page);
-    await bar.click();
-    await expect(bar).toHaveAttribute('aria-expanded', 'true');
+    const header = peekHeader(page);
+    await header.click();
+    await expect(header).toHaveAttribute('aria-expanded', 'true');
 
     await page.keyboard.press('Escape');
-    await expect(bar).toHaveAttribute('aria-expanded', 'false');
-    // Focus returns to the summary bar (the useDrawer focus-return contract).
-    const focusOnBar = await bar.evaluate((el) => el === document.activeElement);
-    expect(focusOnBar).toBe(true);
+    await expect(header).toHaveAttribute('aria-expanded', 'false');
+    // Focus returns to the peek header (the useDrawer focus-return contract).
+    const focusOnHeader = await header.evaluate((el) => el === document.activeElement);
+    expect(focusOnHeader).toBe(true);
+  });
+
+  test('tapping the peek header again collapses the expanded sheet (handle dismissal)', async ({
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE);
+    await page.goto('/');
+    const header = peekHeader(page);
+    await header.click();
+    await expect(header).toHaveAttribute('aria-expanded', 'true');
+    // The header (the drag-grip band) toggles the sheet — tapping it while expanded
+    // collapses back to peek (one of the non-modal dismissal set: header + Esc + Close).
+    await header.click();
+    await expect(header).toHaveAttribute('aria-expanded', 'false');
   });
 });
 
@@ -277,8 +315,8 @@ test.describe('§10 desktop @ 1440×900 — the shell is unchanged', () => {
     // top-bar search is display:none here.
     await expect(page.getByRole('button', { name: /search scales and tools/i })).toBeVisible();
     await expect(page.locator('.topbar-search')).toBeHidden();
-    // The desktop controls card is the surface (the mobile summary bar is hidden).
-    await expect(page.getByRole('button', { name: /^Scale controls:/ })).toBeHidden();
+    // The desktop controls card is the surface (the mobile sheet peek header is hidden).
+    await expect(page.getByRole('button', { name: /^Scale controls,/ })).toBeHidden();
 
     const desk = await page.locator('.side').evaluate((el) => {
       const cs = getComputedStyle(el);
