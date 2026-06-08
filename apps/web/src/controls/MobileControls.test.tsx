@@ -222,10 +222,32 @@ describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM
   }
 
   describe('responsive surface hide is display:none-only (FINDINGS 3, 6)', () => {
-    it('hides the desktop .controls card with display:none INSIDE @media (max-width: 760px)', () => {
-      const hide = narrowMediaRules().find((r) => r.selectorText === '.controls');
-      expect(hide).toBeDefined();
-      expect(hide?.style.display).toBe('none');
+    it('hides the desktop .controls card with display:none INSIDE shell.css @media (max-width: 760px)', () => {
+      // The desktop-card hide lives in shell.css's narrow media block, NOT
+      // controls.css: the bundle loads controls.css BEFORE shell.css, so a
+      // `.controls{display:none}` here (equal specificity) would lose to shell.css's
+      // later base `.controls{display:flex}`. Co-locating the override with that
+      // base rule makes source order win it (the snapshot bug FINDINGS 2/7 imply).
+      const shellCss = readFileSync(resolve(process.cwd(), 'src/shell/shell.css'), 'utf8');
+      const shellStyle = document.createElement('style');
+      shellStyle.textContent = shellCss;
+      document.head.appendChild(shellStyle);
+      try {
+        const s = shellStyle.sheet;
+        if (s === null) throw new Error('shell.css stylesheet not parsed');
+        const media = Array.from(s.cssRules).filter(
+          (r): r is CSSMediaRule => r instanceof CSSMediaRule,
+        );
+        const narrow = media.find((r) => r.media.mediaText.includes('760px'));
+        if (narrow === undefined) throw new Error('no @media (max-width: 760px) block in shell.css');
+        const hide = Array.from(narrow.cssRules)
+          .filter((r): r is CSSStyleRule => r instanceof CSSStyleRule)
+          .find((r) => r.selectorText === '.controls');
+        expect(hide).toBeDefined();
+        expect(hide?.style.display).toBe('none');
+      } finally {
+        shellStyle.remove();
+      }
     });
 
     it('hides the mobile surface (.mobile-controls) with display:none at ≥760px (base rule)', () => {
@@ -323,6 +345,59 @@ describe('U5 — controls.css responsive swap + mobile sheet presentation (CSSOM
       const base = topRule('.pill-highlight');
       expect(base).toBeDefined();
       expect(base?.style.display).not.toBe('none');
+    });
+  });
+
+  // ── U7: summary bar + sheet chrome are STYLED (FINDINGS 2, 3, 6, 7) ──────────
+  //
+  // The bottom sheet was position:fixed with ONLY a translateY transform — no
+  // inset, no width, no background — so it neither anchored to the viewport bottom
+  // nor was opaque; and .mc-summary / .mc-handle / .mc-close had NO CSS at all, so
+  // the summary bar failed the WCAG 2.5.5 44px floor and the handle/close were
+  // zero/auto-size invisible buttons. These assert the chrome now ships: the sheet
+  // is a bottom-anchored, opaque, sized box; the summary bar meets 44px on its own
+  // height; the handle fills the peek band; the close button meets 44px. (CSSOM
+  // rule-presence; the MEASURED geometry is the e2e U8/U9 at a real viewport.)
+  describe('U7 — sheet anchors to the viewport bottom and is opaque (FINDINGS 2, 6, 7)', () => {
+    it('anchors the .controls-sheet to the bottom edge, full width, so the peek math means something', () => {
+      const r = topRule('.controls-sheet');
+      expect(r).toBeDefined();
+      // Without these insets a position:fixed box keeps its static origin + content
+      // width — the four insets are what make it an actual bottom sheet.
+      // jsdom's CSSOM normalizes a bare `0` length to `0px`.
+      expect(r?.style.bottom).toBe('0px');
+      expect(r?.style.left).toBe('0px');
+      expect(r?.style.right).toBe('0px');
+    });
+
+    it('gives the .controls-sheet an opaque --surface background (non-modal sheet must not be transparent)', () => {
+      const r = topRule('.controls-sheet');
+      expect(r?.style.background).toBe('var(--surface)');
+      // It caps + scrolls so a tall sheet never runs off a short phone's top edge.
+      expect(r?.style.maxHeight).not.toBe('');
+    });
+  });
+
+  describe('U7 — summary bar / handle / close are styled + meet the 44px floor (FINDINGS 3, 7)', () => {
+    it('gives .mc-summary its own 44px min-height (the ::before hit-pad does not cover it)', () => {
+      const r = topRule('.mc-summary');
+      expect(r).toBeDefined();
+      // WCAG 2.5.5: the a11y.css ::before hit-pad targets only .pill/.ni/.theme, so
+      // the summary bar must meet the floor on its OWN box.
+      expect(r?.style.minHeight).toBe('var(--touch-target-min)');
+    });
+
+    it('fills the .mc-handle to the §0 peek-band height (a real tap target, not zero-size)', () => {
+      const r = topRule('.mc-handle');
+      expect(r).toBeDefined();
+      expect(r?.style.height).toBe('var(--sheet-peek-h)');
+      expect(r?.style.width).toBe('100%');
+    });
+
+    it('gives the .mc-close button a 44px min-height (WCAG 2.5.5)', () => {
+      const r = topRule('.mc-close');
+      expect(r).toBeDefined();
+      expect(r?.style.minHeight).toBe('var(--touch-target-min)');
     });
   });
 

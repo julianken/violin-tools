@@ -592,6 +592,19 @@ body {
     display: flex;
   }
 
+  /* Hide the desktop controls CARD below the breakpoint — the mobile summary bar
+   * + bottom sheet (controls.css) is the surface here. This MUST live in shell.css
+   * (alongside the base `.controls{display:flex}` above) rather than controls.css:
+   * the bundle loads controls.css BEFORE shell.css, so a `.controls{display:none}`
+   * in a controls.css media block (equal specificity, no var() in the media
+   * feature) is OVERRIDDEN by shell.css's later base `display:flex`. Co-locating
+   * the override with the base rule makes source order win it. `display:none` (not
+   * visibility/opacity) keeps the hidden card's radiogroups/checkboxes out of the
+   * a11y tree + tab order, so the desktop strict-count e2e stays exact. */
+  .controls {
+    display: none;
+  }
+
   /* The content column is now full width (no rail beside it). The desktop side
    * padding (32px) is tightened on a phone so the controls card and plate get
    * more usable width; the values stay on/near the §0 space scale. */

@@ -140,9 +140,15 @@
  * the OPEN layout, where the inline display is removed.) */
 .mc-sheet-body {
   display: none;
+  /* The body is the sheet's scroll region (the sheet box caps at max-height; U6),
+   * with §4.2 inner padding + an inter-row gap matching the desktop card. */
+  flex-direction: column;
+  gap: var(--space-300); /* 12px — same inner gap as the desktop .controls card */
+  padding: var(--space-400); /* 16px (§4.2) */
+  overflow-y: auto;
 }
 .mc-sheet[data-open='true'] .mc-sheet-body {
-  display: block;
+  display: flex;
 }
 
 /* Inside the open sheet every pill track widens its inter-pill gap to
@@ -173,17 +179,102 @@
 }
 
 @media (max-width: 760px) {
-  /* The desktop controls card is hidden on a phone — `display:none` so its
-   * radiogroups/checkboxes leave the a11y tree (the mobile sheet is the surface
-   * below this breakpoint). */
-  .controls {
-    display: none;
-  }
-
   /* The mobile surface appears (hidden in the base cascade above). */
   .mobile-controls {
     display: block;
   }
+  /* NOTE: hiding the desktop `.controls` CARD below this breakpoint lives in
+   * shell.css's matching `@media (max-width: 760px)` block, NOT here. The bundle
+   * loads controls.css BEFORE shell.css, so a `.controls{display:none}` placed
+   * here (equal specificity; a media query adds none) would be overridden by
+   * shell.css's later base `.controls{display:flex}`. Co-locating the override
+   * with that base rule is what makes source order win it. */
+}
+
+/* ══ U7: mobile summary bar + sheet chrome (handle · close) (§9.1/§10/§16) ══════
+ *
+ * The visible mobile controls chrome the U5 swap reveals: the in-flow SUMMARY BAR
+ * (the one-tap trigger), the sheet's drag HANDLE (the peek band), and the explicit
+ * CLOSE button. Every color/space/radius resolves to a §0 token; the 44px floor is
+ * `--touch-target-min`. FINDINGS 2/3/6/7: these were entirely unstyled, so the
+ * summary failed WCAG 2.5.5 and the handle/close were zero/auto-size invisible
+ * buttons. DESIGN.md §9.1/§10/§16 win on any conflict (AGENTS.md). */
+
+/* The summary bar — a full-width §0 --surface row that reads as a card and meets
+ * the WCAG 2.5.5 44px floor on its OWN height (the centered ::before hit-pad
+ * pattern only covers `.pill`/`.ni`/`.theme`, not this bar — FINDING 3/7). */
+.mc-summary {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--touch-target-min); /* 44px — WCAG 2.5.5 on the bar's own box */
+  padding: var(--space-200) var(--space-400); /* 8px 16px (§4.2) */
+  margin-bottom: var(--space-400); /* 16px — same rhythm as the .controls card */
+  background: var(--surface); /* §2.1 stepped-up surface (matches the card) */
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card); /* 12px (§0) */
+  color: var(--text);
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  text-align: left;
+  cursor: pointer;
+}
+.mc-summary:hover {
+  border-color: var(--hairline3);
+}
+.mc-summary-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The drag handle — the always-visible peek band's tap target. It is a real
+ * pointer/keyboard target (one of the non-modal dismissal set: handle + Esc +
+ * close), so it fills the §0 52px peek band and meets the 44px floor; the
+ * {hairline3} grip pip is drawn with the `::before` overlay below. */
+.mc-handle {
+  display: block;
+  width: 100%;
+  height: var(--sheet-peek-h); /* 52px — the peek band the closed sheet shows */
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+/* The grip pip — a centered {hairline3} bar so the peek band reads as a handle. */
+.mc-handle::before {
+  content: '';
+  display: block;
+  width: var(--space-800); /* 32px grip */
+  height: 4px; /* the §0 4px micro step */
+  margin: var(--space-200) auto 0; /* 8px from the top edge, centered */
+  border-radius: var(--radius-pill);
+  background: var(--hairline3);
+}
+
+/* The explicit close button — a right-aligned pill-shaped tap target inside the
+ * body. It reuses the §8.4 ghost-button visuals (border + transparent fill) and
+ * meets the 44px floor on its own min-height. */
+.mc-close {
+  align-self: flex-end;
+  min-height: var(--touch-target-min); /* 44px — WCAG 2.5.5 */
+  padding: var(--space-200) var(--space-400); /* 8px 16px */
+  background: transparent;
+  border: 1px solid var(--hairline2);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  cursor: pointer;
+}
+.mc-close:hover {
+  border-color: var(--hairline3);
 }
 
 /* ══ U6: bottom-sheet motion — transitions-dev panel-reveal (#07), §7/§10 ═══════
@@ -209,7 +300,27 @@
  * positioned sheet. DESIGN.md §7/§10 win on any conflict (AGENTS.md). */
 .controls-sheet {
   position: fixed;
+  /* Anchor the sheet to the viewport bottom edge, full width (§10). Without an
+   * inset a `position:fixed` box would stay at its static in-flow origin and take
+   * content width, so the translateY peek math below would be meaningless — these
+   * four are what make it an actual bottom sheet. */
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 40; /* peer of the removed §10 drawer; below the palette overlay (z-50) */
+  /* The expanded sheet caps at most of the viewport and scrolls within (the body
+   * is the scroll region, U7) so a tall sheet never runs off the top of a short
+   * phone. The peek band (§0 --sheet-peek-h) is always at least visible. */
+  max-height: 88vh;
+  /* The sheet body (§0 --surface card) with a top hairline + top-only frame
+   * radius (it meets the bottom edge, so only the top corners round). A non-modal
+   * sheet MUST be opaque or the page behind shows through (FINDINGS 2, 6, 7); the
+   * §5 modal shadow lifts it off the live page below it. */
+  background: var(--surface);
+  border-top: 1px solid var(--hairline);
+  border-top-left-radius: var(--radius-frame); /* 14px (§0) */
+  border-top-right-radius: var(--radius-frame);
+  box-shadow: var(--elevation-modal); /* §5 — the float that reads it as a sheet */
   /* PEEK: slid down by its full height minus the visible peek band (§0
    * --sheet-peek-h = 52px). transform-only — opacity stays 1, no filter blur. */
   transform: translateY(calc(100% - var(--sheet-peek-h)));

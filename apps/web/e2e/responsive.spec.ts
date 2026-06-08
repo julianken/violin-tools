@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { type Page, expect, test } from '@playwright/test';
 
 // responsive.spec — the Playwright (real Chromium) half of the §10 mobile-reflow
 // verification (S11), extended by S16 ph2 (auto vertical-on-mobile). DESIGN.md §10
@@ -18,10 +18,13 @@ import { expect, test } from '@playwright/test';
 //     HORIZONTAL and the 760px board exceeds the plate (a landscape/desktop width),
 //     so that coverage is re-scoped to a landscape viewport rather than asserting
 //     stale horizontal behavior at mobile portrait;
-//   • the sidebar collapses to a drawer the topbar trigger opens/closes, with the
-//     drawer keyboard-operable (Esc closes, focus returns to the trigger);
+//   • the sidebar is HIDDEN below the breakpoint (S16 ph3 dropped the off-canvas
+//     drawer; the mobile top-bar search trigger + the controls bottom sheet take
+//     over its role) and the mobile controls are a SUMMARY BAR that opens a
+//     NON-MODAL bottom sheet (peek→expand, Esc closes, focus returns to the bar);
 //   • the controls wrap (not one pill per line);
-//   • at 1440×900 the desktop shell is UNCHANGED (248px sidebar, no trigger).
+//   • at 1440×900 the desktop shell is UNCHANGED (248px sidebar; no mobile search
+//     trigger; the desktop controls card, not the mobile sheet).
 //
 // NOTE on the assertion (per the issue's plan-review SUGGESTION): the robust
 // invariant is `scrollWidth <= clientWidth` (no overflow relative to the viewport
@@ -140,48 +143,99 @@ test.describe('§10 mobile reflow @ 390×844 — no horizontal page overflow', (
     expect(result.pageOverflow).toBe(false);
   });
 
-  test('the controls wrap (more than one pill per visual row)', async ({ page }) => {
+  test('the Root picker is a 4×3 grid in the sheet (12 pills, multiple per row)', async ({
+    page,
+  }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/');
-    // The Root radiogroup has 12 pills; on a 390px column they must wrap onto
-    // multiple rows (distinct top offsets), not stack one-per-line full width.
+    // S16 ph3: the Root pills live in the bottom sheet as a 4×3 grid (not a
+    // wrapping flex row on the page). Open the sheet, then assert the 12 pills lay
+    // out across multiple rows AND multiple columns (a grid, not one-per-line).
+    await page.getByRole('button', { name: /^Scale controls:/ }).click();
     const rootGroup = page.getByRole('radiogroup', { name: 'Root note' });
-    const tops = await rootGroup.locator('.pill').evaluateAll((pills) =>
-      pills.map((p) => Math.round(p.getBoundingClientRect().top)),
+    const boxes = await rootGroup.locator('.pill').evaluateAll((pills) =>
+      pills.map((p) => {
+        const b = p.getBoundingClientRect();
+        return { top: Math.round(b.top), left: Math.round(b.left) };
+      }),
     );
-    const distinctRows = new Set(tops).size;
-    // Wrapping = at least 2 rows but FEWER rows than pills (i.e. multiple pills
-    // share a row — not one-per-line). 12 pills, ≥2 rows, <12 rows.
+    expect(boxes).toHaveLength(12);
+    const distinctRows = new Set(boxes.map((b) => b.top)).size;
+    const distinctCols = new Set(boxes.map((b) => b.left)).size;
+    // 12 pills → 4 columns × 3 rows: ≥2 rows AND >1 column (a grid, never one-per-
+    // line, never one-per-row). The grid template caps it at 4 columns.
     expect(distinctRows).toBeGreaterThanOrEqual(2);
-    expect(distinctRows).toBeLessThan(tops.length);
+    expect(distinctRows).toBeLessThan(boxes.length);
+    expect(distinctCols).toBeGreaterThan(1);
   });
 });
 
-test.describe('§10 mobile drawer — keyboard-operable, focus-managed', () => {
-  test('the topbar trigger opens the drawer and the sidebar slides in', async ({ page }) => {
+test.describe('§10/§16 mobile controls — summary bar + non-modal bottom sheet (S16 ph3)', () => {
+  // S16 ph3 dropped the off-canvas drawer (the topbar hamburger / "Open navigation"
+  // trigger / .side.is-open slide are GONE). Below the breakpoint the controls are a
+  // one-tap SUMMARY BAR that opens a NON-MODAL bottom sheet (peek→expand). The bar's
+  // accessible name leads with "Scale controls: " then the live summary, so it is
+  // matched by that prefix.
+  const summaryBar = (page: Page) => page.getByRole('button', { name: /^Scale controls:/ });
+
+  test('the drawer is gone: the 248px rail is display:none and there is no "Open navigation"', async ({
+    page,
+  }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/');
-    const trigger = page.getByRole('button', { name: 'Open navigation' });
-    await expect(trigger).toBeVisible();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    // The rail is removed below the breakpoint (no off-canvas drawer to slide).
+    const railDisplay = await page
+      .locator('.side')
+      .evaluate((el) => getComputedStyle(el).display);
+    expect(railDisplay).toBe('none');
+    // The dropped hamburger trigger no longer exists anywhere.
+    await expect(page.getByRole('button', { name: 'Open navigation' })).toHaveCount(0);
+    // The mobile-only top-bar search trigger took over the drawer's reachability.
+    await expect(page.getByRole('button', { name: 'Search scales and tools' })).toBeVisible();
+  });
 
-    await trigger.click();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  test('the summary bar opens the bottom sheet and reveals the controls (peek→expand)', async ({
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE);
+    await page.goto('/');
+    const bar = summaryBar(page);
+    await expect(bar).toBeVisible();
+    await expect(bar).toHaveAttribute('aria-expanded', 'false');
+    // The bar meets the WCAG 2.5.5 44px floor on its OWN box (U7 CSS).
+    const barHeight = await bar.evaluate((el) => Math.round(el.getBoundingClientRect().height));
+    expect(barHeight).toBeGreaterThanOrEqual(44);
 
-    // The rail is on-canvas (translateX 0) and visible while open.
-    const rail = page.locator('.side');
-    await expect(rail).toHaveClass(/is-open/);
-    await expect(rail).toBeVisible();
-    // The slide is a 200ms transition; poll until the transform settles at
-    // translateX(0) so we assert the END state, not a mid-animation frame.
-    // matrix(1, 0, 0, 1, 0, 0) === translateX(0); off-canvas would be ~-248.
-    await expect
-      .poll(async () => rail.evaluate((el) => getComputedStyle(el).transform))
-      .toBe('matrix(1, 0, 0, 1, 0, 0)');
-    const railVisibility = await rail.evaluate((el) => getComputedStyle(el).visibility);
-    expect(railVisibility).toBe('visible');
+    // The sheet the bar controls; closed, its body rows are out of the a11y tree.
+    const sheetId = await bar.getAttribute('aria-controls');
+    expect(sheetId).not.toBeNull();
+    const sheet = page.locator(`#${sheetId ?? ''}`);
+    // The sheet is a NON-MODAL bottom sheet: position:fixed, anchored to the bottom
+    // edge, opaque (FINDINGS 2/6/7) — not a dialog.
+    const closed = await sheet.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return {
+        position: cs.position,
+        bottom: cs.bottom,
+        opaque: cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent',
+        right: Math.round(el.getBoundingClientRect().right),
+        left: Math.round(el.getBoundingClientRect().left),
+        role: el.getAttribute('role'),
+      };
+    });
+    expect(closed.position).toBe('fixed');
+    expect(closed.bottom).toBe('0px');
+    expect(closed.opaque).toBe(true);
+    expect(closed.left).toBe(0); // anchored full-width to the viewport
+    expect(closed.role).not.toBe('dialog'); // non-modal
 
-    // Opening still doesn't widen the page (the drawer is fixed/off-flow).
+    // Open it: the four controls rows (Root/Scale/Refs/View) become reachable.
+    await bar.click();
+    await expect(bar).toHaveAttribute('aria-expanded', 'true');
+    await expect(sheet.getByRole('radiogroup', { name: 'Root note' })).toBeVisible();
+    await expect(sheet.getByRole('radiogroup', { name: 'Orientation' })).toBeVisible();
+
+    // Opening does not widen the page (the sheet is fixed/off-flow).
     const overflow = await page.evaluate(() => {
       const de = document.scrollingElement ?? document.documentElement;
       return de.scrollWidth > de.clientWidth;
@@ -189,41 +243,42 @@ test.describe('§10 mobile drawer — keyboard-operable, focus-managed', () => {
     expect(overflow).toBe(false);
   });
 
-  test('Escape closes the drawer and returns focus to the trigger', async ({ page }) => {
+  test('Escape closes the non-modal sheet and returns focus to the summary bar', async ({
+    page,
+  }) => {
     await page.setViewportSize(MOBILE);
     await page.goto('/');
-    const trigger = page.getByRole('button', { name: 'Open navigation' });
-    await trigger.click();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    const bar = summaryBar(page);
+    await bar.click();
+    await expect(bar).toHaveAttribute('aria-expanded', 'true');
 
     await page.keyboard.press('Escape');
-    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.locator('.side')).not.toHaveClass(/is-open/);
-    // Focus returns to the trigger (the WAI-ARIA focus-return contract).
-    const focusOnTrigger = await trigger.evaluate((el) => el === document.activeElement);
-    expect(focusOnTrigger).toBe(true);
-  });
-
-  test('the closed drawer is off-canvas (hidden, not a tab trap)', async ({ page }) => {
-    await page.setViewportSize(MOBILE);
-    await page.goto('/');
-    // While closed below the breakpoint, the drawer is visibility:hidden so its
-    // search/nav/theme controls are out of the tab order (no off-canvas hazard).
-    const railVisibility = await page
-      .locator('.side')
-      .evaluate((el) => getComputedStyle(el).visibility);
-    expect(railVisibility).toBe('hidden');
+    await expect(bar).toHaveAttribute('aria-expanded', 'false');
+    // Focus returns to the summary bar (the useDrawer focus-return contract).
+    const focusOnBar = await bar.evaluate((el) => el === document.activeElement);
+    expect(focusOnBar).toBe(true);
   });
 });
 
 test.describe('§10 desktop @ 1440×900 — the shell is unchanged', () => {
-  test('the sidebar is the 248px sticky rail; no drawer trigger; no overflow', async ({ page }) => {
+  test('the sidebar is the 248px sticky rail; no mobile search trigger; no overflow', async ({
+    page,
+  }) => {
     await page.setViewportSize(DESKTOP);
     await page.goto('/');
     await expect(page.locator('svg#board')).toBeVisible();
 
-    // The drawer trigger is hidden on desktop (the desktop topbar is unchanged).
-    await expect(page.getByRole('button', { name: 'Open navigation' })).toBeHidden();
+    // The mobile-only top-bar search trigger is hidden on desktop (the desktop
+    // topbar is unchanged; the sidebar search stays the sole palette opener). The
+    // dropped drawer hamburger no longer exists at all.
+    await expect(page.getByRole('button', { name: 'Open navigation' })).toHaveCount(0);
+    // The sidebar search stays the sole VISIBLE "Search scales and tools" opener on
+    // desktop (regex: its accessible name also carries the ⌘K kbd). The mobile
+    // top-bar search is display:none here.
+    await expect(page.getByRole('button', { name: /search scales and tools/i })).toBeVisible();
+    await expect(page.locator('.topbar-search')).toBeHidden();
+    // The desktop controls card is the surface (the mobile summary bar is hidden).
+    await expect(page.getByRole('button', { name: /^Scale controls:/ })).toBeHidden();
 
     const desk = await page.locator('.side').evaluate((el) => {
       const cs = getComputedStyle(el);

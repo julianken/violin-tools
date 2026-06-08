@@ -75,7 +75,8 @@ export function MobileControls({
       {/* Summary bar — the one-tap trigger. Its accessible name leads with "Scale
           controls" then the live summary so AT announces what it opens AND the
           current selection; aria-expanded mirrors the sheet state; aria-controls
-          ties it to the sheet region. The 44px hit target is U6 CSS. */}
+          ties it to the sheet region. The 44px hit target is U7 CSS (the bar's own
+          min-height — the centered ::before hit-pad only covers .pill/.ni/.theme). */}
       <button
         type="button"
         className="mc-summary"
