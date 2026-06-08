@@ -192,6 +192,10 @@ export function NoteMap({
     rows: STRINGS.length,
     columns,
     initialIndex: rootIndex,
+    // §11.3 — the arrow keys re-bind to the visual axis per orientation (and the
+    // cross-axis sign follows handedness); the flat index model is unchanged.
+    orientation,
+    handedness,
     onSound: (index) => {
       setSoundingIndex(index);
       const marker = markers[index];

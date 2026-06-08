@@ -51,7 +51,14 @@ describe('§11.3 roving tabindex — the note map is one tab stop', () => {
   });
 
   it('ArrowRight moves the single tab stop one column along the string', () => {
-    const { markers } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    // Pass orientation explicitly so the horizontal arrow semantics stay pinned
+    // even as the default render orientation can resolve to vertical (S16 ph2).
+    const { markers } = renderBoard({
+      rootPc: 9,
+      root: 'A',
+      scale: 'major',
+      orientation: 'horizontal',
+    });
     const before = markers();
     const start = before.find((m) => m.getAttribute('tabindex') === '0');
     if (start === undefined) throw new Error('no tab stop');
@@ -64,7 +71,7 @@ describe('§11.3 roving tabindex — the note map is one tab stop', () => {
   });
 
   it('ArrowDown crosses to the next string spatially (same column, +15 indices)', () => {
-    const { markers } = renderBoard();
+    const { markers } = renderBoard({ orientation: 'horizontal' });
     const before = markers();
     const start = before.find((m) => m.getAttribute('tabindex') === '0');
     if (start === undefined) throw new Error('no tab stop');
@@ -76,7 +83,12 @@ describe('§11.3 roving tabindex — the note map is one tab stop', () => {
   });
 
   it('ArrowLeft clamps at the open column (no wrap to the previous string)', () => {
-    const { markers } = renderBoard({ rootPc: 9, root: 'A', scale: 'major' });
+    const { markers } = renderBoard({
+      rootPc: 9,
+      root: 'A',
+      scale: 'major',
+      orientation: 'horizontal',
+    });
     // Drive the tab stop to the open column (col 0) of its string with Home, then
     // ArrowLeft must clamp there (no wrap to the previous string).
     const start = markers().find((m) => m.getAttribute('tabindex') === '0');
@@ -89,6 +101,129 @@ describe('§11.3 roving tabindex — the note map is one tab stop', () => {
     fireEvent.keyDown(atOpen, { key: 'ArrowLeft' });
     const after = markers().find((m) => m.getAttribute('tabindex') === '0');
     expect(markers().indexOf(after!)).toBe(openIndex); // clamped, unchanged
+  });
+});
+
+describe('§11.3 roving re-binds to the visual axis (vertical)', () => {
+  // In vertical the ALONG axis (a string, by column) runs DOWN the screen, so
+  // Up/Down step along a string and Left/Right cross strings — the mirror of the
+  // horizontal binding. The flat index model (string × column) is unchanged; only
+  // the physical-key → delta mapping flips per orientation. The A Major tab stop
+  // starts at flat index 5 (E5 string, col 5 — the first root, as the horizontal
+  // suite documents), so the tests navigate deterministically from there.
+  const vertical = { rootPc: 9, root: 'A', scale: 'major', orientation: 'vertical' } as const;
+  const tabIndex = (ms: Element[]) =>
+    ms.indexOf(ms.find((m) => m.getAttribute('tabindex') === '0')!);
+
+  it('ArrowDown moves +1 along a string (by column), one tab stop', () => {
+    const { markers } = renderBoard(vertical);
+    const before = markers();
+    const start = before.find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    const startIndex = before.indexOf(start); // index 5, E5 col 5 — room to move down
+    fireEvent.keyDown(start, { key: 'ArrowDown' });
+    const after = markers();
+    const tabbable = after.filter((m) => m.getAttribute('tabindex') === '0');
+    expect(tabbable).toHaveLength(1);
+    expect(after.indexOf(tabbable[0]!)).toBe(startIndex + 1); // +1 column (ALONG)
+  });
+
+  it('ArrowRight crosses strings by ±columns (15 indices), one tab stop', () => {
+    const { markers } = renderBoard(vertical);
+    const start = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    // E5 (string 0) is the RIGHTMOST string in vertical+right (descending order),
+    // so ArrowRight there clamps. Step CROSS to an interior string first with
+    // ArrowLeft (toward the smaller cross coord), then ArrowRight must move back.
+    fireEvent.keyDown(start, { key: 'ArrowLeft' });
+    const interior = tabIndex(markers());
+    fireEvent.keyDown(markers()[interior]!, { key: 'ArrowRight' });
+    const after = markers();
+    const tabbable = after.filter((m) => m.getAttribute('tabindex') === '0');
+    expect(tabbable).toHaveLength(1);
+    // A CROSS move is exactly one string away: ±15 (a multiple of columns).
+    expect(Math.abs(after.indexOf(tabbable[0]!) - interior)).toBe(15);
+  });
+
+  it('ArrowUp clamps at the open column (the along-axis extreme)', () => {
+    const { markers } = renderBoard(vertical);
+    const start = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    // Drive to the open column (col 0) with Home (always along-string), then
+    // ArrowUp (ALONG −1) must clamp there — the along-axis extreme.
+    fireEvent.keyDown(start, { key: 'Home' });
+    const atOpen = tabIndex(markers());
+    expect(atOpen % 15).toBe(0); // Home landed on the open column
+    fireEvent.keyDown(markers()[atOpen]!, { key: 'ArrowUp' });
+    expect(tabIndex(markers())).toBe(atOpen); // clamped, unchanged
+  });
+
+  it('keeps exactly one tabindex=0 after each vertical move', () => {
+    const { markers } = renderBoard(vertical);
+    const start = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    for (const key of ['ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight']) {
+      const here = tabIndex(markers());
+      fireEvent.keyDown(markers()[here]!, { key });
+      expect(markers().filter((m) => m.getAttribute('tabindex') === '0')).toHaveLength(1);
+    }
+  });
+});
+
+describe('§11.3 roving preserves the focused note across a flip', () => {
+  it('keeps the SAME flat index as the single tab stop when orientation flips', () => {
+    const { markers, rerender } = renderBoard({
+      rootPc: 9,
+      root: 'A',
+      scale: 'major',
+      orientation: 'vertical',
+    });
+    // Arrow once so movedRef is set (the user has taken over navigation).
+    const start = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    fireEvent.keyDown(start, { key: 'ArrowDown' }); // ALONG +1 in vertical
+    const movedIndex = markers().indexOf(
+      markers().find((m) => m.getAttribute('tabindex') === '0')!,
+    );
+    // Flip to horizontal — the SAME flat index stays the single tab stop.
+    rerender({ rootPc: 9, root: 'A', scale: 'major', orientation: 'horizontal' });
+    const after = markers().filter((m) => m.getAttribute('tabindex') === '0');
+    expect(after).toHaveLength(1);
+    expect(markers().indexOf(after[0]!)).toBe(movedIndex);
+  });
+});
+
+describe('§11.3 cross-sign follows the visual order (delta level)', () => {
+  it('vertical+right: ArrowRight and ArrowLeft move in OPPOSITE ±columns directions', () => {
+    // vertical+right has a DESCENDING crossOrder ([3,2,1,0]); the cross sign must
+    // invert so the on-screen direction still matches. Here we assert only that
+    // the two cross keys go opposite ways at the delta level (screen-pixel
+    // direction is verified in the U7 e2e). Start on an interior string (A4) so
+    // both cross keys have room to move.
+    const { markers } = renderBoard({
+      rootPc: 9,
+      root: 'A',
+      scale: 'major',
+      orientation: 'vertical',
+    });
+    const indexOfTab = () =>
+      markers().indexOf(markers().find((m) => m.getAttribute('tabindex') === '0')!);
+    const start = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    // From E5 col 5 (the rightmost string), one ArrowLeft steps CROSS to A4 col 5 —
+    // an interior string with a neighbor on BOTH cross sides.
+    fireEvent.keyDown(start, { key: 'ArrowLeft' });
+    const base = indexOfTab();
+    // ArrowRight from base, then back to base, then ArrowLeft from base.
+    fireEvent.keyDown(markers()[base]!, { key: 'ArrowRight' });
+    const right = indexOfTab();
+    fireEvent.keyDown(markers()[right]!, { key: 'ArrowLeft' });
+    expect(indexOfTab()).toBe(base); // ArrowLeft undoes ArrowRight
+    fireEvent.keyDown(markers()[base]!, { key: 'ArrowLeft' });
+    const left = indexOfTab();
+    // The two cross keys move opposite ways: one +columns, one −columns.
+    expect(right - base).toBe(-(left - base));
+    expect(Math.abs(right - base)).toBe(15);
   });
 });
 
