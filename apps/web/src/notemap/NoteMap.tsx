@@ -31,12 +31,13 @@ import {
   type Root,
   type ScaleType,
 } from '@violin-tools/theory';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { INITIAL_CONTROLS, type RefsState } from '../state/controls';
 
 import { RefLayers } from './RefLayers';
 import {
+  axisOf,
   COLUMN_OFFSETS,
   GUIDE_Y1,
   GUIDE_Y2,
@@ -50,6 +51,7 @@ import {
   STRINGS,
   xOf,
 } from './geometry';
+import type { Density, Handedness, Orientation } from './mapView';
 import { type MotionBuild, useDotPopReplay } from './motion';
 import { useRovingNoteMap } from './useRovingNoteMap';
 import './motion.css';
@@ -87,6 +89,22 @@ interface NoteMapProps {
    */
   motion?: MotionBuild;
   /**
+   * The resolved render orientation (§12.1) — `'horizontal'` (desktop, default) |
+   * `'vertical'` (mobile). Already resolved from the user's mode (never `'auto'`);
+   * the AppShell does the matchMedia resolve and threads the concrete value (U2).
+   * Defaults to `'horizontal'` so a prop-absent render is the byte-identical
+   * desktop map.
+   */
+  orientation?: Orientation;
+  /** Player handedness (§12.5) — `'right'` (default) | `'left'`; mirrors the cross axis. */
+  handedness?: Handedness;
+  /**
+   * Neck-axis spacing (§12.1) — `'fit'` (default, the byte-identical desktop neck) |
+   * `'comfort'` (the wider mobile-vertical neck). Derived from orientation upstream;
+   * defaults to `'fit'` so the bare render reproduces today's geometry.
+   */
+  density?: Density;
+  /**
    * Announce a sounded note's spoken name (§11.3) — called on Enter/Space over a
    * marker so the shell's polite live region can speak it. Optional so the static
    * NoteMap (tests, the S5 default render) need not wire audio plumbing.
@@ -100,6 +118,12 @@ interface NoteMapProps {
 const DEFAULT_ROOT_PC = 9;
 const DEFAULT_ROOT: Root = 'A';
 const DEFAULT_SCALE: ScaleType = 'major';
+// §12.1 axis defaults — a prop-absent render is the byte-identical desktop map
+// (horizontal + right-handed + fit), so existing bare <NoteMap/> renders (the
+// NoteMap / a11y / motion tests) keep their today-identical geometry post-U0.
+const DEFAULT_ORIENTATION: Orientation = 'horizontal';
+const DEFAULT_HANDEDNESS: Handedness = 'right';
+const DEFAULT_DENSITY: Density = 'fit';
 // Every reference layer off by default (the S6 INITIAL_CONTROLS refs) — the
 // first paint is the bare map a reviewer diffs against §12.
 
@@ -115,9 +139,21 @@ export function NoteMap({
   scale = DEFAULT_SCALE,
   refs = INITIAL_CONTROLS.refs,
   motion = 'stateful',
+  orientation = DEFAULT_ORIENTATION,
+  handedness = DEFAULT_HANDEDNESS,
+  density = DEFAULT_DENSITY,
   onSoundNote,
 }: NoteMapProps) {
   const scaleSet = SCALE_INTERVALS[scale];
+
+  // The resolved §12.1 layout for this axis config. Memoized so `layout.dotCenter`
+  // is a stable reference across re-renders that don't change the axis — the U6
+  // snap-on-change guard keys on it, and a stable reference avoids needless marker
+  // rebuilds when only (root, scale) change.
+  const layout = useMemo(
+    () => axisOf({ orientation, handedness, density }),
+    [orientation, handedness, density],
+  );
 
   // The snappy build replays `dotPop` on each (root, scale) change via the
   // number-pop-in reflow trick (motion.ts). `changeKey` keys the effect on the
@@ -134,14 +170,18 @@ export function NoteMap({
     COLUMN_OFFSETS.map((columnOffset, colIndex) => {
       const nodePc = nodePitchClass(string.pc, columnOffset);
       const state = classify(rootPc, scaleSet, nodePc);
+      // §12.1 — the dot center comes from the resolved axis layout, so a vertical
+      // / comfort config places the SAME node on the swapped axis. stringIndex
+      // stays 0..3 (the 4-element crossOrder), columnOffset stays 0..14.
+      const { cx, cy } = layout.dotCenter(stringIndex, columnOffset);
       return {
         index: stringIndex * columns + colIndex,
         stringIndex,
         columnOffset,
         nodePc,
         state,
-        cx: xOf(columnOffset),
-        cy: string.y,
+        cx,
+        cy,
         // §11.3 accessible name — the §13 spoken note name + state suffix
         // ("C sharp, root"), recomputed every render so it tracks (root, scale).
         name: noteMarkerName(nodePc, root, scale, state),
