@@ -155,6 +155,65 @@ describe('axisOf (orientation/handedness/density projection)', () => {
   });
 });
 
+// §12.1 / issue #78 Phase-2 density AC — "Density Fit shows all 15 positions with
+// no scroll; Comfort scrolls vertically only (no horizontal scroll in either)."
+// The pre-existing `axisOf` spacing test (comfort gap > fit gap) only proves the
+// columns are spaced wider; it does NOT prove the AC's two scroll claims. These
+// pin them at the geometry level (the only resolved surface Phase 2 ships — there
+// is no Fit-vertical USER toggle until Phase 3, so this is the verifiable layer):
+//   • FIT fits all 15 — every column's dot sits inside the vertical+fit neck
+//     extent, so the whole neck shows with no scroll.
+//   • COMFORT scrolls VERTICALLY ONLY — its neck extent (the scroll axis = the
+//     viewBox HEIGHT) exceeds fit's, while the cross extent (the viewBox WIDTH) is
+//     byte-identical between the two densities, so the extra extent is purely
+//     vertical (nothing widens → no horizontal scroll is introduced by density).
+describe('density scroll behavior (§12.1 / #78 Phase-2 AC)', () => {
+  // The largest dot radius (§12.2 root dot = 15px, the §12.2 max the renderer
+  // draws; mirrored from NoteMap.tsx DOT_RADIUS.root). A column "fits" when its
+  // dot's far edge sits inside the neck extent. Kept as a documented literal so
+  // this pure-geometry test takes no React/DOM dependency.
+  const MAX_DOT_RADIUS = 15;
+
+  it('FIT (vertical) fits all 15 positions inside the neck extent — no scroll', () => {
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'fit' });
+    // Vertical: the neck runs DOWN, so the neck axis is cy and the extent is the
+    // viewBox HEIGHT. Every one of the 15 columns (its dot's far edge) must sit
+    // inside that height — i.e. the full neck is visible without scrolling.
+    const offenders: { columnOffset: number; dotBottom: number }[] = [];
+    for (const offset of COLUMN_OFFSETS) {
+      const dotBottom = layout.dotCenter(0, offset).cy + MAX_DOT_RADIUS;
+      if (dotBottom > layout.viewBoxHeight) offenders.push({ columnOffset: offset, dotBottom });
+    }
+    expect(offenders).toEqual([]);
+    // And the open column (offset 0) sits at the top, inside the box too.
+    expect(layout.dotCenter(0, 0).cy - MAX_DOT_RADIUS).toBeGreaterThanOrEqual(0);
+  });
+
+  it('COMFORT (vertical) is taller than FIT on the neck axis — the vertical-scroll axis grows', () => {
+    const fit = axisOf({ orientation: 'vertical', handedness: 'right', density: 'fit' });
+    const comfort = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    // The neck axis (the scrollable one) is the viewBox HEIGHT in vertical, so a
+    // longer comfort neck means a taller box that scrolls vertically (704 → 850).
+    expect(comfort.viewBoxHeight).toBeGreaterThan(fit.viewBoxHeight);
+  });
+
+  it('COMFORT scrolls VERTICALLY ONLY — the cross axis (width) is identical to FIT', () => {
+    const fit = axisOf({ orientation: 'vertical', handedness: 'right', density: 'fit' });
+    const comfort = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    // The cross axis is the viewBox WIDTH in vertical. If density only stretched
+    // the NECK, the width must NOT change between fit and comfort — that is the
+    // geometric proof "no horizontal scroll in either" (the §10/responsive.spec.ts
+    // live check covers the rendered page; this pins the source-of-truth geometry).
+    expect(comfort.viewBoxWidth).toBe(fit.viewBoxWidth);
+    // All 15 comfort columns also fit inside the (taller) comfort extent — comfort
+    // scrolls but is never clipped.
+    const offenders = COLUMN_OFFSETS.filter(
+      (offset) => comfort.dotCenter(0, offset).cy + MAX_DOT_RADIUS > comfort.viewBoxHeight,
+    );
+    expect(offenders).toEqual([]);
+  });
+});
+
 // U3 (S16 ph2): the static chrome — string lines, position guides, the nut, and
 // the string-name / open labels — projected through the layout so it follows the
 // render axis. HORIZONTAL must reproduce today's §12.1 literals byte-identically;
