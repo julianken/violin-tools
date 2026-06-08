@@ -101,6 +101,13 @@ export function Content({
         selectRoot={controls.selectRoot}
         selectScale={controls.selectScale}
         toggleRef={controls.toggleRef}
+        // §12.3 — the Refs overlays are still horizontal-axis-only (the band/heel/
+        // low-2 geometry is not yet projected through `axisOf`; that is the tracked
+        // U3b follow-up). On the vertical map the Refs pills are therefore disabled
+        // so a user cannot paint a mis-projected band; <RefLayers> is also skipped
+        // in NoteMap while vertical (defense in depth). Forwarded so RefsRow can
+        // dim/disable the pills.
+        orientation={orientation}
       />
 
       <div className="panelcard">

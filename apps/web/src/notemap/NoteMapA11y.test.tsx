@@ -191,6 +191,69 @@ describe('§11.3 roving preserves the focused note across a flip', () => {
     expect(after).toHaveLength(1);
     expect(markers().indexOf(after[0]!)).toBe(movedIndex);
   });
+
+  it('re-focuses the SAME marker element across a flip when focus is IN the map', () => {
+    const { markers, rerender } = renderBoard({
+      rootPc: 9,
+      root: 'A',
+      scale: 'major',
+      orientation: 'vertical',
+    });
+    // Arrow once — moveTo() both sets movedRef AND focuses the active marker, so
+    // document.activeElement is now a marker inside the widget.
+    const start = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    fireEvent.keyDown(start, { key: 'ArrowDown' });
+    const focused = markers().find((m) => m === document.activeElement);
+    expect(focused).toBeDefined(); // focus is on a marker (the intra-widget case)
+    // Flip — focus must STAY on the active marker (the visible ring follows the note).
+    rerender({ rootPc: 9, root: 'A', scale: 'major', orientation: 'horizontal' });
+    const tabbable = markers().find((m) => m.getAttribute('tabindex') === '0');
+    expect(document.activeElement).toBe(tabbable);
+  });
+
+  it('does NOT yank focus into the map on a flip when focus has left the widget', () => {
+    // WCAG 3.2 (no surprise focus change): a user who arrowed in the map and then
+    // Tabbed AWAY must not be dragged back into the SVG by a device-rotation flip.
+    const { container, rerender } = render(
+      <div>
+        {/* An external control the user can Tab focus to, OUTSIDE the map widget. */}
+        <button type="button" data-testid="outside">
+          outside
+        </button>
+        <svg>
+          <NoteMap rootPc={9} root="A" scale="major" orientation="vertical" />
+        </svg>
+      </div>,
+    );
+    const svg = container.querySelector('svg');
+    if (svg === null) throw new Error('no svg host');
+    const markers = () => Array.from(svg.querySelectorAll('g.note'));
+    // Arrow once so movedRef is set (the user has navigated the map).
+    const start = markers().find((m) => m.getAttribute('tabindex') === '0');
+    if (start === undefined) throw new Error('no tab stop');
+    fireEvent.keyDown(start, { key: 'ArrowDown' });
+    // Now leave the widget: park focus on the external control.
+    const outside = container.querySelector<HTMLButtonElement>('[data-testid="outside"]');
+    if (outside === null) throw new Error('no outside control');
+    outside.focus();
+    expect(document.activeElement).toBe(outside);
+    // Flip the orientation — focus must STAY on the outside control, never the SVG.
+    rerender(
+      <div>
+        <button type="button" data-testid="outside">
+          outside
+        </button>
+        <svg>
+          <NoteMap rootPc={9} root="A" scale="major" orientation="horizontal" />
+        </svg>
+      </div>,
+    );
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-testid="outside"]'),
+    );
+    expect(markers().some((m) => m === document.activeElement)).toBe(false);
+  });
 });
 
 describe('§11.3 cross-sign follows the visual order (delta level)', () => {

@@ -98,14 +98,27 @@ export function useRovingNoteMap({
 
   // Preserve focus on the SAME note across an orientation flip (§11.3): once the
   // user has arrowed (movedRef), a flip re-projects the dots, so re-focus the
-  // active marker's element to keep the visible focus ring on the same note. Gated
-  // on movedRef so the initial AUTO flip (no user interaction yet) never steals
-  // focus into the SVG. Keyed on `orientation` only — the flat index is unchanged
-  // by the flip, so the same marker element stays active. Reads the active index
-  // from a ref so the effect has no `activeIndex` dependency (re-focus on a FLIP,
-  // not on every move — `moveTo` already focuses on a keystroke).
+  // active marker's element to keep the visible focus ring on the same note. Keyed
+  // on `orientation` only — the flat index is unchanged by the flip, so the same
+  // marker element stays active. Reads the active index from a ref so the effect
+  // has no `activeIndex` dependency (re-focus on a FLIP, not on every move —
+  // `moveTo` already focuses on a keystroke).
+  //
+  // Gated on TWO conditions, BOTH required (WCAG 3.2 — no surprise focus change):
+  //   • movedRef — the user has taken over navigation (so the initial AUTO flip,
+  //     with no user interaction yet, never steals focus into the SVG); AND
+  //   • focus currently lives ON a marker in this widget — if the user has since
+  //     Tabbed AWAY (focus parked on the skip link or another control), a flip
+  //     must NOT yank focus back into the SVG. We re-focus only to KEEP the ring
+  //     on a note the user is already focused on, never to grab focus from
+  //     elsewhere. (`movedRef` alone is sticky-true forever once arrowed, so it
+  //     can't distinguish "still in the map" from "left the map".)
   useEffect(() => {
-    if (movedRef.current) markerRefs.current[activeIndexRef.current]?.focus();
+    const active = document.activeElement;
+    const focusInWidget = markerRefs.current.some((el) => el !== null && el === active);
+    if (movedRef.current && focusInWidget) {
+      markerRefs.current[activeIndexRef.current]?.focus();
+    }
   }, [orientation]);
 
   const tabIndexFor = useCallback(
