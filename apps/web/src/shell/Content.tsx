@@ -1,12 +1,25 @@
 import { Controls } from '../controls/Controls';
+import { MobileControls } from '../controls/MobileControls';
 import { NoteMap } from '../notemap/NoteMap';
 import { NoteMapLegend } from '../notemap/NoteMapLegend';
 import { axisOf } from '../notemap/geometry';
 import { type Handedness, type Orientation, type ResolvedDensity } from '../notemap/mapView';
 import { type MotionBuild } from '../notemap/motion';
 import { type MapViewApi } from '../notemap/useMapView';
-import { derive, scaleName } from '../state/controls';
+import { derive, REF_PILLS, scaleName, type ControlsState } from '../state/controls';
 import { type ControlsApi } from '../state/useControls';
+
+// §10/§16 summary-bar text — the scale name plus any active reference layers, the
+// one-tap mobile summary the sheet expands from ("A Major · Tapes", "A Major" with
+// no refs). It derives from the SAME `controls.state` AppShell's describeMap reads,
+// so the summary and the map never disagree. Active refs are listed in the §9.1
+// REF_PILLS order using their pill labels, joined with ", "; the scale name and the
+// refs cluster are separated by a §13 middle dot.
+function summarize(state: ControlsState): string {
+  const activeRefs = REF_PILLS.filter(({ key }) => state.refs[key]).map(({ label }) => label);
+  const name = scaleName(state);
+  return activeRefs.length === 0 ? name : `${name} · ${activeRefs.join(', ')}`;
+}
 
 // The max-880px content column (DESIGN.md §9 tree, §4.2). It emits the slot set
 // in §9-tree order — kicker · toolhead · controls · panelcard · caveat · legend.
@@ -109,6 +122,11 @@ export function Content({
         <div className="formula" />
       </div>
 
+      {/* The DESKTOP controls card (§9.1) — shown ≥760px, `display:none` <760px
+          (U6 CSS). The mobile MobileControls surface below mounts alongside it and
+          is shown <760px; BOTH mount and CSS toggles which is visible (FINDING 6 —
+          the hidden surface is display:none so its radiogroups/checkboxes leave the
+          a11y tree, keeping the desktop strict-count e2e exact). */}
       <Controls
         state={controls.state}
         selectRoot={controls.selectRoot}
@@ -127,6 +145,21 @@ export function Content({
         // (exactOptionalPropertyTypes).
         {...(mapView !== undefined ? { mapView } : {})}
       />
+
+      {/* The MOBILE controls surface (§10/§16) — a one-tap summary bar + non-modal
+          bottom sheet, shown <760px and `display:none` ≥760px (U6 CSS). It needs
+          the whole map-view api (its View row drives orientation/density/handedness),
+          so it mounts only when `mapView` is threaded — the Content unit harness
+          (which exercises only the controls→map wiring, no mapView) renders just the
+          desktop card, keeping its H1/board assertions unambiguous. */}
+      {mapView !== undefined && (
+        <MobileControls
+          controls={controls}
+          mapView={mapView}
+          orientation={orientation}
+          summaryText={summarize(controls.state)}
+        />
+      )}
 
       <div className="panelcard">
         {/* The note-map plate: `overflow-x:auto`, inner SVG holds its 760px
