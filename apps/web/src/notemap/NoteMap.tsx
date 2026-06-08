@@ -44,7 +44,7 @@ import {
   STRINGS,
 } from './geometry';
 import type { Density, Handedness, Orientation } from './mapView';
-import { type MotionBuild, useDotPopReplay } from './motion';
+import { type MotionBuild, useDotPopReplay, useOrientationSnap } from './motion';
 import { useRovingNoteMap } from './useRovingNoteMap';
 import './motion.css';
 import './notemap.css';
@@ -152,6 +152,11 @@ export function NoteMap({
   // selection; the stateful build no-ops inside the hook.
   const notesRef = useRef<SVGGElement>(null);
   useDotPopReplay(notesRef, motion, `${String(rootPc)}-${scale}`);
+  // §7.4 / §11.4 — forward-proof the orientation flip as a SNAP: it already jumps
+  // (motion.css tweens only r/fill/stroke/opacity, and a flip rewrites cx/cy
+  // ATTRIBUTES, which don't tween), but this guards a future position transition so
+  // a flip never slides. Keyed on the resolved orientation; no-ops on first paint.
+  useOrientationSnap(notesRef, orientation);
 
   // Precompute the 60 markers in flat (stringIndex × columnOffset) order — the
   // same order the render walks — so the roving hook (§11.3) knows each marker's

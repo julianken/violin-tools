@@ -8,6 +8,8 @@
 
 import { useLayoutEffect, useRef } from 'react';
 
+import type { Orientation } from './mapView';
+
 /** The two §7 motion builds, selected by the `data-motion` root attribute. */
 export type MotionBuild = 'stateful' | 'snappy';
 
@@ -55,4 +57,59 @@ export function useDotPopReplay(
     void group.getBoundingClientRect().width;
     for (const el of anims) el.classList.add('dot-anim');
   }, [notesRef, build, changeKey]);
+}
+
+/**
+ * Snap the note map's coordinates instantly on an orientation flip (§7.4 / §11.4).
+ *
+ * FORWARD-PROOFING (see DESIGN.md §7.4 / the S16 plan): the orientation flip
+ * ALREADY snaps with zero motion, because motion.css transitions only
+ * r/fill/stroke/opacity — never `cx`/`cy` or a `.note <g>` transform — and the flip
+ * moves dots by rewriting SVG `cx`/`cy` ATTRIBUTES (geometry attributes don't
+ * tween). This hook adds no current effect; it GUARDS a future phase: if a density
+ * move or a `.note <g>` transform transition later lands, this hook already
+ * suspends it on a flip so the map jumps rather than slides, and the §7.4
+ * reduced-motion clause already zeroes any such transition.
+ *
+ * Same shape as useDotPopReplay: skip the very first paint via `mountedRef` (the
+ * first vertical paint is itself a snap — no flash), then on each subsequent
+ * orientation CHANGE suspend transitions on the `.notes` group, force one
+ * synchronous reflow with the canonical NOTEMAP `getBoundingClientRect().width`
+ * idiom, and restore — so a queued position transition can't replay from the old
+ * coordinates. No token, no library, no spring.
+ *
+ * - jsdom (the Vitest gate) runs no transitions, so the suspend/restore is a
+ *   harmless no-op there; the reflow read is observable, which is what the unit
+ *   test asserts.
+ * - `notesRef` points at the `.notes` group; `orientation` is the resolved render
+ *   orientation — a change re-runs the effect.
+ */
+export function useOrientationSnap(
+  notesRef: React.RefObject<SVGGElement | null>,
+  orientation: Orientation,
+): void {
+  // Skip the first paint: the initial orientation paints fresh (no prior position
+  // to slide from), so the snap is only for a subsequent FLIP — mirrors
+  // useDotPopReplay's mountedRef.
+  const mountedRef = useRef(false);
+
+  useLayoutEffect(() => {
+    const group = notesRef.current;
+    if (group === null) {
+      mountedRef.current = true;
+      return;
+    }
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    // Suspend any transition on the group for the flip, force one reflow so the
+    // new coordinates are committed without a tween, then restore the stylesheet's
+    // transition. Today nothing transitions cx/cy, so this is forward-proofing; it
+    // costs one synchronous layout read per flip.
+    const previousTransition = group.style.transition;
+    group.style.transition = 'none';
+    void group.getBoundingClientRect().width;
+    group.style.transition = previousTransition;
+  }, [notesRef, orientation]);
 }

@@ -637,6 +637,8 @@ Duration `150ms` (`pop`), easing `ease-overshoot`. Applied via `.dot-anim` on ea
 ```
 Under `reduce`, dots appear and change instantly, bands toggle without fade, the palette appears without scale-up, and the pill press has no displacement. The interface stays fully usable and legible.
 
+**Orientation flip snaps instantly.** When the map flips between the horizontal (desktop) and vertical (mobile) renders (§12.1), the 60 dots jump to their new coordinates with no slide — in *every* motion mode, not only under `reduce`. This is true by construction, not by a rule: no transition is declared on `cx`/`cy` or on a `.note <g>` transform, and a flip moves dots by rewriting SVG `cx`/`cy` *attributes*, which do not tween. A small forward-proofing hook (`useOrientationSnap`, the canonical `getBoundingClientRect()` reflow idiom) suspends transitions on the `.notes` group and forces one reflow on a flip, so should a future phase add a position transition (e.g. a density move), the flip still snaps. Mirroring that, the §7.4 block reserves a `.board[data-motion] .note, .board[data-motion] .notes { transition: none }` clause — `.board[data-motion]`-prefixed so it wins the cascade (a media query adds no specificity) — to zero any such future position transition under `reduce`.
+
 ### 7.5 Enter / update / exit, per animated surface
 
 The contract for every surface that animates on/off or between states. "Update" is the in-place tween (the common case in this product, where elements morph rather than re-mount); "—" means the element has no animation in that phase. All durations/easings resolve in §0.
