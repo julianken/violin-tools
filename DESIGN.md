@@ -1161,7 +1161,7 @@ The chrome counterpart to §15.1: one selected row in the command palette's resu
 **Shipped in v1 (live at https://strings-solo.com — these surfaces are built, not just specified):**
 - The full **Scales note map** — the whole-neck fingerboard SVG, the §12.5 pitch classification, and the §13 letter-correct note spelling (a flat key reads `B♭`, never `A♯`; the minor-family `D♭`→`C♯` root flip; no double accidentals).
 - The **token system, color/contrast, and typography** (§0–§3) as built CSS custom properties.
-- The **controls** (Root / Scale radiogroups, Refs checkbox group) and the **reference overlays** (tape bands, heel/octave landmarks, position labels — §9.1/§12.3).
+- The **controls** (Root / Scale radiogroups, the **View** row's Orientation/Density/Handedness radiogroups, Refs checkbox group) and the **reference overlays** (tape bands, heel/octave landmarks, position labels — §9.1/§12.3).
 - **Motion** (§7: the stateful + snappy builds, stagger, dotPop reflow-replay, the tape slide), reduced-motion-gated.
 - The **⌘K command palette** (§8.5/§9) — searchable scale/tool jump.
 - **Accessibility** (§8/§11): the `{mint}` `:focus-visible` ring, 44px touch-target hit-padding, the roving-tabindex note map, and the `polite` live regions.
