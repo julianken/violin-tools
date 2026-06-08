@@ -5,7 +5,8 @@
 // Mounted in BOTH the mobile sheet and the desktop controls card (the desktop View
 // row shipped in S16 ph4 — the same component, no desktop-only variant). Each
 // control is a `role="radiogroup"` of
-// `role="radio"` `.pill`s (the same radiogroup/pill ARIA the Root/Scale rows use —
+// `role="radio"` `.pill`s with the SAME roving-tabindex + arrow-key
+// keyboard contract the Root/Scale rows use (useRovingRadiogroup — §9.1 / §11.3,
 // no new custom a11y). The active segment reflects the user's STORED choice, not
 // the resolved value: Orientation highlights `mapView.mode` ('auto' stays selected
 // even when it resolved to 'vertical'), Density highlights `mapView.density`, and
@@ -22,6 +23,8 @@ import {
 } from '../notemap/mapView.ts';
 import { type MapViewApi } from '../notemap/useMapView.ts';
 
+import { useRovingRadiogroup } from './useRovingRadiogroup.ts';
+
 interface ViewRowProps {
   /** The whole map-view api — the View row reads the stored modes + calls setters. */
   mapView: MapViewApi;
@@ -31,6 +34,13 @@ interface ViewRowProps {
 // `role="radio"` `.pill` per option. The pill matching `selected` carries
 // aria-checked=true + the `.is-active` highlight class; a click invokes `onSelect`
 // with the option value. Reuses the existing `.pill-track` / `.pill` primitives.
+//
+// The §9.1 / §11.3 radiogroup keyboard contract is shared with the Root/Scale rows
+// via useRovingRadiogroup: a roving tabindex (exactly one pill — the selected one —
+// is tabbable), arrow keys move selection in the left-to-right option order with
+// selection-following-focus, Home/End jump to the ends, Tab exits the group. No
+// active-highlight tween here (the View segments use the static `.is-active` class,
+// not the sliding `.pill-highlight` element the single-select Root/Scale rows do).
 function Segmented<T extends string>({
   label,
   options,
@@ -42,20 +52,29 @@ function Segmented<T extends string>({
   selected: T;
   onSelect: (value: T) => void;
 }) {
+  const values = options.map((option) => option.value);
+  const { isSelected, tabIndexFor, registerPill, onKeyDown } = useRovingRadiogroup(
+    values,
+    selected,
+    onSelect,
+  );
   return (
     <div className="pill-track" role="radiogroup" aria-label={label}>
-      {options.map(({ value, label: optionLabel }) => {
-        const active = value === selected;
+      {options.map(({ value, label: optionLabel }, index) => {
+        const active = isSelected(value);
         return (
           <button
             key={value}
             type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={tabIndexFor(value)}
+            ref={registerPill(index)}
             className={`pill${active ? ' is-active' : ''}`}
             onClick={() => {
               onSelect(value);
             }}
+            onKeyDown={onKeyDown}
           >
             {optionLabel}
           </button>
