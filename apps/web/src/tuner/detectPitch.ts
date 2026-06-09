@@ -26,11 +26,26 @@
 
 /**
  * Clarity (NSDF peak value) at or above which a frame is accepted as a confident
- * pitch. From the §90 deep-dive params (`clarity ≥ 0.7`). NSDF peaks run [0, 1]
- * for a periodic signal (1 = perfectly periodic); noise/silence stay well below.
- * Exported so ph3/tests can reuse the exact threshold rather than re-deriving it.
+ * pitch. NSDF peaks run [0, 1] for a periodic signal (1 = perfectly periodic);
+ * noise/silence stay well below. Exported so ph3/tests reuse the exact threshold
+ * rather than re-deriving it; the live smoother is wired to this constant
+ * (`useTuner.ts`) so the two gates cannot drift.
+ *
+ * 0.5 (was 0.7, the §90 deep-dive's initial value). This is the BINDING gate —
+ * not the energy floor. Because McLeod NSDF normalization makes clarity
+ * amplitude-INVARIANT, it scores periodicity/SNR, not loudness, so a quiet
+ * normally-bowed violin on a built-in mic (we keep `autoGainControl` OFF for
+ * pitch accuracy → low capture level → moderate SNR) scored just under 0.7 and
+ * was rejected — the reported "needs loud input to pick up" symptom (#105). The
+ * looser 0.5 admits those frames; it is safe because (a) the chosen lag is still
+ * octave-protected by the k=0.9 key-maximum rule, (b) the smoother's 5-frame
+ * median + 4-frame label persistence absorb the occasional marginal frame the
+ * looser gate admits, and (c) room noise is APERIODIC, so its NSDF peak sits far
+ * below 0.5 (measured: pure-broadband-noise fixture yields no peak at all →
+ * still rejected). Tunable; a future clarity-hysteresis follow-up may split it
+ * into acquire/sustain thresholds.
  */
-export const CLARITY_THRESHOLD = 0.7;
+export const CLARITY_THRESHOLD = 0.5;
 
 /**
  * Root-mean-square energy floor. Frames quieter than this are treated as silence
