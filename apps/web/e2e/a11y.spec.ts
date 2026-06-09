@@ -199,13 +199,18 @@ test.describe('§11.3 note map — one tab stop, roving, verbatim marker names',
   });
 });
 
-test.describe('§11.3 live regions — two polite, never assertive', () => {
-  test('two aria-live="polite" regions exist; none is assertive', async ({ page }) => {
+test.describe('§11.3 live regions — three polite, never assertive', () => {
+  test('three aria-live="polite" regions exist; none is assertive', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('[aria-live="polite"]')).toHaveCount(2);
+    // Sounding + map-description + the §16 Share-scale copy outcome (data-live=
+    // "share"; empty until a copy succeeds, never spoken on a share-branch result).
+    await expect(page.locator('[aria-live="polite"]')).toHaveCount(3);
     await expect(page.locator('[aria-live="assertive"]')).toHaveCount(0);
     // The map-description region carries the scale-named description.
     await expect(page.locator('[data-live="map-description"]')).toContainText('A Major.');
+    // The third region exists and starts empty (no copy has happened yet).
+    await expect(page.locator('[data-live="share"]')).toHaveCount(1);
+    await expect(page.locator('[data-live="share"]')).toBeEmpty();
   });
 
   test('sounding a focused marker (Enter) announces it in the polite region', async ({ page }) => {

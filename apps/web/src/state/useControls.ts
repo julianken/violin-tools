@@ -46,9 +46,20 @@ export interface ControlsApi {
  * Hold the controls state and expose narrow mutators. The mutators are stable
  * for the component's lifetime (the `dispatch` identity is), so passing them down
  * to the row components does not churn their referential identity.
+ *
+ * `initial` is the parse-on-init seed (§16 deep-linking): a `Partial` of the
+ * `(root, scale)` slice that a shared `?r=&s=` link decoded. It is LAYERED over
+ * `INITIAL_CONTROLS` once, in the lazy `useReducer` initializer, so an unknown or
+ * absent field falls back to the A/major default and `refs` always starts off
+ * (never deep-linked). Passing nothing reproduces the byte-identical prior state.
  */
-export function useControls(): ControlsApi {
-  const [state, dispatch] = useReducer(reducer, INITIAL_CONTROLS);
+export function useControls(
+  initial?: Partial<Pick<ControlsState, 'root' | 'scale'>>,
+): ControlsApi {
+  const [state, dispatch] = useReducer(reducer, initial, (seed) => ({
+    ...INITIAL_CONTROLS,
+    ...seed,
+  }));
   return {
     state,
     selectRoot: (root) => {

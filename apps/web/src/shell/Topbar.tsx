@@ -14,8 +14,16 @@
 // single "Search scales and tools" button at the default desktop viewport (and
 // the desktop snapshot byte-stable). It carries a 44px hit target and an
 // accessible name so it is keyboard-operable and announced (S10 a11y contract).
+//
+// §16 — the "Share scale" ghost button is now wired (was inert in v1). It
+// consumes `useShareLink` (the call-time adaptive native-share / copy branch);
+// the copy branch swaps the label to "Copying…" then shows a `currentColor` ✓
+// and an inline `.ghost-status` caption beside the button (NOT a fill, NOT a
+// second accent, border never recolored — §8.4). The caption is `aria-hidden`;
+// the spoken outcome is the polite `data-live="share"` region in AppShell.
 
-import { IcSearch } from './icons';
+import { IcCheck, IcSearch } from './icons';
+import type { ShareLink } from './useShareLink';
 
 interface TopbarProps {
   /**
@@ -30,14 +38,23 @@ interface TopbarProps {
    * desktop palette opener.
    */
   onOpenPalette: () => void;
+  /**
+   * The Share action + its feedback machine (§16, §8.4). `phase` drives the
+   * label/check swap, `caption` the inline `.ghost-status` text, `share` the
+   * ghost button's click. The announcement is consumed by AppShell's live region.
+   */
+  shareLink: ShareLink;
 }
 
-function shareScale(): void {
-  // No-op in v1 (DESIGN.md §16): "Share scale" has no defined behavior yet. The
-  // button ships visible and inert per §8.4.
-}
+export function Topbar({ scaleName, onOpenPalette, shareLink }: TopbarProps) {
+  const { phase, caption, share } = shareLink;
+  // The copy branch swaps the in-button label to "Copying…" while busy (the
+  // §04 text-states-swap technique, CSS-driven via .is-busy); every other phase
+  // keeps the resting "Share scale" label. The OS share sheet has no busy label —
+  // it is its own surface — so only `copying` swaps.
+  const busy = phase === 'copying';
+  const showCheck = phase === 'copied';
 
-export function Topbar({ scaleName, onOpenPalette }: TopbarProps) {
   return (
     <div className="topbar">
       <div className="topbar-left">
@@ -68,9 +85,36 @@ export function Topbar({ scaleName, onOpenPalette }: TopbarProps) {
         </nav>
       </div>
 
-      <button type="button" className="ghost" onClick={shareScale}>
-        Share scale
-      </button>
+      {/* The right cluster groups the ghost button with its inline status caption
+          so the topbar's two-end `space-between` is preserved — the `.ghost` was a
+          direct child of `.topbar`, and a third child would break the layout. */}
+      <div className="topbar-right">
+        {/* The ✓ + caption sit BEFORE the button (lead side) so they don't shift
+            the button as they appear/revert. Both are aria-hidden — the single
+            spoken source is the polite live region in AppShell. */}
+        <span className="ghost-status" aria-hidden="true">
+          <span
+            className="ghost-check"
+            data-state={showCheck ? 'in' : 'out'}
+          >
+            <IcCheck />
+          </span>
+          <span className="ghost-status-text">{caption}</span>
+        </span>
+        <button
+          type="button"
+          className="ghost"
+          onClick={share}
+          aria-label={busy ? 'Copying link' : 'Share scale'}
+        >
+          {/* The §04 label swap: one element, two states. The resting label is
+              "Share scale"; while busy it reads "Copying…". The blurred swap is
+              CSS-driven (.is-busy), never a hand-rolled tween. */}
+          <span className="ghost-label" data-busy={busy ? 'true' : 'false'}>
+            {busy ? 'Copying…' : 'Share scale'}
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

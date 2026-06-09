@@ -379,8 +379,24 @@ body {
   color: var(--text2); /* active segment {text2} (§3, §9) */
 }
 
-/* ── .ghost — inert "Share scale" button (§8.4, §4.2) ───────────────────── */
+/* ── .topbar-right — the ghost button + its inline status caption (§16) ─────
+ * Wraps the ghost button and its `.ghost-status` caption so the topbar's
+ * two-end `space-between` survives (the ghost was a direct child; a third child
+ * would break the layout). The caption sits on the LEAD side of the button so it
+ * never shifts the button as it appears/reverts. */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-200); /* 8px */
+  flex: none;
+}
+
+/* ── .ghost — the now-wired "Share scale" button (§8.4, §4.2, §16) ──────────
+ * It stays the QUIETEST control on the topbar: transparent, {hairline2}→
+ * {hairline3} border, NO fill, NO second accent. Feedback lives in the label
+ * swap + the sibling caption — the border is NEVER recolored (§8.4). */
 .ghost {
+  position: relative; /* positioning context for the ::before hit overlay */
   flex: none;
   background: transparent;
   border: 1px solid var(--hairline2);
@@ -395,6 +411,149 @@ body {
 }
 .ghost:hover {
   border-color: var(--hairline3); /* §8.4 hover */
+}
+/* §8.4 active press — authored fresh here (the ghost had no press state before):
+ * the same translateY(1px) scale(.97) `--press` (90ms) language the pills use. */
+.ghost:active {
+  transform: translateY(1px) scale(0.97);
+  transition: transform var(--press) var(--ease-standard); /* 90ms (§8.4) */
+}
+/* 44px touch-target hit-padding (§10/§16, WCAG 2.5.5) — the {ghost} lacked a hit
+ * overlay; this transparent `::before` grows the tap area to the §0 floor without
+ * changing the painted box (mirrors the .topbar-search / a11y.css precedent). */
+.ghost::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: var(--touch-target-min); /* 44px */
+  min-height: var(--touch-target-min); /* 44px */
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+/* ── .ghost-label — the §04 text-states-swap label (Share scale ↔ Copying…) ──
+ * One element, two states: the resting "Share scale" and the busy "Copying…".
+ * The blurred up/down swap is the transitions-dev #04 technique at §7.5 tooltip
+ * values (`--tt-in`/`--tt-out`) + the modal easings — no motion library, no
+ * hand-rolled tween. React swaps the textContent on the `copying` phase; CSS
+ * carries the blur/translate via the `[data-busy]` attribute. */
+.ghost-label {
+  display: inline-block;
+  transform: translateY(0);
+  filter: blur(0);
+  opacity: 1;
+  transition:
+    transform var(--tt-in) var(--ease-modal-in),
+    filter var(--tt-in) var(--ease-modal-in),
+    opacity var(--tt-in) var(--ease-modal-in);
+}
+.ghost-label[data-busy='true'] {
+  /* Entering the busy state: the new "Copying…" text settles up from a slight
+   * blur (the #04 enter). The exit half (old text rising out) is degenerate here
+   * because React replaces the text in one tick; the enter read is what matters. */
+  transform: translateY(0);
+  filter: blur(0);
+  opacity: 1;
+  animation: ghost-label-in var(--tt-in) var(--ease-modal-in);
+}
+@keyframes ghost-label-in {
+  from {
+    transform: translateY(2px);
+    filter: blur(2px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+
+/* ── .ghost-status — the inline caption + success ✓ beside the button (§16) ───
+ * Inter, {text2} (§2.6 — NEUTRAL; {danger} stays reserved, no status-color
+ * change). The caption text fades in on copy success / failure and out on revert
+ * at the §7.5 tooltip values; it is aria-hidden (the spoken source is the
+ * AppShell live region). The whole cluster reserves no space when empty. */
+.ghost-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-100); /* 4px */
+  font-family: var(--family-ui);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  color: var(--text2); /* §2.6 neutral — never {danger} */
+  white-space: nowrap;
+}
+.ghost-status-text {
+  /* Fade the caption in/out at the §7.5 tooltip lane; an empty caption is just
+   * blank text, so no enter/exit jump is needed beyond the opacity carry. */
+  transition: opacity var(--tt-out) var(--ease-modal-out);
+}
+
+/* ── .ghost-check — the §10 success-check ✓ (currentColor, NOT {mint}) ───────
+ * The transitions-dev #10 technique: the ✓ fades + rotates + bobs + draws its
+ * stroke on `[data-state="in"]`. Durations are pulled down to the §7.5 tooltip
+ * lane (this is topbar chrome, not a celebration), and the easings are the modal
+ * pair. The glyph strokes `currentColor` so it inherits the caption's {text2} —
+ * no second solid fill on the topbar (§2.6 / §8.4). */
+.ghost-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  transform-origin: center;
+  opacity: 0;
+}
+.ghost-check[data-state='out'] {
+  /* Collapsed to zero width when idle so it reserves no space beside the text. */
+  width: 0;
+  opacity: 0;
+}
+.ghost-check svg {
+  display: block;
+  overflow: visible;
+  width: 12px;
+  height: 12px;
+}
+.ghost-check svg path {
+  /* path.getTotalLength() of "M2.5 6.5 L5 9 L9.5 3.5" ≈ 9.9 → 11 (round up). */
+  stroke-dasharray: 11;
+  stroke-dashoffset: 11;
+}
+.ghost-check[data-state='in'] {
+  opacity: 1;
+  animation:
+    ghost-check-fade var(--tt-in) var(--ease-modal-in) forwards,
+    ghost-check-rise var(--tt-in) var(--ease-modal-in) forwards;
+}
+.ghost-check[data-state='in'] svg path {
+  animation: ghost-check-draw var(--tt-in) var(--ease-modal-in) forwards;
+}
+@keyframes ghost-check-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ghost-check-rise {
+  from {
+    transform: translateY(2px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes ghost-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* ── .content — max-880px column (§4.2, §9) ─────────────────────────────── */
@@ -623,7 +782,32 @@ body {
   }
 }
 
-/* §7.4 reduced motion — shell.css authored only the mobile drawer slide + scrim
- * fade, both dropped in U7, so this file no longer needs a `prefers-reduced-motion`
- * block. The mobile bottom-sheet motion carries its own §7.4 guard in controls.css;
- * palette.css / motion.css each carry theirs for the motion they author. */
+/* §7.4 reduced motion — shell.css now authors the §16 Share-scale feedback
+ * motion (the ghost label swap, the success ✓ fade/bob/draw, the caption fade,
+ * and the ghost active-press), so it carries a `prefers-reduced-motion: reduce`
+ * block. The selectors are ENUMERATED (never a blanket `*`) and the block sits at
+ * the SAME specificity as the base rules (a media query adds none), so the
+ * `none` wins the cascade and collapses each surface to its end-state — the ✓ is
+ * shown statically (stroke fully drawn), the label/caption swap instantly, and
+ * the press has no transform tween. The mobile bottom-sheet motion carries its
+ * own §7.4 guard in controls.css; palette.css / motion.css carry theirs. */
+@media (prefers-reduced-motion: reduce) {
+  .ghost:active {
+    transition: none;
+  }
+  .ghost-label,
+  .ghost-status-text {
+    transition: none;
+  }
+  .ghost-label[data-busy='true'] {
+    animation: none;
+  }
+  .ghost-check[data-state='in'] {
+    animation: none;
+    opacity: 1;
+  }
+  .ghost-check[data-state='in'] svg path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
