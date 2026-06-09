@@ -117,17 +117,24 @@
  * ────────────────────────────────────────────────────────────────────────────
  * Tape 2 carries `t-panel-slide` + `data-open` (S7 left the hook). The slide is a
  * pure CSS transform keyed on `data-open`: open (+4, default) = no displacement;
- * closed (low 2, +3) = shifted one column left (xOf(4)−xOf(3) = 44px). The rect
- * x stays at the default column so the transform — not an SVG `x` rewrite — owns
- * the motion (§7.1 / §7.5: transform 230ms tape-slide ease-spring-2). */
+ * closed (low 2, +3) = shifted one column toward the nut. The DIRECTION is
+ * axis-aware (S17 ph B / #84): RefLayers sets an inline `--low2-dx`/`--low2-dy`
+ * shift vector computed from the geometry — horizontal {−44px, 0} (byte-identical
+ * to the legacy translateX(-44px); xOf(3)−xOf(4) = −44), vertical {0, dy} (slide
+ * along the neck). The rect x/y stays at the default column so the transform — not
+ * an SVG attribute rewrite — owns the motion (§7.1 / §7.5: transform 230ms
+ * tape-slide ease-spring-2). */
 .board[data-motion] .tape .tape-band.t-panel-slide {
-  transform: translateX(0);
+  transform: translate(0, 0);
   transform-box: fill-box;
   transform-origin: center;
   transition: transform var(--tape-slide) var(--ease-spring-2); /* 230ms (§7.1) */
 }
 .board[data-motion] .tape .tape-band.t-panel-slide[data-open='false'] {
-  transform: translateX(-44px); /* low 2 → +3, one column (44px) left (§12.1/§12.3) */
+  /* low 2 → +3, one column toward the nut along the render axis (§12.1/§12.3). The
+   * shift vector is the inline `--low2-d*` set by RefLayers; horizontal resolves to
+   * translate(-44px, 0) — byte-identical to the prior literal. */
+  transform: translate(var(--low2-dx, 0px), var(--low2-dy, 0px));
 }
 
 /* ── tape / land opacity show/hide via `.hide` (§7.1 / §7.5) ──────────────────

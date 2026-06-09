@@ -145,6 +145,21 @@ export interface ChromePoint {
   y: number;
 }
 
+/** The SVG `text-anchor` values the overlay labels use (§12.3, §3 — upright). */
+export type ChromeTextAnchor = 'start' | 'middle' | 'end';
+
+/**
+ * A §12.3 overlay-label anchor: a pure {x,y} point PLUS the `text-anchor` the
+ * renderer applies — NO rotation. HORIZONTAL labels are `middle`-anchored above /
+ * below the column; VERTICAL labels sit in a cross-axis gutter and anchor `start`
+ * (left gutter) or `end` (right gutter), level with the neck column.
+ */
+export interface ChromeLabel {
+  x: number;
+  y: number;
+  anchor: ChromeTextAnchor;
+}
+
 /** The geometry the renderer needs for a given config (pure; no DOM). */
 export interface MapLayout {
   viewBoxWidth: number;
@@ -178,6 +193,42 @@ export interface MapLayout {
   stringLabelPos(stringIndex: number): ChromePoint;
   /** §12.1 "open" label anchor. HORIZONTAL: `{x:42, y:252}`. */
   openLabelPos(): ChromePoint;
+  /**
+   * §12.3 reference-overlay band rect for a band of neck-axis `neckWidth`
+   * centered on column `neckOffset`. The band spans the CROSS field (across the
+   * four strings) and is `neckWidth` wide ALONG the neck. HORIZONTAL: `{x:
+   * neckPos(off)−w/2, y:60, width:w, height:152}` (byte-identical to §12.3);
+   * VERTICAL swaps — `{x: bandCrossStart, y: neckPos(off)−w/2, width: span,
+   * height: w}`.
+   */
+  bandRect(neckOffset: number, neckWidth: number): ChromeRect;
+  /**
+   * §12.3 heel dashed underline — a segment running ALONG THE NECK (spanning the
+   * band's `neckWidth`) at the band's cross-END edge. HORIZONTAL: a horizontal
+   * segment at `y=212` from `neckPos(off)−w/2` to `+w/2`; VERTICAL: a vertical
+   * segment at `x=bandCrossEnd` from `neckPos(off)−w/2` to `+w/2` (NOT a line
+   * across the strings).
+   */
+  heelDash(neckOffset: number, neckWidth: number): ChromeLine;
+  /**
+   * §12.3 lead-margin overlay label (tape number / "octave ◈"; heel name on
+   * vertical). HORIZONTAL: `{x: neckPos(off), y: cross.base−20, anchor:'middle'}`
+   * (above the band); VERTICAL: in the cross-start (left) gutter, `start`-anchored,
+   * level with the neck column.
+   */
+  overlayLeadLabel(neckOffset: number): ChromeLabel;
+  /**
+   * §12.3 trail-margin overlay label (heel / "½ string" in horizontal).
+   * HORIZONTAL: `{x: neckPos(off), y: cross.base+3·step+20, anchor:'middle'}`
+   * (below the band); VERTICAL: in the cross-end (right) gutter, `end`-anchored.
+   */
+  overlayTrailLabel(neckOffset: number): ChromeLabel;
+  /**
+   * §12.3 position-ordinal label. HORIZONTAL: `{x: neckPos(off), y: crossExtent−12,
+   * anchor:'middle'}`; VERTICAL: in the cross-end (right) gutter, `end`-anchored,
+   * level with the neck column.
+   */
+  overlayPosLabel(neckOffset: number): ChromeLabel;
 }
 
 // Neck-axis (along the columns) position, density-dependent. `fit` reuses the
@@ -249,6 +300,26 @@ const CROSS_END_LABEL_MARGIN = VIEWBOX_HEIGHT - OPEN_LABEL.y; // 12 — "open" l
 // the label this far to the side of its string column (in the cross margin), clear of
 // the 15px-radius open-column dot — 30 > 15 keeps the anchor and its box off the dot.
 const VERTICAL_LABEL_CROSS_OFFSET = 30;
+
+// ── §12.3 reference-overlay cross-margin relations (S17 ph B / #84) ─────────
+// The §12.3 band/label y-literals (BAND_Y 60, BAND_HEIGHT 152, HEEL_DASH_Y 212,
+// LABEL_TOP_Y 48, LABEL_BOTTOM_Y 226, POS_LABEL_Y 252 in refOverlays.ts) are tied
+// to the horizontal 264 cross-extent and cannot transpose by a literal x/y swap
+// (the vertical cross-extent is 352). Re-express them as cross-margin RELATIONS —
+// the way CROSS_PAD / CROSS_END_LABEL_MARGIN already work — so they project into
+// either orientation. Each relation reproduces the horizontal literal exactly
+// (verified in geometry.test.ts):
+//   bandCrossStart = cross.base − 8                 → 68−8 = 60  = BAND_Y
+//   bandCrossEnd   = cross.base + 3·step + CROSS_PAD → 206+6 = 212 = BAND_Y+HEIGHT, HEEL_DASH_Y
+//   lead margin    = cross.base − 20                → 48 = LABEL_TOP_Y
+//   trail margin   = cross.base + 3·step + 20       → 226 = LABEL_BOTTOM_Y
+//   pos margin     = crossExtent − CROSS_END_LABEL_MARGIN → 264−12 = 252 = POS_LABEL_Y
+const BAND_CROSS_START_INSET = 8; // band starts 8px before the first string's cross pos
+const OVERLAY_LABEL_MARGIN = 20; // lead/trail labels sit 20px outside the string field
+// VERTICAL gutter insets for the upright labels: the lead labels sit a small inset
+// from the cross-start (left) edge; the position ordinals sit in the cross-end
+// (right) gutter at the same CROSS_END_LABEL_MARGIN the "open" label uses.
+const VERTICAL_OVERLAY_GUTTER_INSET = 2;
 
 export function axisOf(config: AxisConfig): MapLayout {
   const { orientation, handedness, density } = config;
@@ -323,6 +394,54 @@ export function axisOf(config: AxisConfig): MapLayout {
       ? { x: neckPos(0, density), y: crossExtent - CROSS_END_LABEL_MARGIN }
       : { x: crossExtent - CROSS_END_LABEL_MARGIN, y: neckPos(0, density) };
 
+  // ── §12.3 reference overlays (S17 ph B), built on the SAME neckPos/cross relations
+  // as the static chrome. HORIZONTAL keeps neck on x and cross on y (byte-identical
+  // to §12.3); VERTICAL swaps. Bands span the full cross field and are neckWidth
+  // wide along the neck; the heel dash runs ALONG the neck at the cross-end edge;
+  // labels are pure {x,y,anchor} — never rotated.
+  const bandCrossStart = cross.base - BAND_CROSS_START_INSET;
+  const bandCrossEnd = cross.base + 3 * cross.step + CROSS_PAD;
+  const bandCrossSpan = bandCrossEnd - bandCrossStart;
+  const leadMargin = cross.base - OVERLAY_LABEL_MARGIN;
+  const trailMargin = cross.base + 3 * cross.step + OVERLAY_LABEL_MARGIN;
+  const posMargin = crossExtent - CROSS_END_LABEL_MARGIN;
+
+  const bandRect = (neckOffset: number, neckWidth: number): ChromeRect => {
+    const n = neckPos(neckOffset, density);
+    return orientation === 'horizontal'
+      ? { x: n - neckWidth / 2, y: bandCrossStart, width: neckWidth, height: bandCrossSpan }
+      : { x: bandCrossStart, y: n - neckWidth / 2, width: bandCrossSpan, height: neckWidth };
+  };
+
+  const heelDash = (neckOffset: number, neckWidth: number): ChromeLine => {
+    const n = neckPos(neckOffset, density);
+    // A segment running ALONG the neck (spanning neckWidth) at the band's cross-end.
+    return orientation === 'horizontal'
+      ? { x1: n - neckWidth / 2, y1: bandCrossEnd, x2: n + neckWidth / 2, y2: bandCrossEnd }
+      : { x1: bandCrossEnd, y1: n - neckWidth / 2, x2: bandCrossEnd, y2: n + neckWidth / 2 };
+  };
+
+  const overlayLeadLabel = (neckOffset: number): ChromeLabel => {
+    const n = neckPos(neckOffset, density);
+    return orientation === 'horizontal'
+      ? { x: n, y: leadMargin, anchor: 'middle' }
+      : { x: VERTICAL_OVERLAY_GUTTER_INSET, y: n, anchor: 'start' };
+  };
+
+  const overlayTrailLabel = (neckOffset: number): ChromeLabel => {
+    const n = neckPos(neckOffset, density);
+    return orientation === 'horizontal'
+      ? { x: n, y: trailMargin, anchor: 'middle' }
+      : { x: crossExtent - VERTICAL_OVERLAY_GUTTER_INSET, y: n, anchor: 'end' };
+  };
+
+  const overlayPosLabel = (neckOffset: number): ChromeLabel => {
+    const n = neckPos(neckOffset, density);
+    return orientation === 'horizontal'
+      ? { x: n, y: posMargin, anchor: 'middle' }
+      : { x: posMargin, y: n, anchor: 'end' };
+  };
+
   const viewBoxWidth = orientation === 'horizontal' ? neckExtent : crossExtent;
   const viewBoxHeight = orientation === 'horizontal' ? crossExtent : neckExtent;
   return {
@@ -335,5 +454,10 @@ export function axisOf(config: AxisConfig): MapLayout {
     nutRect,
     stringLabelPos,
     openLabelPos,
+    bandRect,
+    heelDash,
+    overlayLeadLabel,
+    overlayTrailLabel,
+    overlayPosLabel,
   };
 }

@@ -43,16 +43,12 @@ function stubMapView(overrides: Partial<MapViewApi> = {}): MapViewApi {
 
 // Render MobileControls with the REAL controls api (the integration seam the rows
 // write) so the Root/Scale/Refs rows are genuinely wired, plus a stub mapView.
-function MobileControlsHarness(props: {
-  summaryText?: string;
-  orientation?: 'horizontal' | 'vertical';
-}) {
+function MobileControlsHarness(props: { summaryText?: string }) {
   const controls = useControls();
   return (
     <MobileControls
       controls={controls}
       mapView={stubMapView()}
-      orientation={props.orientation ?? 'vertical'}
       summaryText={props.summaryText ?? 'A Major'}
     />
   );

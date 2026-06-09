@@ -133,13 +133,6 @@ export function Content({
         selectRoot={controls.selectRoot}
         selectScale={controls.selectScale}
         toggleRef={controls.toggleRef}
-        // §12.3 — the Refs overlays are still horizontal-axis-only (the band/heel/
-        // low-2 geometry is not yet projected through `axisOf`; that is the tracked
-        // U3b follow-up). On the vertical map the Refs pills are therefore disabled
-        // so a user cannot paint a mis-projected band; <RefLayers> is also skipped
-        // in NoteMap while vertical (defense in depth). Forwarded so RefsRow can
-        // dim/disable the pills.
-        orientation={orientation}
         // §16 — the whole map-view api. When present, <Controls> mounts the View
         // row as a 4th desktop card row (S16 ph4); it ALSO feeds the mobile sheet's
         // View row below. Spread conditionally so a mapView-absent Content render
@@ -159,7 +152,6 @@ export function Content({
         <MobileControls
           controls={controls}
           mapView={mapView}
-          orientation={orientation}
           summaryText={summarize(controls.state)}
         />
       )}

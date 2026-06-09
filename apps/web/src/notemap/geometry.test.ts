@@ -353,3 +353,135 @@ describe('chrome helpers (§12.1 — string lines / guides / nut / labels)', () 
     expect(COLUMN_COUNT).toBe(15);
   });
 });
+
+// S17 ph B (#84): the §12.3 reference overlays — tape/heel/octave bands, the heel
+// dash, and the overlay label anchors — projected through the SAME axis as the
+// dots and static chrome. HORIZONTAL must reproduce the §12.3 horizontal literals
+// (BAND_Y 60, BAND_HEIGHT 152, HEEL_DASH_Y 212, LABEL_TOP_Y 48, LABEL_BOTTOM_Y
+// 226, POS_LABEL_Y 252) byte-identically; VERTICAL swaps the axes — bands span the
+// CROSS field centered on the neck column, the heel dash is a neck-aligned segment
+// at the cross-end, and labels move to the cross-start / cross-end gutters.
+describe('overlay helpers (§12.3 — bands / heel dash / overlay labels)', () => {
+  // §12.3 band widths, mirrored from refOverlays.ts so this pure-geometry test
+  // takes no React dependency (the renderer passes these as neckWidth).
+  const TAPE_WIDTH = 26;
+  const HEEL_WIDTH = 28;
+  const OCTAVE_WIDTH = 30;
+
+  describe('horizontal+right+fit reproduces the §12.3 horizontal literals byte-identically', () => {
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+
+    it('bandRect(off,w) === {x:xOf(off)−w/2, y:60, width:w, height:152} for tape +4', () => {
+      expect(layout.bandRect(4, TAPE_WIDTH)).toEqual({
+        x: xOf(4) - TAPE_WIDTH / 2,
+        y: 60,
+        width: TAPE_WIDTH,
+        height: 152,
+      });
+    });
+
+    it('bandRect heel (off 9, w 28) and octave (off 12, w 30) match the §12.3 literals', () => {
+      expect(layout.bandRect(9, HEEL_WIDTH)).toEqual({
+        x: xOf(9) - HEEL_WIDTH / 2,
+        y: 60,
+        width: HEEL_WIDTH,
+        height: 152,
+      });
+      expect(layout.bandRect(12, OCTAVE_WIDTH)).toEqual({
+        x: xOf(12) - OCTAVE_WIDTH / 2,
+        y: 60,
+        width: OCTAVE_WIDTH,
+        height: 152,
+      });
+    });
+
+    it('heelDash(9,28) === a segment along the neck at y=212 (xOf(9)±14)', () => {
+      expect(layout.heelDash(9, HEEL_WIDTH)).toEqual({
+        x1: xOf(9) - HEEL_WIDTH / 2,
+        y1: 212,
+        x2: xOf(9) + HEEL_WIDTH / 2,
+        y2: 212,
+      });
+    });
+
+    it('overlayLeadLabel(off) === {x:xOf(off), y:48, anchor:middle} (the y=48 lead margin)', () => {
+      expect(layout.overlayLeadLabel(4)).toEqual({ x: xOf(4), y: 48, anchor: 'middle' });
+      expect(layout.overlayLeadLabel(12)).toEqual({ x: xOf(12), y: 48, anchor: 'middle' });
+    });
+
+    it('overlayTrailLabel(off) === {x:xOf(off), y:226, anchor:middle} (the y=226 trail margin)', () => {
+      expect(layout.overlayTrailLabel(9)).toEqual({ x: xOf(9), y: 226, anchor: 'middle' });
+      expect(layout.overlayTrailLabel(12)).toEqual({ x: xOf(12), y: 226, anchor: 'middle' });
+    });
+
+    it('overlayPosLabel(off) === {x:xOf(off), y:252, anchor:middle} (the y=252 pos margin)', () => {
+      for (const off of [5, 7, 9, 12]) {
+        expect(layout.overlayPosLabel(off)).toEqual({ x: xOf(off), y: 252, anchor: 'middle' });
+      }
+    });
+  });
+
+  describe('vertical+right+comfort swaps the axes (the literal pins from the derived relations)', () => {
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    // Verified relations from the issue, with vertical+comfort numbers:
+    //   cross = {base:56, step:82}; crossExtent = 56 + 3×82 + 50 = 352
+    //   bandCrossStart = 56 − 8 = 48; bandCrossEnd = 56 + 246 + 6 = 308; span = 260
+    //   neckPos(4)=254, neckPos(9)=534, neckPos(12)=702 (comfort: open 30, base 86, step 56)
+    const BAND_CROSS_START = 48;
+    const BAND_CROSS_SPAN = 260;
+    const BAND_CROSS_END = 308; // = HEEL_DASH cross-end edge
+
+    it('bandRect spans the cross field, centered on the neck column (tape +4)', () => {
+      // Vertical: band is { x: bandCrossStart, y: neckPos(4)−w/2, width: span, height: w }.
+      expect(layout.bandRect(4, TAPE_WIDTH)).toEqual({
+        x: BAND_CROSS_START,
+        y: 254 - TAPE_WIDTH / 2,
+        width: BAND_CROSS_SPAN,
+        height: TAPE_WIDTH,
+      });
+    });
+
+    it('bandRect heel (off 9) and octave (off 12) span the cross field on their neck columns', () => {
+      expect(layout.bandRect(9, HEEL_WIDTH)).toEqual({
+        x: BAND_CROSS_START,
+        y: 534 - HEEL_WIDTH / 2,
+        width: BAND_CROSS_SPAN,
+        height: HEEL_WIDTH,
+      });
+      expect(layout.bandRect(12, OCTAVE_WIDTH)).toEqual({
+        x: BAND_CROSS_START,
+        y: 702 - OCTAVE_WIDTH / 2,
+        width: BAND_CROSS_SPAN,
+        height: OCTAVE_WIDTH,
+      });
+    });
+
+    it('heelDash is a neck-aligned segment at the cross-end (x = bandCrossEnd, y = neckPos(9)±14)', () => {
+      expect(layout.heelDash(9, HEEL_WIDTH)).toEqual({
+        x1: BAND_CROSS_END,
+        y1: 534 - HEEL_WIDTH / 2,
+        x2: BAND_CROSS_END,
+        y2: 534 + HEEL_WIDTH / 2,
+      });
+    });
+
+    it('overlayLeadLabel sits in the cross-start (left) gutter, start-anchored, level with the neck column', () => {
+      // lead-margin (vertical) = a small left-gutter inset; y = neckPos(off).
+      const lead = layout.overlayLeadLabel(9);
+      expect(lead.y).toBe(534);
+      expect(lead.anchor).toBe('start');
+      expect(lead.x).toBeLessThan(BAND_CROSS_START); // inside the left gutter, before the bands
+    });
+
+    it('overlayPosLabel sits in the cross-end (right) gutter, end-anchored, level with the neck column', () => {
+      // pos-margin (vertical) = crossExtent − CROSS_END_LABEL_MARGIN = 352 − 12 = 340.
+      const pos = layout.overlayPosLabel(12);
+      expect(pos).toEqual({ x: 340, y: 702, anchor: 'end' });
+    });
+
+    it('keeps every overlay anchor upright — pure {x,y,anchor}, NO rotation field', () => {
+      const keys = Object.keys(layout.overlayLeadLabel(4)).sort();
+      expect(keys).toEqual(['anchor', 'x', 'y']);
+    });
+  });
+});

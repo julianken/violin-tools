@@ -219,17 +219,13 @@ export function NoteMap({
           `.hide` class driven by the Refs pills — mounted-but-hidden, never
           unmounted (the S8 attach contract).
 
-          U3b DEFERRAL (S16 ph2, tracked in #80): RefLayers' band rects are still
-          positioned on the horizontal `xOf` axis — re-projecting them through
-          `axisOf` (so the bands/heel underline/`low 2` slide are axis-correct in
-          BOTH orientations, closing the Phase 2 AC) is the U3b unit. Until it lands
-          the broken state is made UNREACHABLE, not merely default-off:
-            • RefsRow disables every Refs pill on the vertical map (the user can't
-              toggle a layer on), AND
-            • RefLayers is SKIPPED entirely on the vertical render here (so even a
-              programmatically-set ref never paints a mis-projected band).
-          On horizontal the overlays render exactly as before. */}
-      {orientation === 'horizontal' && <RefLayers refs={refs} />}
+          S17 ph B (#84): RefLayers now projects every band/label through the SAME
+          resolved `layout` the dots use, so the overlays are axis-correct in BOTH
+          orientations — the interim vertical guards (the RefsRow lock + the
+          skip-on-vertical here) are removed. The +4↔+3 "low 2" slide direction is
+          axis-aware via the inline `--low2-d*` vector RefLayers sets from the
+          geometry (motion.css translates by it). */}
+      <RefLayers refs={refs} layout={layout} orientation={orientation} />
 
       {/* Static chrome — guide lines, nut, string lines, labels — all projected
           through the resolved layout (§12.1) so they FOLLOW the render axis: in

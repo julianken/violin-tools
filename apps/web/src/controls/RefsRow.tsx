@@ -11,36 +11,23 @@
 // the §9.1 dim logic (`opacity:.4; pointer-events:none`, never hidden) are driven
 // by `accent` and `isRefDimmed`.
 
-import { type Orientation } from '../notemap/mapView.ts';
 import { isRefDimmed, REF_PILLS, type RefKey, type RefsState } from '../state/controls.ts';
 
 interface RefsRowProps {
   refs: RefsState;
   onToggle: (key: RefKey) => void;
-  /**
-   * The resolved render orientation (§12.1). On `'vertical'` EVERY Refs pill is
-   * disabled: the §12.3 overlay geometry (tape/heel/octave bands, the `low 2`
-   * slide, the position labels) is still built on the horizontal `xOf` axis and is
-   * NOT yet projected through `axisOf` (the tracked U3b follow-up), so toggling a
-   * ref on a vertical map would paint a band at horizontal coordinates over a
-   * vertical dot grid — visibly broken. Disabling the pills keeps that state
-   * UNREACHABLE until U3b lands; <RefLayers> is also skipped in NoteMap while
-   * vertical (defense in depth). Defaults to `'horizontal'` (today's behavior).
-   */
-  orientation?: Orientation;
 }
 
-export function RefsRow({ refs, onToggle, orientation = 'horizontal' }: RefsRowProps) {
-  // U3b guard: the Refs overlays are horizontal-axis-only today, so the whole row
-  // is unavailable on a vertical render (every pill dims + goes non-interactive).
-  const verticalLocked = orientation === 'vertical';
+export function RefsRow({ refs, onToggle }: RefsRowProps) {
+  // Refs work in BOTH orientations (S17 ph B / #84): the §12.3 overlays now project
+  // through `axisOf`, so the interim vertical lock is gone. The only unavailable
+  // state left is the §9.1 dim logic (low2 / 3-tape combination availability).
   return (
     <div className="pill-track" role="group" aria-label="Reference layers">
       {REF_PILLS.map(({ key, label, accent }) => {
         const checked = refs[key];
-        // A pill is unavailable when the §9.1 dim logic says so OR when the
-        // vertical map locks the whole row (U3b not yet landed).
-        const unavailable = verticalLocked || isRefDimmed(refs, key);
+        // A pill is unavailable only when the §9.1 dim logic says so.
+        const unavailable = isRefDimmed(refs, key);
         const classes = [
           'pill',
           `pill-${accent}`, // §8.1 tape / landmark accent family
