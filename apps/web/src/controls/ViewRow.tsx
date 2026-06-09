@@ -16,6 +16,8 @@
 // (Auto/Fit/Comfort) so it mirrors orientation's Auto/Vertical/Horizontal and the
 // §16 reconciliation is honest about the auto default.
 
+import { useId } from 'react';
+
 import {
   type Density,
   type Handedness,
@@ -30,10 +32,14 @@ interface ViewRowProps {
   mapView: MapViewApi;
 }
 
-// One labeled segmented control: a `role="radiogroup"` named by `label`, with one
-// `role="radio"` `.pill` per option. The pill matching `selected` carries
-// aria-checked=true + the `.is-active` highlight class; a click invokes `onSelect`
-// with the option value. Reuses the existing `.pill-track` / `.pill` primitives.
+// One captioned segmented control (S17): a `.view-subrow` pairing a VISIBLE caption
+// (`label`) with a `role="radiogroup"` `.pill-track` of `role="radio"` `.pill`s. The
+// radiogroup is named by the caption via `aria-labelledby` (not a hidden `aria-label`)
+// so sighted and AT users get the SAME name — the shipped build named the group only
+// via `aria-label`, leaving three unlabeled tracks (two reading "Auto") with nothing
+// to tell Orientation from Density from Handedness. The pill matching `selected`
+// carries aria-checked=true + the `.is-active` highlight class; a click invokes
+// `onSelect`. Reuses the existing `.pill-track` / `.pill` primitives.
 //
 // The §9.1 / §11.3 radiogroup keyboard contract is shared with the Root/Scale rows
 // via useRovingRadiogroup: a roving tabindex (exactly one pill — the selected one —
@@ -52,6 +58,7 @@ function Segmented<T extends string>({
   selected: T;
   onSelect: (value: T) => void;
 }) {
+  const captionId = useId();
   const values = options.map((option) => option.value);
   const { isSelected, tabIndexFor, registerPill, onKeyDown } = useRovingRadiogroup(
     values,
@@ -59,27 +66,32 @@ function Segmented<T extends string>({
     onSelect,
   );
   return (
-    <div className="pill-track" role="radiogroup" aria-label={label}>
-      {options.map(({ value, label: optionLabel }, index) => {
-        const active = isSelected(value);
-        return (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            tabIndex={tabIndexFor(value)}
-            ref={registerPill(index)}
-            className={`pill${active ? ' is-active' : ''}`}
-            onClick={() => {
-              onSelect(value);
-            }}
-            onKeyDown={onKeyDown}
-          >
-            {optionLabel}
-          </button>
-        );
-      })}
+    <div className="view-subrow">
+      <span className="view-cap" id={captionId}>
+        {label}
+      </span>
+      <div className="pill-track" role="radiogroup" aria-labelledby={captionId}>
+        {options.map(({ value, label: optionLabel }, index) => {
+          const active = isSelected(value);
+          return (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              tabIndex={tabIndexFor(value)}
+              ref={registerPill(index)}
+              className={`pill${active ? ' is-active' : ''}`}
+              onClick={() => {
+                onSelect(value);
+              }}
+              onKeyDown={onKeyDown}
+            >
+              {optionLabel}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -101,9 +113,14 @@ const HANDEDNESS_OPTIONS: readonly { value: Handedness; label: string }[] = [
   { value: 'left', label: 'Left' },
 ];
 
+// The three captioned controls stack as `.view-subrow`s inside `.view-rows`, which
+// owns the inter-control gap (the §4.2 controls rhythm) — the shipped build dropped
+// them as a bare fragment into the `.ctrl-slot`, so the tracks butted together with
+// no gap. The outer `View` `.lab` + `.ctrl-row` wrapper (Controls / MobileControls)
+// is unchanged, so the group still aligns with the Root/Scale/Refs rows.
 export function ViewRow({ mapView }: ViewRowProps) {
   return (
-    <>
+    <div className="view-rows">
       <Segmented
         label="Orientation"
         options={ORIENTATION_OPTIONS}
@@ -122,6 +139,6 @@ export function ViewRow({ mapView }: ViewRowProps) {
         selected={mapView.handedness}
         onSelect={mapView.setHandedness}
       />
-    </>
+    </div>
   );
 }

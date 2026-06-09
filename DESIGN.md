@@ -440,7 +440,7 @@ All ratios below are **computed** (WCAG 2.x relative-luminance formula; transluc
 | `tape-pill-wash` on `{surface}` (composited `#2f2a22`) | `tape-pill-fg` (`#f0e2c4`) | 11.10:1 | ✓ AAA |
 | `land-pill-wash` on `{surface}` (composited `#192c2b`) | `land-pill-fg` (`#bfeae3`) | 11.20:1 | ✓ AAA |
 
-`{text3}` on `{surface}` (3.37:1) is the one sub-4.5:1 pairing and is allowed **only** as placeholder/section-header/meta text, never as body copy that must be read to operate the tool. The root-dot and non-root-label pairings are P0 invariants (§11.2). Note the in-scale label clears AAA, not merely AA: `in-scale-fill` is a low-opacity mint over the near-black `{panel}`, so it composites to a very dark teal (`#112d29`) against which white sits ≈14.7:1 — the AA-floor concern (§11.2) is the *fill staying dark enough*, and it does so with wide margin.
+`{text3}` on `{surface}` (3.37:1) is the one sub-4.5:1 pairing and is allowed **only** as placeholder/section-header/meta text (the `.lab` row labels, the View row's `.view-cap` control captions, the sidebar section header, the breadcrumb base segment, the `⌘K` chip), never as body copy that must be read to operate the tool. The View captions name their radiogroup via `aria-labelledby`, so assistive tech gets the label at full fidelity regardless of this visual exemption. The root-dot and non-root-label pairings are P0 invariants (§11.2). Note the in-scale label clears AAA, not merely AA: `in-scale-fill` is a low-opacity mint over the near-black `{panel}`, so it composites to a very dark teal (`#112d29`) against which white sits ≈14.7:1 — the AA-floor concern (§11.2) is the *fill staying dark enough*, and it does so with wide margin.
 
 ### 2.6 Semantic / status colors
 
@@ -477,6 +477,7 @@ Two families, partitioned by meaning (Principle 4). Inter loads weights 400/500/
 | Interval formula | Geist Mono | 14px | 400 | `lh-flush` | `1px` | `{text2}` | **tnum** (`features-mono`) |
 | Nav item | Inter | 14px | 500 | `lh-flush` | — | `{text2}` (active `{text}`) | |
 | Controls row label `.lab` | Inter | 11px | 600 | `lh-flush` | `0.5px` | `{text3}`, uppercase, width 52px | |
+| View sub-row caption `.view-cap` | Inter | 11px | 500 | `lh-flush` | — | `{text3}`, sentence-case | the §9.1 View-row control caption — one tier below `.lab` |
 | Pill text | Inter | 13px | 500 | `lh-flush` | — | `{text2}` (active `{text}`) | |
 | Search placeholder | Inter | 13px | 500 | `lh-flush` | — | `{text3}` | |
 | Breadcrumb — base | Inter | 13px | 500 | `lh-flush` | — | `{text3}` | separator `/` in `{hairline3}` |
@@ -837,6 +838,8 @@ The shell is a flex row: a fixed-width sticky **sidebar** and a fluid **main** c
 ### 9.1 Controls card — every pill, in display order
 
 The controls card has four rows (Phase 4, #78 — the desktop card gained the View row; before Phase 4 it carried only the first three). The **Root** and **Scale** rows are each one ARIA **radiogroup** (single-select), the **Refs** row is an ARIA **`group` of `checkbox` pills** (multi-select — four independent toggles, any combination valid), and the **View** row is **three independent ARIA radiogroups** (Orientation / Density / Handedness — each single-select, one `role="radio"` `.pill` per option), see §11.3. In all rows (Root, Scale, Refs, and the three View segmented groups), **arrow-key / focus order follows the left-to-right order below** — so the sequence is load-bearing, not cosmetic (the Refs checkboxes are independently Tab-focusable rather than roving, but the displayed order is still authoritative). Pill visuals resolve in §8.1; this is the *content* contract (which pills, what label, in what order).
+
+**View row layout (S17).** The View row keeps a single **`View` `.lab`** (the §3 row label, 52px, `{text3}`) aligned with Root/Scale/Refs; inside its slot the three controls stack as **captioned sub-rows** (`.view-subrow`), each pairing a **visible caption** (`.view-cap` — Orientation / Density / Handedness) with its `.pill-track`. The caption is a sub-label one level below `.lab` (UI family, 11px/500, sentence-case, `{text3}` — §2.5 exempt) and **names its radiogroup via `aria-labelledby`** (not a hidden `aria-label`), so sighted and AT users get the same name. The three sub-rows sit at the controls inter-row rhythm (§4.2 `space-300`). This is required: without the captions the three tracks are indistinguishable (Orientation and Density both lead with **Auto**). On the desktop card the sub-rows are left-aligned; in the mobile sheet they are caption-left / pill-track-right (the §10 sheet pattern). The same shared `ViewRow` renders both surfaces.
 
 **Root** — 12 pills, ascending chromatic order from C, using the violin enharmonic spellings of §13 (`Bb` not `A#`, `Ab` not `G#`, `F#` as the default sharp-side choice). Full sequence:
 

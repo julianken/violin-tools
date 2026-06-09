@@ -69,6 +69,31 @@ describe('ViewRow — three segmented radiogroups (§16)', () => {
   });
 });
 
+describe('ViewRow — visible per-control captions (§16 / S17 — labels restored)', () => {
+  // The shipped build named each control only via aria-label, so sighted users saw
+  // three unlabeled pill tracks (two reading "Auto"). S17 renders a VISIBLE caption
+  // per control; the radiogroup's accessible name is the caption (aria-labelledby),
+  // so the name-based queries above still resolve.
+  it('renders a visible caption for each of the three controls', () => {
+    render(<ViewRow mapView={stubMapView()} />);
+    for (const caption of ['Orientation', 'Density', 'Handedness']) {
+      const el = screen.getByText(caption);
+      expect(el).toBeInTheDocument();
+      expect(el).toHaveClass('view-cap');
+      // the caption is NOT a radio (it is a real label, not a pill)
+      expect(el.getAttribute('role')).not.toBe('radio');
+    }
+  });
+
+  it("each radiogroup's accessible name comes from its visible caption", () => {
+    render(<ViewRow mapView={stubMapView()} />);
+    const group = screen.getByRole('radiogroup', { name: 'Orientation' });
+    const caption = screen.getByText('Orientation');
+    expect(group.getAttribute('aria-labelledby')).toBe(caption.id);
+    expect(caption.id).toBeTruthy();
+  });
+});
+
 describe('ViewRow — active segment tracks mapView state (aria-checked)', () => {
   it('highlights the Orientation segment matching mapView.mode (the STORED mode, not the resolved orientation)', () => {
     // mode='auto' is selected even though the RESOLVED orientation is 'vertical' —
