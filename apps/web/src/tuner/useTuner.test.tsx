@@ -44,6 +44,23 @@ function pumpFrames(count: number): void {
   }
 }
 
+/**
+ * Run one queued frame per supplied timestamp, passing that EXACT
+ * `DOMHighResTimeStamp` to the rAF callback. The hook's readout-hold window is
+ * measured against this value (not `performance.now()` or a frame count), so a
+ * controlled, increasing sequence makes the bounded-hold tests deterministic with
+ * no fake wall clock. Stops early if the loop drains (no frame queued).
+ */
+function pumpFramesAt(timestampsMs: readonly number[]): void {
+  for (const ts of timestampsMs) {
+    const entry = rafQueue.entries().next();
+    if (entry.done) break;
+    const [id, cb] = entry.value;
+    rafQueue.delete(id);
+    cb(ts);
+  }
+}
+
 /** Number of frames currently queued (0 ⇒ the loop is paused / torn down). */
 function pendingFrames(): number {
   return rafQueue.size;
@@ -484,6 +501,145 @@ describe('useTuner — cleanup', () => {
     });
     expect(stop).toHaveBeenCalledTimes(1);
     expect(ctx.close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useTuner — bounded readout hold (#103)', () => {
+  // A sine fill at an arbitrary frequency, so a test can SWEEP the pitch across
+  // accepted frames (the tracking case). A positive `hz` past the gate is an
+  // accepted frame; silence (the default fill) is a gated frame (RMS below floor
+  // ⇒ ph2 `hz = -1` ⇒ ph3 returns null), the same dropout the hold rides out.
+  const sineFill =
+    (hz: number) =>
+    (buf: Float32Array): void => {
+      const w = (2 * Math.PI * hz) / 48000;
+      for (let i = 0; i < buf.length; i++) buf[i] = 0.8 * Math.sin(w * i);
+    };
+  /** Frequency `cents` above A4 (440 Hz) — same note territory, progressively sharper. */
+  const sharpOfA4 = (cents: number): number => 440 * Math.pow(2, cents / 1200);
+
+  async function startListening() {
+    const { stream } = makeStream();
+    const getUserMedia = vi.fn(() => Promise.resolve(stream));
+    installSupported(getUserMedia);
+    const hook = renderHook(() => useTuner());
+    await act(async () => {
+      await hook.result.current.start();
+    });
+    return hook;
+  }
+
+  // AC#1 — CONTINUOUS TRACKING. Feed accepted frames whose pitch rises (A4 →
+  // progressively sharper, same note) and assert the published cents track the
+  // input direction — they climb across accepted frames, so the readout cannot be
+  // a single latched value. (Pins the SUGGESTION #1 observable: a moving input,
+  // not a held one, so "tracks" can't be satisfied by a frozen reading.)
+  it('tracks continuously — published cents follow a rising pitch', async () => {
+    const { result } = await startListening();
+    const analyser = FakeAudioContext.lastInstance!.analyser;
+
+    // A rising sweep, well within A4's territory (≤ ~40¢ sharp), one accepted frame
+    // at a time so each frame reads the updated pitch. Timestamps advance 16ms/frame
+    // (≈60fps) but stay FAR inside the 1500ms hold — no frame is gated here.
+    const sweepCents = [0, 5, 10, 15, 20, 25, 30, 35, 40];
+    const seen: number[] = [];
+    sweepCents.forEach((cents, i) => {
+      analyser.fillBuffer = sineFill(sharpOfA4(cents));
+      act(() => {
+        pumpFramesAt([1000 + i * 16]);
+      });
+      const r = result.current.readout;
+      expect(r).not.toBeNull();
+      seen.push(r!.cents);
+    });
+
+    // Held note stays A4 throughout (the sweep never leaves its territory).
+    expect(result.current.readout?.note).toBe('A');
+    expect(result.current.readout?.octave).toBe(4);
+    // The EMA glides, so consecutive published cents are NON-DECREASING and the
+    // last is strictly greater than the first — the readout moved with the input,
+    // it did not latch.
+    for (let i = 1; i < seen.length; i++) {
+      expect(seen[i]).toBeGreaterThanOrEqual(seen[i - 1]! - 1e-9);
+    }
+    expect(seen[seen.length - 1]!).toBeGreaterThan(seen[0]! + 1);
+  });
+
+  // AC#2 — BOUNDED BLANK. Accepted frames establish a good readout, then sustained
+  // GATED frames (silence ⇒ ph2 `hz=-1`) with timestamps advancing PAST the hold
+  // window: the readout must revert to null (the neutral seeking state).
+  it('blanks to null after the hold window elapses on a sustained dropout', async () => {
+    const { result } = await startListening();
+    const analyser = FakeAudioContext.lastInstance!.analyser;
+
+    // Establish a good A4 readout (last accepted frame at t = 1000ms).
+    analyser.fillBuffer = sineFill(440);
+    act(() => {
+      pumpFramesAt([200, 400, 600, 800, 1000]);
+    });
+    expect(result.current.readout).not.toBeNull();
+
+    // Now silence (gated). Within the window (≤ 1000 + 1500 = 2500ms) it holds; the
+    // last gated frame at 2700ms is 1700ms past the last accepted frame — past the
+    // 1500ms bound — so it blanks.
+    analyser.fillBuffer = (buf) => buf.fill(0);
+    act(() => {
+      pumpFramesAt([1500, 2000, 2400, 2700]);
+    });
+
+    expect(result.current.readout).toBeNull();
+  });
+
+  // AC#3 — NO STALE GREEN. After the window, there is no in-tune reading lingering:
+  // `readout` is null ⇒ `hasSignal` (TunerView: `readout !== null`) is false, so the
+  // meter shows the neutral seeking state, never a stale green.
+  it('does not strand a stale in-tune reading after the window', async () => {
+    const { result } = await startListening();
+    const analyser = FakeAudioContext.lastInstance!.analyser;
+
+    // A dead-on A4 ⇒ the last good readout is in-tune (green) — exactly the stale
+    // reading that must NOT persist.
+    analyser.fillBuffer = sineFill(440);
+    act(() => {
+      pumpFramesAt([200, 400, 600, 800, 1000]);
+    });
+    expect(result.current.readout?.inTune).toBe(true);
+
+    // Sustained silence past the window.
+    analyser.fillBuffer = (buf) => buf.fill(0);
+    act(() => {
+      pumpFramesAt([1500, 2200, 3000]);
+    });
+
+    // readout null ⇒ hasSignal false (no green): the seeking state, not a stale ✓.
+    expect(result.current.readout).toBeNull();
+  });
+
+  // AC#4 — NO FLICKER. A gated run SHORTER than the hold window must NOT blank: the
+  // last good readout is still showing (a momentary dropout doesn't tear the meter
+  // down). This is the freeze the hold preserves; only a SUSTAINED gap blanks.
+  it('holds the last good readout through a dropout shorter than the window', async () => {
+    const { result } = await startListening();
+    const analyser = FakeAudioContext.lastInstance!.analyser;
+
+    analyser.fillBuffer = sineFill(440);
+    act(() => {
+      pumpFramesAt([200, 400, 600, 800, 1000]);
+    });
+    const held = result.current.readout;
+    expect(held).not.toBeNull();
+
+    // Silence, but every gated frame stays WITHIN 1500ms of the last accepted frame
+    // (1000ms): 1200, 1600, 2000, 2400 are all ≤ 2500ms. The readout is unchanged.
+    analyser.fillBuffer = (buf) => buf.fill(0);
+    act(() => {
+      pumpFramesAt([1200, 1600, 2000, 2400]);
+    });
+
+    expect(result.current.readout).not.toBeNull();
+    expect(result.current.readout).toBe(held); // same object — never re-published
+    expect(result.current.readout?.note).toBe('A');
+    expect(result.current.readout?.inTune).toBe(true);
   });
 });
 

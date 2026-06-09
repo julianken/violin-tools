@@ -58,6 +58,28 @@ export type TunerStatus = 'unsupported' | 'idle' | 'requesting' | 'listening' | 
 /** The AnalyserNode window. 2048 holds ≥2 periods of G3 (196 Hz) at 48k; never < 1024. */
 const FFT_SIZE = 2048;
 
+/**
+ * How long (in wall-clock ms) to keep showing the last good readout after the
+ * signal stops before falling back to the neutral "seeking" state (§17.7).
+ *
+ * ph3's `push` returns `null` for a gated frame (low clarity / `hz ≤ 0`), which
+ * means "freeze, don't blank" — the right call for a momentary dropout (a bow
+ * change, a brief un-voiced gap) so the meter doesn't flicker. But a `null` push
+ * skips `setReadout`, so without a bound the LAST good `readout` would survive
+ * **indefinitely** — only `stop()` ever nulls it — leaving a stale (possibly
+ * in-tune / green) reading on screen long after the player stopped sounding. We
+ * bound the hold: if no accepted frame has arrived within `READOUT_HOLD_MS`, we
+ * blank to `null` so the existing `readout === null` seeking branch renders.
+ *
+ * 1500 ms is long enough to ride out the dropouts above without flicker, short
+ * enough that a genuinely-stopped tuner returns to "listening…" promptly. The
+ * window is measured against the `DOMHighResTimeStamp` the rAF callback receives
+ * — NOT a frame count — because the rAF cadence is display-dependent (60 / 90 /
+ * 120 Hz), so a frame count at an assumed 60 fps would blank at the wrong
+ * wall-clock time on a high-refresh display.
+ */
+const READOUT_HOLD_MS = 1500;
+
 /** The mic constraints — all three browser DSP stages OFF (they distort pitch/level). */
 const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
   echoCancellation: false,
@@ -70,9 +92,12 @@ export interface TunerApi {
   /** The current permission/lifecycle state (§17.6). */
   status: TunerStatus;
   /**
-   * The latest stabilized reading, or `null` when nothing confident has been
-   * detected yet (silence, or the smoother is freezing a gated frame — ph3
-   * returns `null`, and we hold the last good `readout` rather than blanking).
+   * The latest stabilized reading, or `null` when nothing confident is showing —
+   * either nothing has been detected yet, or the signal stopped. ph3 returns
+   * `null` for a gated frame ("freeze"); we hold the last good `readout` across a
+   * brief dropout rather than blanking, but only for `READOUT_HOLD_MS` — once the
+   * signal stays gone past that bound we revert to `null` so the UI falls back to
+   * the neutral seeking state (§17.7) instead of stranding a stale reading.
    */
   readout: Readout | null;
   /**
@@ -177,6 +202,13 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
   const bufferRef = useRef<Float32Array<ArrayBuffer> | null>(null);
   const rafRef = useRef<number | null>(null);
   const smootherRef = useRef<TunerSmoother | null>(null);
+  // Wall-clock time (the rAF `DOMHighResTimeStamp`) of the last ACCEPTED frame —
+  // the bound for the readout hold. A gated (null) frame keeps the last good
+  // readout only while `(now − lastAcceptedMs) ≤ READOUT_HOLD_MS`; past that we
+  // blank to the neutral seeking state. Set on start() and on every accepted
+  // frame. The rAF timestamp (not a frame counter) makes the window display-rate
+  // independent — see READOUT_HOLD_MS.
+  const lastAcceptedMsRef = useRef<number>(0);
   // The live A4 the loop reads each frame (a ref so a mid-session calibration
   // change reaches the rebuilt smoother without re-arming the loop via deps).
   const a4Ref = useRef<number>(a4);
@@ -214,8 +246,9 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
   // directly), so it never goes stale and is invoked ONLY inside rAF, never during
   // render. It re-schedules itself by name (a hoisted function declaration so the
   // self-reference is legal), so a single requestAnimationFrame(tick) runs the
-  // whole loop until cancelled.
-  const tick = useCallback(function frame(): void {
+  // whole loop until cancelled. It consumes the rAF `DOMHighResTimeStamp` to bound
+  // the readout hold (see below + READOUT_HOLD_MS).
+  const tick = useCallback(function frame(frameTimeMs: number): void {
     const analyser = analyserRef.current;
     const ctx = ctxRef.current;
     const buffer = bufferRef.current;
@@ -225,8 +258,17 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
     analyser.getFloatTimeDomainData(buffer);
     const { hz, clarity } = detectPitchDetailed(buffer, ctx.sampleRate);
     const next = smoother.push({ hz, clarity });
-    // A null push is a "freeze" (ph3): hold the last good readout, don't blank.
-    if (next !== null) setReadout(next);
+    if (next !== null) {
+      // An accepted frame: publish it and re-arm the hold window.
+      lastAcceptedMsRef.current = frameTimeMs;
+      setReadout(next);
+    } else if (frameTimeMs - lastAcceptedMsRef.current > READOUT_HOLD_MS) {
+      // A gated frame (ph3 "freeze") past the hold window: stop holding the stale
+      // reading and blank to the neutral seeking state (§17.7 — `readout === null`
+      // renders "listening…"). Within the window we keep the last good readout so
+      // a momentary dropout (a bow change, a brief gap) doesn't flicker.
+      setReadout(null);
+    }
 
     rafRef.current = requestAnimationFrame(frame);
   }, []);
@@ -394,6 +436,12 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
     // Session adopted into the refs — teardown now owns it; release the synchronous
     // re-entry latch (the live refs/status guard re-entry from here on).
     startingRef.current = false;
+
+    // Anchor the readout-hold window to session start (the rAF timestamp this
+    // session's first accepted frame would carry), so the first gated frames don't
+    // measure against a stale `lastAcceptedMs` from a previous session or epoch 0.
+    // Every accepted frame re-arms it from there (see `tick`).
+    lastAcceptedMsRef.current = typeof performance !== 'undefined' ? performance.now() : 0;
 
     setStatus('listening');
     // If the tab is already hidden, the visibility effect will hold the loop; an
