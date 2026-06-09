@@ -21,3 +21,20 @@ export { spell } from './spell.ts';
 // §13 / §11.3 spoken note names — the plain-speech (AT) form of a note name and
 // the per-marker accessible name ("C sharp, root") the roving note map exposes.
 export { spokenName, noteMarkerName } from './speech.ts';
+// S18 (Tuner) tuning math — pure equal-temperament Hz ↔ note/cents conversion
+// against an adjustable A4, plus the violin open-string targets. No Web Audio/DOM.
+export {
+  A4_MIN,
+  A4_MAX,
+  A4_DEFAULT,
+  clampA4,
+  frequencyOfMidi,
+  frequencyOfNote,
+  centsBetween,
+  noteFromFrequency,
+  OPEN_STRINGS,
+  openStringFrequencies,
+  nearestOpenString,
+  type Reading,
+  type OpenStringFrequencies,
+} from './tuning.ts';
