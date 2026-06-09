@@ -145,4 +145,22 @@ describe('useShareLink — copy branch (no navigator.share)', () => {
     expect(result.current.caption).toBe("Couldn't copy — link is in the address bar");
     expect(result.current.announcement).toBe('');
   });
+
+  it('routes an ABSENT clipboard API to the failure caption (never stuck on "copying")', () => {
+    // Neither share NOR clipboard — an insecure/old context. A bare
+    // navigator.clipboard.writeText() would throw synchronously; the guard must
+    // route to the §8.4 caption instead of stranding phase on 'copying'.
+    stubNavigator('clipboard', undefined);
+
+    const { result } = renderHook(() => useShareLink(buildUrl));
+    act(() => {
+      result.current.share();
+    });
+
+    // Synchronous: the guard sets 'error' before any await, so the button never
+    // shows the busy "Copying…" label on a context that can't copy.
+    expect(result.current.phase).toBe('error');
+    expect(result.current.caption).toBe("Couldn't copy — link is in the address bar");
+    expect(result.current.announcement).toBe('');
+  });
 });

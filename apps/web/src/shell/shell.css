@@ -529,7 +529,7 @@ body {
   opacity: 1;
   animation:
     ghost-check-fade var(--tt-in) var(--ease-modal-in) forwards,
-    ghost-check-bob var(--tt-in) var(--ease-modal-in) forwards;
+    ghost-check-rise var(--tt-in) var(--ease-modal-in) forwards;
 }
 .ghost-check[data-state='in'] svg path {
   animation: ghost-check-draw var(--tt-in) var(--ease-modal-in) forwards;
@@ -542,7 +542,7 @@ body {
     opacity: 1;
   }
 }
-@keyframes ghost-check-bob {
+@keyframes ghost-check-rise {
   from {
     transform: translateY(2px);
   }

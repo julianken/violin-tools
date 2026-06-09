@@ -123,10 +123,25 @@ export function useShareLink(buildUrl: () => string = () => window.location.href
     }
 
     // Copy branch — desktop / unsupported. Busy → success/failure, announced.
+    // Guard the API itself: in a context with NEITHER share NOR clipboard (an
+    // insecure HTTP origin, or a very old browser) `navigator.clipboard` is
+    // undefined, and a bare `.writeText()` would throw synchronously — stranding
+    // phase on 'copying' forever (the `.then()` never attaches). The DOM lib types
+    // `clipboard` as always-present, so we re-type it optional and feature-detect
+    // (mirroring `canNativeShare`), routing an absent clipboard to the same §8.4
+    // failure caption the rejection path already shows.
+    const nav = navigator as Omit<Navigator, 'clipboard'> & { clipboard?: Clipboard };
+    if (typeof nav.clipboard?.writeText !== 'function') {
+      setPhase('error');
+      setCaption("Couldn't copy — link is in the address bar");
+      setAnnouncement('');
+      armRevert();
+      return;
+    }
     setPhase('copying');
     setCaption('');
     setAnnouncement('');
-    navigator.clipboard.writeText(url).then(
+    nav.clipboard.writeText(url).then(
       () => {
         setPhase('copied');
         setCaption('Link copied');
