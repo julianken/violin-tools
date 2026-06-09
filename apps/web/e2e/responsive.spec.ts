@@ -334,3 +334,42 @@ test.describe('§10 desktop @ 1440×900 — the shell is unchanged', () => {
     expect(desk.pageOverflow).toBe(false);
   });
 });
+
+// S18 ph6 (§17) — the new Tuner view must reflow on a phone exactly like the note
+// map: no horizontal page overflow at the 390 and 320 floors. Below the §10
+// breakpoint the sidebar is hidden, so the Tuner is reached via the command palette
+// (the mobile top-bar search trigger), not the sidebar nav item.
+test.describe('§17 Tuner view — mobile reflow (no horizontal overflow)', () => {
+  for (const vp of [MOBILE, MOBILE_320]) {
+    test(`@ ${String(vp.width)}×${String(vp.height)} the Tuner view does not h-scroll`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(vp);
+      await page.goto('/');
+      await expect(page.locator('svg#board')).toBeVisible();
+
+      // Open the palette (the mobile top-bar search trigger) and jump to the Tuner.
+      await page.locator('.topbar-search').click();
+      const dialog = page.getByRole('dialog', { name: 'Scale search' });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('textbox', { name: 'Search scales and tools' }).fill('Tuner');
+      await dialog
+        .getByRole('listbox', { name: 'Results' })
+        .getByRole('option', { name: /Tuner/ })
+        .first()
+        .click();
+
+      // The Tuner view is now showing (the board is gone).
+      await expect(page.getByRole('heading', { level: 1, name: 'Chromatic tuner' })).toBeVisible();
+      await expect(page.locator('svg#board')).toHaveCount(0);
+
+      const metrics = await page.evaluate(() => {
+        const de = document.scrollingElement ?? document.documentElement;
+        return { scrollWidth: de.scrollWidth, clientWidth: de.clientWidth };
+      });
+      // The headline AC: the Tuner view never overflows the viewport horizontally.
+      expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
+      expect(metrics.clientWidth).toBe(vp.width);
+    });
+  }
+});

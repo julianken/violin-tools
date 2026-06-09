@@ -54,6 +54,31 @@ test.describe('§11 axe scan — zero serious/critical violations', () => {
     // Surface the rule ids if this ever fails, so the report is actionable.
     expect(blocking.map((v) => v.id)).toEqual([]);
   });
+
+  test('the §17 Tuner view (idle) has no serious or critical axe violations', async ({
+    page,
+  }) => {
+    // S18 ph6 — extend the axe gate to the new Tuner surface (§17). The idle state
+    // is the static, deterministic surface (no mic needed); it carries the kicker,
+    // H1, rationale, the {mint}-outline Start pill, and the privacy line.
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Tuner' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Chromatic tuner' })).toBeVisible();
+    let builder = new AxeBuilder({ page }).withTags([
+      'wcag2a',
+      'wcag2aa',
+      'wcag21a',
+      'wcag21aa',
+    ]);
+    for (const selector of SECTION_2_5_EXEMPT_SELECTORS) {
+      builder = builder.exclude(selector);
+    }
+    const results = await builder.analyze();
+    const blocking = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
+    expect(blocking.map((v) => v.id)).toEqual([]);
+  });
 });
 
 test.describe('§11.3 structure — landmarks, skip link, document lang', () => {

@@ -108,14 +108,17 @@ const SCALE_TARGETS: readonly ScaleTarget[] = ROOT_PILLS.flatMap((root) =>
 );
 
 /**
- * The Tools group (§8.5): the live **Scale Map** (`▦`, `open`), then the `soon`
- * stubs **Intonation** (`◴`) and **Tuner** (`◎`) — the two future tools the
- * §8.5 palette row names (Vibrato is a sidebar nav stub, not a palette row).
+ * The Tools group (§8.5): the live **Scale Map** (`▦`, `open`) and the live
+ * **Tuner** (`◎`, `open`, S18 ph6 — now a real navigable view, §17.1), with the
+ * `soon` stub **Intonation** (`◴`) between them in display order (Vibrato is a
+ * sidebar nav stub, not a palette row). Selecting an `open` Tools row sets the
+ * §17.1 view seam (the Tuner row → the Tuner surface; the Scale Map row → the note
+ * map); a `soon` row stays non-actionable.
  */
 const TOOL_TARGETS: readonly ToolTarget[] = [
   { kind: 'tool', id: 'tool:scale-map', label: 'Scale Map', glyph: '▦', meta: 'open' },
   { kind: 'tool', id: 'tool:intonation', label: 'Intonation', glyph: '◴', meta: 'soon' },
-  { kind: 'tool', id: 'tool:tuner', label: 'Tuner', glyph: '◎', meta: 'soon' },
+  { kind: 'tool', id: 'tool:tuner', label: 'Tuner', glyph: '◎', meta: 'open' },
 ];
 
 /** The two group headings, in §9 tree order. */

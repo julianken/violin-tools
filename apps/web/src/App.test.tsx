@@ -32,20 +32,25 @@ describe('App shell', () => {
     expect(skip).toHaveAttribute('href', '#board');
   });
 
-  it('has exactly one active nav item — Scales', () => {
+  it('Scales is the active nav item by default; Tuner is a live, inactive nav item (§17.1)', () => {
     render(<App />);
     const nav = screen.getByRole('navigation', { name: 'Tools' });
-    // The active item is a real link with aria-current="page"; the three soon
-    // stubs are aria-disabled spans, not links/actions.
+    // Scales is the default active view — a real link with aria-current="page".
     const active = within(nav).getByRole('link', { name: 'Scales' });
     expect(active).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getAllByRole('link')).toHaveLength(1);
+    // S18 ph6 (§17.1): Tuner is now a LIVE nav item (a button), not a soon stub —
+    // present, actionable, and NOT marked active until selected.
+    const tuner = within(nav).getByRole('button', { name: 'Tuner' });
+    expect(tuner).not.toHaveAttribute('aria-disabled');
+    expect(tuner).not.toHaveAttribute('aria-current');
   });
 
-  it('renders the three soon stubs as inert, non-focusable affordances', () => {
+  it('renders the two remaining soon stubs (Intonation, Vibrato) as inert affordances', () => {
     render(<App />);
     const nav = screen.getByRole('navigation', { name: 'Tools' });
-    for (const label of ['Intonation', 'Vibrato', 'Tuner']) {
+    // Tuner left the soon list in S18 ph6 — only Intonation + Vibrato remain `soon`.
+    for (const label of ['Intonation', 'Vibrato']) {
       const stub = within(nav).getByText(label).closest('.ni');
       expect(stub).toHaveAttribute('aria-disabled', 'true');
       expect(stub).not.toHaveAttribute('href');

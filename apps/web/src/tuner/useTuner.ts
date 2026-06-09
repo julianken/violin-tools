@@ -415,8 +415,13 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
       cancelRaf();
       if (ctx.state === 'running') void ctx.suspend();
     } else {
+      // The ph4 review SUGGESTION (benign hardening): `ctx.resume()` is async, so
+      // between the await and its resolution a `stop()`/unmount (or a tab that
+      // re-hid) could have torn the session down. Re-arm the loop ONLY if THIS
+      // context is still the live one — guard on the ref identity (teardown nulls
+      // it) so a resume that resolves after teardown never re-starts a dead loop.
       const resumeAndRun = (): void => {
-        runLoop();
+        if (ctxRef.current === ctx && !getVisibilitySnapshot()) runLoop();
       };
       if (ctx.state === 'suspended') {
         ctx.resume().then(resumeAndRun, resumeAndRun);

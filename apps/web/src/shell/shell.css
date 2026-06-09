@@ -178,6 +178,18 @@ body {
   color: var(--text2);
   text-decoration: none;
 }
+/* .ni rendered as a <button> (the Tuner nav item, §17.1) — the §17.1 view seam
+ * swaps content, so it is a button, not a hash link. Reset the UA button chrome so
+ * it reads identically to the `<a>` nav items (same height/padding/typography from
+ * `.ni`); only `width:100%` + `text-align:left` + the cursor differ from a span. */
+.ni-button {
+  width: 100%;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
 .ni .ic {
   display: inline-flex;
   align-items: center;
