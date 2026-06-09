@@ -411,6 +411,80 @@ describe('useTuner — cleanup', () => {
     expect(stop).toHaveBeenCalledTimes(1);
     expect(ctx.close).toHaveBeenCalledTimes(1);
   });
+
+  // The leak the re-entrancy guard exists to prevent: the component unmounts (its
+  // teardown runs) WHILE getUserMedia is still pending, then the grant resolves.
+  // Without the mountedRef/token guard the hook would adopt the late-arriving
+  // track + build a context that nothing tears down. With it, the resolved track
+  // is stopped on the abort path and no context is ever constructed.
+  it('unmount mid-request releases the late-arriving track (no leak, no throw)', async () => {
+    const { stream, stop } = makeStream();
+    // A deferred getUserMedia we resolve by hand AFTER unmount.
+    let resolveGum!: (s: MediaStream) => void;
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise<MediaStream>((resolve) => {
+          resolveGum = resolve;
+        }),
+    );
+    installSupported(getUserMedia);
+
+    const { result, unmount } = renderHook(() => useTuner());
+
+    let startPromise!: Promise<void>;
+    act(() => {
+      startPromise = result.current.start();
+    });
+    // The request is in flight (transient 'requesting'); nothing acquired yet.
+    expect(result.current.status).toBe('requesting');
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+
+    // Unmount BEFORE the grant resolves — teardown runs against still-null refs.
+    unmount();
+    expect(FakeAudioContext.lastInstance).toBeNull(); // no context built yet
+
+    // NOW the grant resolves. The hook must release the track and build no context
+    // — and must not throw (resolving into an unmounted hook is the trap).
+    await act(async () => {
+      resolveGum(stream);
+      await expect(startPromise).resolves.toBeUndefined();
+    });
+
+    expect(stop).toHaveBeenCalledTimes(1); // late track stopped, not leaked
+    expect(FakeAudioContext.lastInstance).toBeNull(); // never created a context
+    expect(pendingFrames()).toBe(0); // no rAF loop armed
+  });
+
+  // Two start() calls in the same tick both close over a stale 'idle' status; the
+  // synchronous startingRef latch makes the second a no-op, so getUserMedia is
+  // called exactly once and only one context/stream is ever acquired (no orphan).
+  it('double start() acquires exactly one context/stream (second call is a no-op)', async () => {
+    const { stream, stop } = makeStream();
+    const getUserMedia = vi.fn(() => Promise.resolve(stream));
+    installSupported(getUserMedia);
+
+    const { result } = renderHook(() => useTuner());
+
+    await act(async () => {
+      // Fire both before awaiting either — the second sees the first's in-flight
+      // latch (the closed-over status is still 'idle' for both).
+      const first = result.current.start();
+      const second = result.current.start();
+      await Promise.all([first, second]);
+    });
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1); // second call never re-requested
+    expect(result.current.status).toBe('listening');
+
+    // Exactly one context, and tearing the session down releases exactly that one
+    // (no orphaned stream/context from a doubled acquisition).
+    const ctx = FakeAudioContext.lastInstance!;
+    act(() => {
+      result.current.stop();
+    });
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(ctx.close).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('useTuner — A4 calibration', () => {

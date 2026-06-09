@@ -180,6 +180,23 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
   // The live A4 the loop reads each frame (a ref so a mid-session calibration
   // change reaches the rebuilt smoother without re-arming the loop via deps).
   const a4Ref = useRef<number>(a4);
+  // ── Lifecycle guards (synchronous — the `status` state lags behind two calls in
+  //    the same tick, so the abort decisions below cannot rely on it). ───────────
+  //  • `mountedRef` flips false in the unmount cleanup, so a start() whose
+  //    getUserMedia / resume() resolves AFTER unmount knows to release, not adopt,
+  //    what it acquired (the closed-over teardown can't see the new refs yet).
+  //  • `startingRef` is a synchronous re-entry latch: set the instant a start()
+  //    commits to acquiring (before the first await), cleared on every exit. A
+  //    second start() in the same tick sees it set and no-ops, so getUserMedia is
+  //    called exactly once — the closed-over `status` is still a stale 'idle'.
+  //  • `startTokenRef` is a monotonically-incrementing session id. Each start()
+  //    captures a fresh token at the top; after every await it checks it still
+  //    holds the latest one. A stop()/unmount (or a later start) bumps the token,
+  //    superseding any in-flight start so it tears down its own acquisitions and
+  //    bails instead of orphaning a context/stream.
+  const mountedRef = useRef(true);
+  const startingRef = useRef(false);
+  const startTokenRef = useRef(0);
 
   const hidden = useDocumentHidden();
   // `paused` is only meaningful while a session is live (status 'listening').
@@ -219,27 +236,37 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
     rafRef.current = requestAnimationFrame(tick);
   }, [cancelRaf, tick]);
 
-  // ── Full teardown — cancel the loop, stop tracks, close the context. ─────────
-  // Idempotent: safe to call from stop(), the unmount cleanup, and a failed
-  // start() alike. Closing the context releases the underlying audio hardware.
-  const teardown = useCallback(() => {
-    cancelRaf();
-    const stream = streamRef.current;
+  // ── Release one acquired session — stop its tracks, close its context. ───────
+  // Operates on locals (not the refs) so it can also release an acquisition an
+  // aborted start() never published to the refs (the unmount-mid-request leak).
+  // Idempotent on a given pair: a double-close throws in some browsers, so we
+  // guard on the context state.
+  const releaseSession = useCallback((stream: MediaStream | null, ctx: AudioContext | null) => {
     if (stream) {
       for (const track of stream.getTracks()) track.stop();
-      streamRef.current = null;
     }
-    const ctx = ctxRef.current;
     if (ctx && ctx.state !== 'closed') {
-      // close() returns a promise; we don't await it (teardown is sync), and a
-      // double-close throws in some browsers, so guard on state above.
+      // close() returns a promise; we don't await it (teardown is sync).
       void ctx.close();
     }
+  }, []);
+
+  // ── Full teardown — cancel the loop, stop tracks, close the context. ─────────
+  // Idempotent: safe to call from stop(), the unmount cleanup, and a failed
+  // start() alike. Bumping the start token supersedes any in-flight start() so a
+  // getUserMedia/resume() that resolves after this won't adopt a now-dead
+  // session. Closing the context releases the underlying audio hardware.
+  const teardown = useCallback(() => {
+    startTokenRef.current += 1;
+    startingRef.current = false;
+    cancelRaf();
+    releaseSession(streamRef.current, ctxRef.current);
+    streamRef.current = null;
     ctxRef.current = null;
     analyserRef.current = null;
     bufferRef.current = null;
     smootherRef.current = null;
-  }, [cancelRaf]);
+  }, [cancelRaf, releaseSession]);
 
   const stop = useCallback(() => {
     teardown();
@@ -248,16 +275,30 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
   }, [teardown]);
 
   const start = useCallback(async (): Promise<void> => {
-    // Already running (or mid-request) — don't double-acquire the mic.
+    // ── Re-entrancy guard (synchronous) ───────────────────────────────────────
+    // Reading `status` is not enough: two start() calls in the same tick both
+    // close over a stale 'idle' and both proceed (the setStatus is async), each
+    // owning a context/stream — the first orphaned. So gate synchronously: a live
+    // session (refs set), an in-flight start (`startingRef`), or a status already
+    // requesting/listening makes this call a no-op. Then claim the session: latch
+    // `startingRef` and a fresh token, and after every await assert this start
+    // still holds the latest token (a stop()/unmount bumps it). On abort, release
+    // whatever was acquired so nothing the refs never adopted can leak.
     if (status === 'listening' || status === 'requesting') return;
+    if (startingRef.current || streamRef.current !== null || ctxRef.current !== null) return;
+    startingRef.current = true;
+    const token = (startTokenRef.current += 1);
+    const superseded = (): boolean => !mountedRef.current || startTokenRef.current !== token;
 
     // ── Feature detection (AC#1) ──────────────────────────────────────────────
     if (!isCaptureSupported()) {
+      startingRef.current = false;
       setStatus('unsupported');
       return;
     }
     const AudioContextCtor = getAudioContextCtor();
     if (AudioContextCtor === null) {
+      startingRef.current = false;
       setStatus('unsupported');
       return;
     }
@@ -276,11 +317,22 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
       // — the UI guides to settings (§17.6), it cannot re-prompt. Any other
       // failure (e.g. a transient device error) also lands here as denied; ph6
       // recovery copy covers it.
+      if (superseded()) return; // teardown already cleared startingRef + moved on
+      startingRef.current = false;
       setStatus('denied');
       if (err instanceof DOMException) {
         // Surfaced for diagnostics only; the state above is what the UI renders.
         console.warn(`Tuner: getUserMedia failed (${err.name})`);
       }
+      return;
+    }
+
+    // The mic resolved AFTER an unmount or a superseding stop(): nothing will ever
+    // tear this track down via the refs, so release it here and bail — this is the
+    // unmount-mid-request leak the guard exists to prevent. (teardown already
+    // cleared startingRef.)
+    if (superseded()) {
+      releaseSession(stream, null);
       return;
     }
 
@@ -307,11 +359,19 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
         await ctx.resume();
       } catch {
         // A resume rejection is rare; treat it as a failed start and clean up.
-        for (const t of stream.getTracks()) t.stop();
-        void ctx.close();
+        releaseSession(stream, ctx);
+        if (superseded()) return; // teardown already cleared startingRef
+        startingRef.current = false;
         setStatus('denied');
         return;
       }
+    }
+
+    // The resume await is a second suspension point — re-check before adopting the
+    // context, releasing both the track and the now-orphaned context if superseded.
+    if (superseded()) {
+      releaseSession(stream, ctx);
+      return;
     }
 
     const analyser = ctx.createAnalyser();
@@ -331,13 +391,16 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
     analyserRef.current = analyser;
     bufferRef.current = new Float32Array(FFT_SIZE);
     smootherRef.current = smoother;
+    // Session adopted into the refs — teardown now owns it; release the synchronous
+    // re-entry latch (the live refs/status guard re-entry from here on).
+    startingRef.current = false;
 
     setStatus('listening');
     // If the tab is already hidden, the visibility effect will hold the loop; an
     // unconditional runLoop() here is harmless (the effect re-evaluates on mount/
     // status change and cancels it), but starting it keeps the visible case crisp.
     if (!getVisibilitySnapshot()) runLoop();
-  }, [status, runLoop]);
+  }, [status, runLoop, releaseSession]);
 
   // ── Page Visibility gate (§17.8) ─────────────────────────────────────────────
   // While listening, pause the loop AND suspend the context on hidden; resume the
@@ -381,8 +444,18 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
 
   // ── Unmount cleanup (AC#5) ───────────────────────────────────────────────────
   // Release everything on unmount so a navigated-away Tuner never leaks a live
-  // mic track or an open AudioContext. `teardown` is stable, so this runs once.
-  useEffect(() => teardown, [teardown]);
+  // mic track or an open AudioContext. Flipping `mountedRef` first makes any
+  // start() whose getUserMedia/resume() resolves AFTER this release (rather than
+  // adopt) what it acquired — without it, a request in flight at unmount would
+  // build a context/stream the (already-run) teardown can never reach. `teardown`
+  // is stable, so this effect runs once; the cleanup runs on unmount.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      teardown();
+    };
+  }, [teardown]);
 
   return { status, readout, paused, start, stop, a4, setA4 };
 }
