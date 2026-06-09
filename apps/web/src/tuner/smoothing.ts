@@ -173,8 +173,8 @@ export interface TunerSmoother {
   reset(): void;
 }
 
-/** Default clarity gate — mirrors ph2's `CLARITY_THRESHOLD` (0.7) without re-importing it. */
-const DEFAULT_CLARITY_THRESHOLD = 0.7;
+/** Default clarity gate — mirrors ph2's `CLARITY_THRESHOLD` (0.5) without re-importing it. */
+const DEFAULT_CLARITY_THRESHOLD = 0.5;
 
 /** Force `window` to the nearest odd integer ≥ 1 so the median has a true middle. */
 function toOddWindow(window: number): number {

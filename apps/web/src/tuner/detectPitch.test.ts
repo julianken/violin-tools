@@ -164,14 +164,22 @@ describe('detectPitch — tone + seeded noise (AC#4: moderate SNR within ±25¢)
 describe('detectPitch — gate rejects BOTH noise-floor AND silence (AC#4, #92 SUGGESTION)', () => {
   // AC#7 of the #92 review bundled two facts into one line; assert them
   // SEPARATELY so a regression in either gate is pinned independently.
-  it('very-low-SNR / pure noise returns -1 (clarity gate)', () => {
+  it('very-low-SNR / pure noise returns -1 — and its clarity is below the 0.5 gate (#105 backstop)', () => {
     for (const rate of RATES) {
       // No tone at all — just seeded broadband noise above the RMS floor. Loud
       // enough to pass the silence gate, aperiodic enough that the clarity gate
-      // must reject it.
+      // must reject it. This is the load-bearing false-detection backstop for the
+      // #105 gate loosening (0.7 → 0.5): the noise fixture's clarity must sit
+      // BELOW 0.5, or 0.5 would be too loose and admit a bogus pitch.
       const rand = mulberry32(0x4015);
       const noise = new Float32Array(FFT_SIZE);
       for (let i = 0; i < FFT_SIZE; i++) noise[i] = 0.3 * (rand() * 2 - 1);
+      // Measured: this aperiodic fixture produces NO key-maximum that clears the
+      // gate, so the detector reports the clarity=0 rejection sentinel — well
+      // below 0.5. The literal 0.5 pins the backstop independently of the
+      // exported constant so loosening the gate further can never silently flip
+      // this test green.
+      expect(detectPitchDetailed(noise, rate).clarity).toBeLessThan(0.5);
       expect(detectPitch(noise, rate)).toBe(-1);
     }
   });
@@ -197,10 +205,60 @@ describe('detectPitch — gate rejects BOTH noise-floor AND silence (AC#4, #92 S
   });
 });
 
+describe('detectPitch — sensitivity regression: 0.5 gate admits a quiet/noisy periodic frame (#105)', () => {
+  // The #105 fix lowered CLARITY_THRESHOLD 0.7 → 0.5 so a normally-bowed (not
+  // loud) violin on a built-in mic detects. This pins the sensitivity GAIN with a
+  // deterministic fixture whose measured clarity lands in the half-open [0.5, 0.7)
+  // band — the exact region the loosening opened up. A purely tautological "it
+  // detects now" test would be worthless, so this asserts THREE independent facts:
+  //   (a) the fixture's measured clarity is in [0.5, 0.7) — it really exercises
+  //       the loosened band (not a ≥0.7 frame that detected at the old gate too);
+  //   (b) the OLD 0.7 gate would have REJECTED it — re-applying a local 0.7 gate
+  //       to the measured clarity yields the −1 sentinel (the constant is now 0.5,
+  //       so we re-gate by hand rather than rely on it);
+  //   (c) the NEW 0.5 gate ACCEPTS it — detectPitch returns A4 within tolerance.
+  // Fixture: an A4 harmonic tone (4 partials) + calibrated white noise (amp 0.5,
+  // seed 0x1234) drops the NSDF peak into the band while staying periodic enough
+  // to land on the true fundamental. Both reference rates are covered; the
+  // measured clarities (44.1k ≈ 0.698, 48k ≈ 0.692) and detected pitch (within a
+  // few cents of 440) were swept offline, so the band membership is real.
+  const OLD_GATE = 0.7;
+  it('a periodic fixture with clarity in [0.5, 0.7) is rejected at 0.7 but detected at 0.5', () => {
+    for (const rate of RATES) {
+      const tone = harmonicTone(A4, rate, [1.0, 0.5, 0.33, 0.25], 0x440f);
+      const fixture = addNoise(tone, 0.5, 0x1234);
+
+      const measured = detectPitchDetailed(fixture, rate);
+
+      // (a) Non-tautological: the fixture genuinely sits in the loosened band.
+      expect(measured.clarity).toBeGreaterThanOrEqual(0.5);
+      expect(measured.clarity).toBeLessThan(0.7);
+
+      // (b) At the OLD 0.7 gate this frame was rejected. Re-gate the measured
+      // clarity by hand (the live constant is 0.5 now) — clarity < 0.7 ⇒ the
+      // detector would have returned the −1 sentinel.
+      const oldGateResult = measured.clarity < OLD_GATE ? -1 : measured.hz;
+      expect(oldGateResult).toBe(-1);
+
+      // (c) At the NEW 0.5 gate the same frame is accepted and lands on A4. This
+      // is the sensitivity gain the #105 fix delivers, proven not assumed.
+      const detected = detectPitch(fixture, rate);
+      expect(detected).toBeGreaterThan(0);
+      expect(Math.abs(centsError(detected, A4))).toBeLessThanOrEqual(25);
+    }
+  });
+});
+
 describe('detectPitchDetailed — clarity metric & contract', () => {
-  it('reports clarity ≥ CLARITY_THRESHOLD on a clean tone and 0 on rejection', () => {
+  it('reports clarity ≈ 1 on a clean tone and 0 on rejection', () => {
     const clean = detectPitchDetailed(sine(A4, 44100), 44100);
     expect(clean.hz).toBeGreaterThan(0);
+    // A clean synthetic sine is near-perfectly periodic ⇒ clarity ≈ 1.0. Pin a
+    // LITERAL 0.9 lower bound rather than tracking CLARITY_THRESHOLD: after the
+    // #105 loosening (0.7 → 0.5) the exported constant would weaken this to a
+    // ≥0.5 floor a non-clean tone could pass, gutting the "clean ⇒ confident"
+    // contract. It must still clear the gate, so assert that too.
+    expect(clean.clarity).toBeGreaterThanOrEqual(0.9);
     expect(clean.clarity).toBeGreaterThanOrEqual(CLARITY_THRESHOLD);
     expect(clean.clarity).toBeLessThanOrEqual(1);
 

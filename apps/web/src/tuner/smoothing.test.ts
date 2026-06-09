@@ -27,7 +27,7 @@ const ASHARP4_MIDI = 70; // A♯4 — the chromatic neighbour above A4
 /** Hz of a MIDI note (possibly fractional) at the default A4. */
 const hzOf = (midi: number): number => frequencyOfMidi(midi, A4_DEFAULT);
 
-/** A clean, confident frame at a given MIDI note (clarity well above the 0.7 gate). */
+/** A clean, confident frame at a given MIDI note (clarity well above the 0.5 gate). */
 const frameAt = (midi: number, clarity = 0.95): Frame => ({ hz: hzOf(midi), clarity });
 
 /** Hz a given number of cents sharp/flat of a MIDI note. */
