@@ -44,9 +44,13 @@
   gap: var(--space-300); /* 12px caption ↔ pill-track */
 }
 /* The caption — a sub-label one level below the §3 `.lab` row label: same UI family,
- * sentence-case (it labels a single control, not a row group), `{text3}`. */
+ * sentence-case (it labels a single control, not a row group), `{text3}`. It is a
+ * FIXED-WIDTH column (fits the longest caption, "Handedness") so the three pill
+ * tracks all start at the same x — the three View controls read as an aligned
+ * column on BOTH surfaces, not pills that drift left/right with caption length. */
 .view-cap {
   flex: none;
+  width: 72px;
   font-family: var(--family-ui);
   font-size: 11px;
   font-weight: 500;
@@ -188,11 +192,18 @@
   gap: var(--space-200); /* 8px (§4.2) — clears the 44px hit-pad collision */
 }
 
-/* In the sheet the View sub-rows put the caption at the left edge and push the pill
- * track to the right edge (the §10 label-left / control-right sheet pattern). On the
- * desktop card `.view-subrow` keeps its default left-aligned flow. */
+/* In the sheet, the View controls stack the caption ABOVE its pill track (the §10
+ * narrow-column form pattern): the double indent (the `View` `.lab` + a beside-the-
+ * pills caption column) leaves too little width for the widest control (Orientation:
+ * Auto/Vertical/Horizontal) to sit on one line at 390px, so it would wrap and read
+ * taller than Density/Handedness. Stacking gives every track the full slot width, so
+ * all three controls are the SAME shape (caption line + full-width pills) — no wrap,
+ * no per-control drift. The desktop card keeps the beside-the-pills aligned column
+ * (it has the width). */
 .mc-sheet .view-subrow {
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-100); /* 4px caption → pills */
 }
 
 /* Root, in the sheet, lays out as a 4×3 grid (12 pills → 4 columns × 3 rows).
