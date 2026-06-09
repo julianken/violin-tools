@@ -1205,12 +1205,12 @@ The Tuner is its **own nav view that swaps the main panel** — one subject, no 
 
 ### 17.2 The dot-echo meter (the signature)
 
-The detected pitch **is** a §12.2 dot riding a horizontal **cents axis** that runs −50 … 0 … +50, with the in-tune center at 0. The axis carries a faint center tick in `{mint}` (the acoustic anchor — the only thing the player is steering toward), `flat ♭` labelling the left half and `sharp ♯` the right (§13 spoken/visible direction words, not color alone). The dot's x-position along this axis **is the live cents value** — the meter is the dot's position, not a separate needle.
+The detected pitch **is** a §12.2 dot riding a horizontal **cents axis** that runs −50 … 0 … +50, with the in-tune center at 0. The axis carries a faint **hairline** center tick in `{mint}` — a 1px anchor mark (the acoustic anchor the player steers toward), **not** a filled element, so it never challenges the root dot as the lone solid fill (§2.4) — with `flat ♭` labelling the left half and `sharp ♯` the right (§13 spoken/visible direction words, not color alone). The dot's x-position along this axis **is the live cents value** — the meter is the dot's position, not a separate needle.
 
 Two states, both drawn from §12.2 so nothing here is a new shape:
 
 - **Off / seeking** (`|cents| > 5`). The dot is the §12.2 **in-scale** dot — `{mint}` stroke (`stroke-width 1.5`), `in-scale-fill`, `r ≈ 14` (the §12.2 in-scale radius), **no label inside it** — sitting off-center on the flat (left) or sharp (right) side, its x set to the live cents. It reads as "a note is sounding, but not yet centered," exactly as an in-scale dot reads "a pitch that belongs but is not the root."
-- **In tune** (`|cents| ≤ 5`). The dot snaps to the §12.2 **root** dot — solid `{mint}` fill (`r = 15`, no stroke) **plus the `root-glow` ring** (the `r ≈ 19`, `stroke-width 3` translucent ring of §12.2) — and shows the **note name inside it** in **Inter** (12px, the §12.2 root-dot label face — note names are Inter by the §3 partition, with `root-label` text on the solid `{mint}` fill at the §2.5 9.86:1 pairing; this is the dot label rule, not a §3 exception). In-tune therefore *is* the root-dot treatment: a centered, solid, glowing mint dot naming the pitch — the same "where sound lives / in tune" idea §2.6 makes one color.
+- **In tune** (`|cents| ≤ 5`). The dot snaps to the §12.2 **root** dot — solid `{mint}` fill (`r = 15`, no stroke) **plus the `root-glow` ring** (the `r ≈ 19`, `stroke-width 3` translucent ring of §12.2) — and shows the **note name inside it** in **Inter** (12px, the §12.2 root-dot label face — the **sole §3 "music = mono" exception**: note names are Geist Mono everywhere *except* the label inside an SVG dot, which is Inter so it centers in the fixed-diameter circle at Inter's metrics, §3/§15.1), with `root-label` text on the solid `{mint}` fill at the §2.5 9.86:1 pairing. In-tune therefore *is* the root-dot treatment: a centered, solid, glowing mint dot naming the pitch — the same "where sound lives / in tune" idea §2.6 makes one color.
 
 This is the whole signature: the off→in-tune transition is a §12.2 in-scale-dot → root-dot morph centered on the axis, which is precisely the morph §7.1 already specifies for the note map.
 
@@ -1218,14 +1218,14 @@ This is the whole signature: the off→in-tune transition is a §12.2 in-scale-d
 
 Beneath (or beside) the meter, a numeric readout states the same fact in text:
 
-- **Note name + octave** (e.g. `A4`) — the **note name is Inter** (human-language note name, the §3 / §12.2 partition) and the octave numeral is Geist Mono (`family-mono`, `features-mono` tnum — a numeric, technical value, §3).
+- **Note name + octave** (e.g. `A4`) — **both Geist Mono** (`family-mono`, `features-mono` tnum). A tuner readout is musical/technical notation, which is Geist Mono by §3; the *only* Inter note name in the product is the in-dot label of §17.2 (§12.2), and this readout is not inside a dot.
 - **Signed cents** (e.g. `+4¢`, `−7¢`) — **Geist Mono** (`family-mono`), tabular figures (`features-mono`), always carrying its sign so the direction is unambiguous in text.
 - **A direction word** — `sharp ♯` or `flat ♭` (§13 voice), so the sign is backed by language, never color alone (§11.1).
 - **In tune**: the readout resolves to `{mint}` and an **`IN TUNE ✓`** label appears, also `{mint}` — the success === `{mint}` decision of §2.6, with the `✓` glyph as the redundant non-color cue (§11.1).
 
 ### 17.4 Open-string chips
 
-The four violin open strings **G3 · D4 · A4 · E5** render as a row of §8.1 / §4.2 **Pills** (`.pill`): `height 30`, `padding 0 12`, `radius pill`, default variant (`transparent` background, `1px {hairline2}` border, `{text2}` text). The string **nearest** the detected pitch is the **active** pill — `pill-active-wash` background, `1px {mint}` border, `{text}` text (the §8.1 active row) — so the player always sees which string they are tuning. The active chip gains a glow **only when in tune** (`|cents| ≤ 5`), echoing the root-dot glow of the meter; while seeking, it is the plain active pill with no glow. The chip note names are Geist-Mono-or-Inter per the §3 partition for short note tokens (note name Inter, octave numeral tnum) and stay on the §0 tnum features so they do not drift in the fixed-height pill.
+The four violin open strings **G3 · D4 · A4 · E5** render as a row of §8.1 / §4.2 **Pills** (`.pill`): `height 30`, `padding 0 12`, `radius pill`, default variant (`transparent` background, `1px {hairline2}` border, `{text2}` text). The string **nearest** the detected pitch is the **active** pill — `pill-active-wash` background, `1px {mint}` border, `{text}` text (the §8.1 active row) — so the player always sees which string they are tuning. The active chip gains a glow **only when in tune** (`|cents| ≤ 5`), echoing the root-dot glow of the meter; while seeking, it is the plain active pill with no glow. The chip note names (`G3`, `D4`, `A4`, `E5`) are **Geist Mono** (`family-mono`, `features-mono` tnum) — note tokens are mono by §3 like every other note pill (the in-dot label of §17.2 is the lone Inter exception); the tnum feature keeps them from drifting in the fixed-height pill.
 
 ### 17.5 A4 calibration
 
