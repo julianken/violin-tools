@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { MAP_VIEW_KEY } from '../notemap/mapView.ts';
@@ -70,5 +70,31 @@ describe('AppShell drawer drop (U7)', () => {
     expect(
       screen.queryByRole('button', { name: /open navigation/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+// §17.1 — AppShell threads the view seam into the topbar. On the note-map view the
+// breadcrumb leads with "Scales /" and the "Share scale" button is present; after
+// switching to the Tuner (the sidebar nav item) the breadcrumb collapses to just
+// "Tuner" and the Scales-only Share cluster is suppressed. This proves the shell
+// wiring (the `isTuner` flag now reaches `<Topbar>`), not just the component.
+describe('AppShell view-aware topbar (§17.1)', () => {
+  it('note-map view: breadcrumb shows "Scales / <selection>" and the Share button exists', () => {
+    render(<AppShell />);
+    const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(crumb).toHaveTextContent('Scales');
+    expect(crumb.querySelector('.crumb-sep')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Share scale' })).toBeInTheDocument();
+  });
+
+  it('Tuner view: breadcrumb collapses to "Tuner" and the Share button is gone', () => {
+    render(<AppShell />);
+    // Switch to the Tuner via the sidebar nav item (§17.1 live view).
+    fireEvent.click(screen.getByRole('button', { name: 'Tuner' }));
+    const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(crumb).toHaveTextContent('Tuner');
+    expect(crumb).not.toHaveTextContent('Scales');
+    expect(crumb.querySelector('.crumb-sep')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Share scale' })).not.toBeInTheDocument();
   });
 });

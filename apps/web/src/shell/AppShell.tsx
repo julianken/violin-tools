@@ -132,6 +132,7 @@ export function AppShell() {
           scaleName={isTuner ? 'Tuner' : scaleName(controls.state)}
           onOpenPalette={palette.open}
           shareLink={shareLink}
+          isTuner={isTuner}
         />
         {/* §17.1 — the view branch: the existing scale-map <Content> vs the new
             <TunerView>. "One subject, no rivals" (§1) — one of the two fills

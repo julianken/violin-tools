@@ -226,12 +226,14 @@
 
 /* Direction labels on the axis — `flat ♭` (left, anchored end) / `sharp ♯` (right,
  * anchored start). Geist Mono-adjacent? No — these are direction WORDS (language),
- * so Inter, neutral grey, never red (§17.7). */
+ * so Inter, neutral grey, never red (§17.7). They carry the §17.7 direction signal
+ * a player must READ to use the meter, so they sit at {text2} (7.09:1 on {canvas},
+ * clears the §2.5 4.5:1 AA floor), NOT the sub-threshold {text3} (≈3.70:1). */
 .tuner-dir {
   font-family: var(--family-ui);
   font-size: 11px;
   font-weight: 500;
-  fill: var(--text3);
+  fill: var(--text2);
 }
 .tuner-dir-flat {
   text-anchor: end;

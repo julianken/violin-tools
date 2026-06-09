@@ -44,9 +44,18 @@ interface TopbarProps {
    * ghost button's click. The announcement is consumed by AppShell's live region.
    */
   shareLink: ShareLink;
+  /**
+   * §17.1 — the view seam. The Tuner is a SIBLING of the note map, not a pane
+   * under it, so on the Tuner view the topbar renders the breadcrumb as just the
+   * tool name ("Tuner") — no leading "Scales" segment + separator — and the
+   * "Share scale" cluster is SUPPRESSED (a Scales-only action with nothing to
+   * share). The note-map view (`false`) is unchanged. (Figma ref `157:37`: the
+   * Tuner topbar is only the text "Tuner".)
+   */
+  isTuner: boolean;
 }
 
-export function Topbar({ scaleName, onOpenPalette, shareLink }: TopbarProps) {
+export function Topbar({ scaleName, onOpenPalette, shareLink, isTuner }: TopbarProps) {
   const { phase, caption, share } = shareLink;
   // The copy branch swaps the in-button label to "Copying…" while busy (the
   // §04 text-states-swap technique, CSS-driven via .is-busy); every other phase
@@ -74,47 +83,58 @@ export function Topbar({ scaleName, onOpenPalette, shareLink }: TopbarProps) {
           </span>
         </button>
 
+        {/* §17.1 — the breadcrumb is view-aware. On the note-map view it reads
+            "Scales / <spelled selection>" (the tool name + its active segment). On
+            the Tuner view it collapses to JUST the tool name ("Tuner"): the Tuner
+            is a sibling of the note map on the view seam, not a child UNDER Scales,
+            so a leading "Scales / " segment would falsely imply nesting. */}
         <nav className="crumb" aria-label="Breadcrumb">
-          <span className="crumb-seg">Scales</span>
-          <span className="crumb-sep" aria-hidden="true">
-            /
-          </span>
+          {!isTuner && (
+            <>
+              <span className="crumb-seg">Scales</span>
+              <span className="crumb-sep" aria-hidden="true">
+                /
+              </span>
+            </>
+          )}
           <span className="crumb-seg crumb-active" aria-current="page">
             {scaleName}
           </span>
         </nav>
       </div>
 
-      {/* The right cluster groups the ghost button with its inline status caption
-          so the topbar's two-end `space-between` is preserved — the `.ghost` was a
-          direct child of `.topbar`, and a third child would break the layout. */}
-      <div className="topbar-right">
-        {/* The ✓ + caption sit BEFORE the button (lead side) so they don't shift
-            the button as they appear/revert. Both are aria-hidden — the single
-            spoken source is the polite live region in AppShell. */}
-        <span className="ghost-status" aria-hidden="true">
-          <span
-            className="ghost-check"
-            data-state={showCheck ? 'in' : 'out'}
+      {/* §17.1 — the "Share scale" cluster is a Scales-only action (it shares the
+          deep-linked `(root, scale)`); on the Tuner view there is nothing to share,
+          so the whole right cluster is SUPPRESSED. On the note-map view it groups
+          the ghost button with its inline status caption so the topbar's two-end
+          `space-between` is preserved — the `.ghost` was a direct child of
+          `.topbar`, and a third child would break the layout. */}
+      {!isTuner && (
+        <div className="topbar-right">
+          {/* The ✓ + caption sit BEFORE the button (lead side) so they don't shift
+              the button as they appear/revert. Both are aria-hidden — the single
+              spoken source is the polite live region in AppShell. */}
+          <span className="ghost-status" aria-hidden="true">
+            <span className="ghost-check" data-state={showCheck ? 'in' : 'out'}>
+              <IcCheck />
+            </span>
+            <span className="ghost-status-text">{caption}</span>
+          </span>
+          <button
+            type="button"
+            className="ghost"
+            onClick={share}
+            aria-label={busy ? 'Copying link' : 'Share scale'}
           >
-            <IcCheck />
-          </span>
-          <span className="ghost-status-text">{caption}</span>
-        </span>
-        <button
-          type="button"
-          className="ghost"
-          onClick={share}
-          aria-label={busy ? 'Copying link' : 'Share scale'}
-        >
-          {/* The §04 label swap: one element, two states. The resting label is
-              "Share scale"; while busy it reads "Copying…". The blurred swap is
-              CSS-driven (.is-busy), never a hand-rolled tween. */}
-          <span className="ghost-label" data-busy={busy ? 'true' : 'false'}>
-            {busy ? 'Copying…' : 'Share scale'}
-          </span>
-        </button>
-      </div>
+            {/* The §04 label swap: one element, two states. The resting label is
+                "Share scale"; while busy it reads "Copying…". The blurred swap is
+                CSS-driven (.is-busy), never a hand-rolled tween. */}
+            <span className="ghost-label" data-busy={busy ? 'true' : 'false'}>
+              {busy ? 'Copying…' : 'Share scale'}
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
