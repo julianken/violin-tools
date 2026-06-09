@@ -216,6 +216,11 @@
   --modal-in: 250ms; /* palette TRANSFORM on open */
   --dot-radius: 230ms;
   --tape-slide: 230ms;
+  /* tooltip lane (§7.5) — half the palette's open/close durations, first
+   * realized here by the Share-scale caption + label/check swap. Paired with
+   * the existing --ease-modal-in / --ease-modal-out easings. */
+  --tt-in: 120ms; /* §7.5 tooltip ENTER (≈50% of --modal-in 250ms) */
+  --tt-out: 100ms; /* §7.5 tooltip EXIT (≈50% of --modal-out 160ms) */
   /* easings — each carries a "never use for" guard in §0 */
   --ease-standard: ease; /* the default; safe anywhere */
   --ease-spring: cubic-bezier(0.34, 1.45, 0.64, 1); /* dot RADIUS morph only */

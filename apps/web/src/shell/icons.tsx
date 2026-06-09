@@ -23,6 +23,28 @@ export function IcScales() {
 }
 
 /**
+ * `ic-check` — the copy-success checkmark beside the ghost button (§8.4 / §2.6).
+ * A single `<path>` stroked with `currentColor` so the success ✓ inherits the
+ * caption's `{text2}` — it is NOT painted `{mint}` (§2.6: success reuses `{mint}`
+ * but here the check is `currentColor`, no second solid fill on the topbar). The
+ * single path is what the §10 success-check recipe's stroke-draw animates.
+ * `aria-hidden` — the spoken outcome is the polite live region, not this glyph.
+ */
+export function IcCheck() {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" aria-hidden="true" focusable="false">
+      <path
+        d="M2.5 6.5 L5 9 L9.5 3.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
  * `ic-search` — the magnifier that leads the sidebar search trigger (rendered
  * ~14px, stroked at {text3} via currentColor) (DESIGN.md §0, §8.3). The same
  * glyph leads the palette search row at a larger size; that consumer is a later

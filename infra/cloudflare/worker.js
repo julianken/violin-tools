@@ -29,8 +29,11 @@ export default {
     const originResponse = await fetch(ORIGIN + path);
 
     // SPA fallback: on a miss, serve index.html with a 200 so client-side routes
-    // resolve. v1 has no deep links, so this is forward-prep — but it makes the
-    // edge behave like the bucket's own not_found_page=index.html setting.
+    // resolve. v1's deep links are QUERY-only (`/?r=<root>&s=<scale>`, #88), which
+    // resolve at `/` → `/index.html` in one ok fetch and so NEVER touch this
+    // fallback — it stays forward-prep for a future PATH scheme (e.g. `/s/A/major`,
+    // which would 404 at GCS and land here). It also makes the edge behave like
+    // the bucket's own not_found_page=index.html setting.
     const response = originResponse.ok
       ? originResponse
       : new Response(await (await fetch(ORIGIN + "/index.html")).text(), {

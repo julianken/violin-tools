@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildShareParams,
   derive,
   INITIAL_CONTROLS,
   isRefDimmed,
+  parseShareParams,
   REF_PILLS,
   ROOT_PILLS,
   rootLabel,
@@ -204,5 +206,53 @@ describe('§9.1 / §13 rootLabel — family-aware pill label (S15)', () => {
     expect(rootLabel('Db', 'harmonicMinor')).toBe('C♯');
     expect(rootLabel('Db', 'melodicMinor')).toBe('C♯');
     expect(rootLabel('Db', 'minorPentatonic')).toBe('C♯');
+  });
+});
+
+// §16 deep-link codec — buildShareParams / parseShareParams. PURE: no `window`
+// is read here (the codec takes a `search` string); only the AppShell/hook
+// boundary touches `window.location`. These pin the round-trip identity, the
+// percent-encoding of a sharp root, the `?motion=` survival on a (root,scale)
+// write, and the junk-link no-op the map's never-blank guarantee rests on.
+describe('§16 share-link codec — round-trip (root, scale)', () => {
+  it('buildShareParams ∘ parseShareParams is identity across all 12 roots × 7 scales', () => {
+    for (const root of ROOT_PILLS) {
+      for (const { scale } of SCALE_PILLS) {
+        const search = buildShareParams('', { root, scale }).toString();
+        expect(parseShareParams(search)).toEqual({ root, scale });
+      }
+    }
+  });
+
+  it('encodes a sharp root via URLSearchParams as r=F%23 (never hand-concatenated)', () => {
+    const search = buildShareParams('', { root: 'F#', scale: 'major' }).toString();
+    expect(search).toContain('r=F%23');
+    // And it survives the round trip back to the F# union member.
+    expect(parseShareParams(search).root).toBe('F#');
+  });
+
+  it('upserts r/s onto the live search so a pre-existing ?motion=snappy SURVIVES a (root,scale) change', () => {
+    // The merge requirement: resolveMotionBuild (Content.tsx) reads ?motion=
+    // every render — a fresh write would drop it and flip the motion build.
+    const next = buildShareParams('?motion=snappy&r=C&s=major', {
+      root: 'Bb',
+      scale: 'harmonicMinor',
+    });
+    expect(next.get('motion')).toBe('snappy');
+    expect(next.get('r')).toBe('Bb');
+    expect(next.get('s')).toBe('harmonicMinor');
+  });
+
+  it('parseShareParams("") no-ops to an empty partial (caller defaults A/major)', () => {
+    expect(parseShareParams('')).toEqual({});
+  });
+
+  it('omits an unknown/absent r or s rather than throwing or coercing', () => {
+    // Unknown root, valid scale → only scale survives.
+    expect(parseShareParams('?r=H&s=major')).toEqual({ scale: 'major' });
+    // Valid root, unknown scale → only root survives.
+    expect(parseShareParams('?r=A&s=doubleHarmonic')).toEqual({ root: 'A' });
+    // Absent both → empty.
+    expect(parseShareParams('?x=1')).toEqual({});
   });
 });

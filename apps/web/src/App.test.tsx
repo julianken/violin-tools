@@ -100,22 +100,27 @@ describe('App shell', () => {
 // block was removed wholesale (the behavior it pinned no longer exists). The
 // mobile sheet + top-bar search are exercised at a real viewport in the e2e (U9).
 
-// S10 — the cross-cutting a11y wiring at the shell level: the two §11.3 polite
-// live regions (sounding + map description), live-region politeness, and that the
-// map description refreshes on a scale change and the sounding region announces a
-// sounded marker. These mount the whole app so the NoteMap → AppShell live-region
-// plumbing is exercised end-to-end.
+// S10 — the cross-cutting a11y wiring at the shell level: the three §11.3 polite
+// live regions (sounding + map description + the §16 Share-scale copy outcome),
+// live-region politeness, and that the map description refreshes on a scale change
+// and the sounding region announces a sounded marker. These mount the whole app so
+// the NoteMap → AppShell live-region plumbing is exercised end-to-end. (The third
+// region — `data-live="share"` — was added with the §16 Share-scale wiring; it
+// stays empty until a copy succeeds and never speaks on a share-branch outcome.)
 describe('App §11.3 live regions + sounding (S10)', () => {
-  it('renders exactly two live regions, both aria-live="polite" (never assertive)', () => {
+  it('renders exactly three live regions, all aria-live="polite" (never assertive)', () => {
     const { container } = render(<App />);
     const live = Array.from(container.querySelectorAll('[aria-live]'));
-    expect(live).toHaveLength(2);
+    expect(live).toHaveLength(3);
     for (const region of live) {
       expect(region.getAttribute('aria-live')).toBe('polite');
     }
-    // The two specified regions exist and are distinct elements (§11.3).
+    // The three specified regions exist and are distinct elements (§11.3 / §16).
     expect(container.querySelector('[data-live="sounding"]')).not.toBeNull();
     expect(container.querySelector('[data-live="map-description"]')).not.toBeNull();
+    const share = container.querySelector('[data-live="share"]');
+    expect(share).not.toBeNull();
+    expect(share?.getAttribute('aria-live')).toBe('polite');
   });
 
   it('the map-description region lives OUTSIDE the SVG (§11.3 — not in <desc>)', () => {
@@ -161,10 +166,11 @@ describe('App §11.3 live regions + sounding (S10)', () => {
 // the RESOLVED view config. jsdom has no matchMedia → useIsLandscape=false → 'auto'
 // resolves to 'vertical', so these assert the vertical (mobile) render path: the
 // board viewBox is driven by the layout (not a literal) and carries
-// data-orientation='vertical'. The 60-node/one-tab-stop invariant, the two polite
-// live regions, and the value-pure 'A Major.' description (the re-announce-trap
-// mitigation is value-identity — describeMap stays a pure (root,scale,name) call,
-// NOT keyed on orientation) must all survive the live wiring.
+// data-orientation='vertical'. The 60-node/one-tab-stop invariant, the three polite
+// live regions (sounding + map description + the §16 Share-scale copy outcome), and
+// the value-pure 'A Major.' description (the re-announce-trap mitigation is
+// value-identity — describeMap stays a pure (root,scale,name) call, NOT keyed on
+// orientation) must all survive the live wiring.
 describe('App §12.1 resolved-view wiring (S16 ph2 U4)', () => {
   it('drives the board viewBox from the layout (parses to 4 numbers, not a literal)', () => {
     render(<App />);
@@ -188,10 +194,10 @@ describe('App §12.1 resolved-view wiring (S16 ph2 U4)', () => {
     expect(container.querySelectorAll('g.note[tabindex="0"]')).toHaveLength(1);
   });
 
-  it('keeps exactly two polite live regions and a value-pure "A Major." description', () => {
+  it('keeps exactly three polite live regions and a value-pure "A Major." description', () => {
     const { container } = render(<App />);
     const live = Array.from(container.querySelectorAll('[aria-live]'));
-    expect(live).toHaveLength(2);
+    expect(live).toHaveLength(3);
     for (const region of live) {
       expect(region.getAttribute('aria-live')).toBe('polite');
     }

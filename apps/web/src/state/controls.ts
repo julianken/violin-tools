@@ -203,6 +203,53 @@ export function scaleName(state: ControlsState): string {
   return `${rootGlyph} ${SCALE_DISPLAY_NAME[state.scale]}`;
 }
 
+// ── share-link codec (§16 deep-linking) — pure, NO browser globals ─────────
+// The query-param codec for the "Share scale" deep link (DESIGN.md §16: query
+// `?r=<root>&s=<scale>`, minimal (root, scale) only — never refs, never the
+// device-local View prefs). This module reads no `window` (it took none before;
+// the codec preserves that): both functions take the live `search` string and
+// the AppShell/hook boundary is the only place `window.location` is read. Build
+// the params through `URLSearchParams` so a sharp root encodes as `r=F%23`
+// automatically — never hand-concatenate the query.
+
+/** The deep-linkable slice of the controls state: just `(root, scale)`. */
+type ShareableSelection = Pick<ControlsState, 'root' | 'scale'>;
+
+/**
+ * Upsert `r`/`s` onto the LIVE search string and return the merged params. We
+ * start from the live `search` (not a blank `URLSearchParams`) so any other
+ * query param survives — load-bearing for `?motion=` (read every render by
+ * `resolveMotionBuild` in Content.tsx): a fresh write would drop it and flip the
+ * motion build. `URLSearchParams` percent-encodes the value, so `F#` → `r=F%23`.
+ */
+export function buildShareParams(
+  search: string,
+  state: ShareableSelection,
+): URLSearchParams {
+  const params = new URLSearchParams(search);
+  params.set('r', state.root);
+  params.set('s', state.scale);
+  return params;
+}
+
+/**
+ * Parse `r`/`s` from a search string into the subset of state they validly name.
+ * `r` is accepted only if it is a known `ROOT_PITCH_CLASS` key, `s` only if it is
+ * a known `SCALE_INTERVALS` key — an unknown/absent value omits that field, so
+ * the caller defaults it (A/major) and a junk link never throws or blanks the
+ * map. Returns a `Partial`, never a full state, so layering it over the defaults
+ * is the caller's single composition step.
+ */
+export function parseShareParams(search: string): Partial<ShareableSelection> {
+  const params = new URLSearchParams(search);
+  const out: Partial<ShareableSelection> = {};
+  const r = params.get('r');
+  if (r !== null && r in ROOT_PITCH_CLASS) out.root = r as Root;
+  const s = params.get('s');
+  if (s !== null && s in SCALE_INTERVALS) out.scale = s as ScaleType;
+  return out;
+}
+
 /**
  * §9.1 / §13 — the displayed label for a Root PILL in the current scale's key
  * (S15). The root is degree 0 of every scale, so `spell(rootPc, root, scale)`

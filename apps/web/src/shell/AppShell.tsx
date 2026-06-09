@@ -1,16 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { usePaletteController } from '../components/CommandPalette/usePaletteController';
 import { describeMap } from '../notemap/describeMap';
 import { resolveDensity } from '../notemap/mapView';
 import { useMapView } from '../notemap/useMapView';
-import { scaleName, SCALE_DISPLAY_NAME } from '../state/controls';
+import {
+  buildShareParams,
+  parseShareParams,
+  scaleName,
+  SCALE_DISPLAY_NAME,
+} from '../state/controls';
 import { useControls } from '../state/useControls';
 
 import { Content } from './Content';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { useShareLink } from './useShareLink';
+
+// §16 deep-linking — resolve the deep-linked `(root, scale)` ONCE, before the
+// first render, from the live query. Computed at module-eval-free call time so
+// jsdom (no real `?r=&s=`) yields the A/major default. This precedes the
+// sync-effect's first run, so a deep-linked URL is applied — then written back
+// identically — never clobbered (AC 4).
+const initialSelection =
+  typeof window === 'undefined' ? undefined : parseShareParams(window.location.search);
 
 // The §9 app shell: a flex row of `.side` (the fixed rail) and `.main` (the
 // fluid column). The DOM matches the §9 tree exactly — `.app` → `.side` /
@@ -28,8 +42,9 @@ import { Topbar } from './Topbar';
 export function AppShell() {
   // The single app state every control AND the palette writes; the map renders
   // from it (§9.1). Lifted to the shell so the palette (a sidebar/global surface)
-  // and the controls card (in Content) drive one source of truth.
-  const controls = useControls();
+  // and the controls card (in Content) drive one source of truth. The optional
+  // `initialSelection` seeds it from a `?r=&s=` deep link (§16, parse-on-init).
+  const controls = useControls(initialSelection);
   // §12.1 — the resolved note-map view. useMapView reads matchMedia at first paint
   // (no flash), so `mapView.orientation` is already concrete ('horizontal' on a
   // desktop-like landscape viewport, 'vertical' on portrait/mobile — and 'vertical'
@@ -50,8 +65,9 @@ export function AppShell() {
 
   // §11.3 polite live regions: one announces the current sounding note name
   // (Enter/Space over a map marker), one carries the string-by-string map text
-  // description, refreshed whenever (root, scale) changes. Both live in EXTERNAL
-  // DOM elements (not the SVG), as §11.3 requires — SVG `<desc>` doesn't update
+  // description, refreshed whenever (root, scale) changes, and a third (§16,
+  // below) carries the Share-scale copy outcome. All live in EXTERNAL DOM
+  // elements (not the SVG), as §11.3 requires — SVG `<desc>` doesn't update
   // reliably across screen-reader/browser pairs.
   const [soundingNote, setSoundingNote] = useState('');
   const mapDescription = describeMap(
@@ -59,6 +75,33 @@ export function AppShell() {
     controls.state.scale,
     SCALE_DISPLAY_NAME[controls.state.scale],
   );
+
+  // §16 deep-linking — mirror the current scale in the address bar so the URL is
+  // always a shareable deep link. Keyed PRECISELY on (root, scale): a `refs`
+  // toggle (or a View-pref change) does NOT rewrite the URL (AC 3). We merge into
+  // the LIVE `window.location.search` (buildShareParams upserts r/s), so a
+  // pre-existing `?motion=` survives — it is read every render by Content's
+  // `resolveMotionBuild`, and a fresh write would drop it and flip the motion
+  // build (this is what keeps the e2e motion specs green). `replaceState`, not
+  // `pushState`: selection is state, not navigation — Back never walks a
+  // scale-clicking session. The first run writes the already-applied (possibly
+  // deep-linked) state back identically, so it never clobbers the initial URL.
+  const { root, scale } = controls.state;
+  useEffect(() => {
+    const params = buildShareParams(window.location.search, { root, scale });
+    const query = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}?${query}${window.location.hash}`,
+    );
+  }, [root, scale]);
+
+  // §16 / §8.4 — the "Share scale" action behind the topbar ghost button: the
+  // call-time adaptive native-share / copy branch + its feedback machine. The
+  // announcement (copy-success only) feeds the third §11.3 polite live region
+  // below; the rest (phase/caption/share) drives the button + its inline caption.
+  const shareLink = useShareLink();
 
   return (
     <div className="app">
@@ -73,7 +116,11 @@ export function AppShell() {
             with the Content H1 + the map labels via one `spell()` engine. The
             topbar also carries the mobile-only search trigger that opens the
             palette (§8.3, §10); the desktop topbar is unchanged. */}
-        <Topbar scaleName={scaleName(controls.state)} onOpenPalette={palette.open} />
+        <Topbar
+          scaleName={scaleName(controls.state)}
+          onOpenPalette={palette.open}
+          shareLink={shareLink}
+        />
         <Content
           controls={controls}
           mapView={mapView}
@@ -92,6 +139,15 @@ export function AppShell() {
       </div>
       <div className="sr-only" aria-live="polite" data-live="map-description">
         {mapDescription}
+      </div>
+      {/* §11.3 third polite live region (§16 Share scale): the COPY branch's
+          single spoken outcome ("Link copied to clipboard"). It stays '' for
+          every share-branch result — a bare `navigator.share()` resolve cannot
+          confirm a share, and an AbortError is silent — so this never claims an
+          unconfirmable success. The visible `.ghost-status` caption is
+          aria-hidden, making this the single spoken source for the action. */}
+      <div className="sr-only" aria-live="polite" data-live="share">
+        {shareLink.announcement}
       </div>
 
       {/* The command palette overlay — mounted only while open or animating
