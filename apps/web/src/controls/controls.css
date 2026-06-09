@@ -25,6 +25,35 @@
   gap: var(--space-100); /* 4px inter-pill gap (§4.2 micro band) */
 }
 
+/* ── View row (S17) — captioned sub-rows (§9.1) ───────────────────────────── */
+/* The View group's three controls (Orientation · Density · Handedness) stack as
+ * `.view-subrow`s. `.view-rows` owns the inter-control gap so the three controls sit
+ * at the controls rhythm (§4.2 12px) instead of butting flush — the shipped build
+ * dropped them as a bare fragment with no gap. Each sub-row pairs a VISIBLE caption
+ * (`.view-cap`, the §9.1 sub-label that names the radiogroup via aria-labelledby)
+ * with its `.pill-track`. The outer `View` `.lab` + `.ctrl-row` is unchanged, so the
+ * group still aligns with the Root/Scale/Refs rows. */
+.view-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300); /* 12px — the §4.2 controls inter-row rhythm */
+}
+.view-subrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300); /* 12px caption ↔ pill-track */
+}
+/* The caption — a sub-label one level below the §3 `.lab` row label: same UI family,
+ * sentence-case (it labels a single control, not a row group), `{text3}`. */
+.view-cap {
+  flex: none;
+  font-family: var(--family-ui);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  color: var(--text3);
+}
+
 /* ── .pill — the §8.1 pill (default variant) ──────────────────────────────── */
 .pill {
   position: relative; /* sit above the highlight (which is z-index 0) */
@@ -157,6 +186,13 @@
  * base rule above keeps its 4px `--space-100` gap untouched. */
 .mc-sheet .pill-track {
   gap: var(--space-200); /* 8px (§4.2) — clears the 44px hit-pad collision */
+}
+
+/* In the sheet the View sub-rows put the caption at the left edge and push the pill
+ * track to the right edge (the §10 label-left / control-right sheet pattern). On the
+ * desktop card `.view-subrow` keeps its default left-aligned flow. */
+.mc-sheet .view-subrow {
+  justify-content: space-between;
 }
 
 /* Root, in the sheet, lays out as a 4×3 grid (12 pills → 4 columns × 3 rows).

@@ -28,7 +28,8 @@ import { expect, test } from '@playwright/test';
 const SECTION_2_5_EXEMPT_SELECTORS = [
   '.search-label', // search-trigger placeholder ({text3}) — §2.5 placeholder-only
   '.sec-h', // sidebar "Tools" section header ({text3})
-  '.lab', // controls-row labels Root/Scale/Refs ({text3})
+  '.lab', // controls-row labels Root/Scale/Refs/View ({text3})
+  '.view-cap', // View sub-row captions Orientation/Density/Handedness ({text3}, §2.5) — the radiogroup's accessible name is the caption via aria-labelledby, so AT gets full fidelity
   '.crumb-seg', // breadcrumb base segment "Scales" ({text3})
   '.kbd', // ⌘K meta chip ({text3})
 ];
