@@ -9,7 +9,6 @@
 // frame (`.controls` card, `.ctrl-row`, `.lab`) is the S3 shell structure;
 // controls.css styles the pills/highlight that mount into each `.ctrl-slot`.
 
-import { type Orientation } from '../notemap/mapView.ts';
 import { type MapViewApi } from '../notemap/useMapView.ts';
 import { type ControlsApi } from '../state/useControls.ts';
 
@@ -20,14 +19,6 @@ import { ScaleRow } from './ScaleRow.tsx';
 import { ViewRow } from './ViewRow.tsx';
 
 interface ControlsProps extends ControlsApi {
-  /**
-   * The resolved render orientation (§12.1) — forwarded to the Refs row. While
-   * `'vertical'` the Refs overlays are still horizontal-axis-only (the §12.3 band
-   * geometry isn't projected through `axisOf` yet — the tracked U3b follow-up), so
-   * RefsRow disables the Refs pills to keep a mis-projected band unreachable.
-   * Defaults to `'horizontal'` so an orientation-absent render keeps today's pills.
-   */
-  orientation?: Orientation;
   /**
    * The whole map-view api (§16) — when present, the desktop card NOW renders
    * <ViewRow mapView={…}> as a 4th row (Orientation/Density/Handedness), the same
@@ -44,7 +35,6 @@ export function Controls({
   selectRoot,
   selectScale,
   toggleRef,
-  orientation = 'horizontal',
   mapView,
 }: ControlsProps) {
   return (
@@ -66,7 +56,7 @@ export function Controls({
       <div className="ctrl-row">
         <div className="lab">Refs</div>
         <div className="ctrl-slot">
-          <RefsRow refs={state.refs} onToggle={toggleRef} orientation={orientation} />
+          <RefsRow refs={state.refs} onToggle={toggleRef} />
         </div>
       </div>
 

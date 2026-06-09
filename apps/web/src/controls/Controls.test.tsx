@@ -272,12 +272,11 @@ describe('§9.1 dim logic in the DOM', () => {
   });
 });
 
-describe('§12.3 vertical-map Refs guard (U3b deferral — broken state unreachable)', () => {
-  // The §12.3 overlay geometry is still horizontal-axis-only (not yet projected
-  // through `axisOf` — the tracked U3b follow-up). Until it lands, a vertical map
-  // must not let a user paint a mis-projected band: the Refs pills are disabled AND
-  // <RefLayers> is skipped in the vertical render. These tests pin BOTH guards so a
-  // future "un-disable on vertical" regression goes red here, not silently on phones.
+describe('§12.3 Refs work in BOTH orientations (S17 ph B / #84 — interim guards removed)', () => {
+  // The §12.3 overlays now project through `axisOf` (S17 ph B), so the interim
+  // vertical guards are gone: the Refs pills are usable on the vertical map AND
+  // <RefLayers> renders in both orientations. These tests pin the un-locked
+  // behavior so a regression that re-disables vertical Refs goes red here.
   function setupVertical() {
     render(<ContentHarness orientation="vertical" />);
     const refs = screen.getByRole('group', { name: 'Reference layers' });
@@ -286,32 +285,37 @@ describe('§12.3 vertical-map Refs guard (U3b deferral — broken state unreacha
     return { refs, board };
   }
 
-  it('disables every Refs pill on the vertical map (dim + aria-disabled, non-interactive)', () => {
+  it('does NOT vertical-lock the Refs pills — the Tapes/Landmarks pills are interactive on vertical', () => {
     const { refs } = setupVertical();
     const pills = within(refs).getAllByRole('checkbox');
     expect(pills).toHaveLength(4);
-    for (const pill of pills) {
-      expect(pill.classList.contains('dim')).toBe(true);
-      expect(pill.getAttribute('aria-disabled')).toBe('true');
+    // The two top-level Refs pills (Tapes, Landmarks) are never dimmed by the §9.1
+    // logic in the default state, and orientation no longer dims anything — so on
+    // vertical they are usable, not the old all-dimmed vertical lock. (low2/3-tape
+    // are dimmed by the §9.1 combination rule while Tapes is off, in BOTH
+    // orientations — that is unchanged by this phase.)
+    for (const name of ['Tapes', 'Landmarks']) {
+      const pill = within(refs).getByRole('checkbox', { name });
+      expect(pill.classList.contains('dim')).toBe(false);
+      expect(pill.getAttribute('aria-disabled')).toBe('false');
     }
   });
 
-  it('clicking a disabled Refs pill on the vertical map never turns the layer on', () => {
+  it('clicking a Refs pill on the vertical map turns the layer on', () => {
     const { refs } = setupVertical();
     const tapes = within(refs).getByRole('checkbox', { name: 'Tapes' });
     expect(tapes.getAttribute('aria-checked')).toBe('false');
-    fireEvent.click(tapes); // the guard short-circuits onToggle
-    expect(tapes.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(tapes);
+    expect(tapes.getAttribute('aria-checked')).toBe('true');
   });
 
-  it('skips <RefLayers> entirely on the vertical render (no tape/land groups in the board)', () => {
+  it('renders <RefLayers> on the vertical map (the overlay groups are mounted)', () => {
     const { board } = setupVertical();
-    // The mis-projectable overlay groups are absent on the vertical map.
-    expect(board.querySelector('g.tape')).toBeNull();
-    expect(board.querySelector('g.land')).toBeNull();
+    expect(board.querySelector('g.tape')).not.toBeNull();
+    expect(board.querySelector('g.land')).not.toBeNull();
   });
 
-  it('horizontal map keeps the Refs pills usable and renders <RefLayers> (today behavior)', () => {
+  it('horizontal map keeps the Refs pills usable and renders <RefLayers>', () => {
     render(<ContentHarness orientation="horizontal" />);
     const refs = screen.getByRole('group', { name: 'Reference layers' });
     const board = document.getElementById('board');

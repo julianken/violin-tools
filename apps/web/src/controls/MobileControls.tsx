@@ -12,9 +12,10 @@
 //
 // The body holds the SAME widgets as the desktop card — RootRow (presented as a 4×3
 // grid in the sheet, U5 CSS; still ONE `role="radiogroup"`, no new a11y), ScaleRow,
-// RefsRow (its §12.3 vertical-lock preserved, #80 unchanged) — then the View row
-// (orientation/density/handedness toggles). The desktop card now carries the same
-// View row too (the shared ViewRow component, S16 ph4).
+// RefsRow (Refs now work in both orientations — the §12.3 overlays project through
+// `axisOf`, S17 ph B / #84) — then the View row (orientation/density/handedness
+// toggles). The desktop card now carries the same View row too (the shared ViewRow
+// component, S16 ph4).
 //
 // Open/close reuses `useDrawer` (open/close/toggle + Esc + focus-return to the peek
 // header via panelRef) — NO focus trap and NO body-scroll-lock: the sheet is
@@ -30,7 +31,6 @@
 // (which applies no CSS media queries) still sees the rows appear only after expand.
 // `data-open` on the sheet drives the U6 CSS translateY transform (peek↔expand).
 
-import { type Orientation } from '../notemap/mapView.ts';
 import { type MapViewApi } from '../notemap/useMapView.ts';
 import { useDrawer } from '../shell/useDrawer.ts';
 import { type ControlsApi } from '../state/useControls.ts';
@@ -51,12 +51,6 @@ interface MobileControlsProps {
   /** The whole map-view api — the sheet's View row reads the stored modes + setters. */
   mapView: MapViewApi;
   /**
-   * The resolved render orientation (§12.1) — forwarded to RefsRow so the §12.3
-   * vertical-lock (#80) is preserved on the mobile map exactly as on the desktop
-   * card (Refs disabled while vertical until the U3b projection lands).
-   */
-  orientation: Orientation;
-  /**
    * The §10 summary text — the scale name + active refs (e.g. "A Major · Tapes"),
    * computed in Content from the same `controls.state` AppShell's describeMap reads.
    * It is the peek header's visible label AND its accessible name's leading content.
@@ -67,7 +61,6 @@ interface MobileControlsProps {
 export function MobileControls({
   controls,
   mapView,
-  orientation,
   summaryText,
 }: MobileControlsProps) {
   const { state, selectRoot, selectScale, toggleRef } = controls;
@@ -143,7 +136,7 @@ export function MobileControls({
           <div className="ctrl-row">
             <div className="lab">Refs</div>
             <div className="ctrl-slot">
-              <RefsRow refs={state.refs} onToggle={toggleRef} orientation={orientation} />
+              <RefsRow refs={state.refs} onToggle={toggleRef} />
             </div>
           </div>
 
