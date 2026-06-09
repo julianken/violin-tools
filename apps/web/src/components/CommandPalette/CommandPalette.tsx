@@ -30,6 +30,12 @@ interface CommandPaletteProps {
   onClose: () => void;
   /** Set the shared `(root, scale)` selection when a Scales row is chosen (S6). */
   onSelectScale: (root: Root, scale: ScaleType) => void;
+  /**
+   * Set the §17.1 view seam when an `open` Tools row is chosen — the Tuner row
+   * (`tool:tuner`) opens the Tuner surface, the Scale Map row (`tool:scale-map`)
+   * returns to the note map (S18 ph6). Receives the row's stable id.
+   */
+  onSelectTool: (toolId: string) => void;
 }
 
 /**
@@ -37,7 +43,12 @@ interface CommandPaletteProps {
  * mounting on `controller.isMounted`); the `.is-open` / `.is-closing` classes
  * derive from `phase` so the CSS transitions in §7.3/§7.5 run.
  */
-export function CommandPalette({ phase, onClose, onSelectScale }: CommandPaletteProps) {
+export function CommandPalette({
+  phase,
+  onClose,
+  onSelectScale,
+  onSelectTool,
+}: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const selectedRowRef = useRef<HTMLLIElement | null>(null);
@@ -84,18 +95,21 @@ export function CommandPalette({ phase, onClose, onSelectScale }: CommandPalette
     }
   }, [selectedIndex]);
 
-  // Activate the selected row: a Scales row sets `(root, scale)` and closes; the
-  // live Scale Map tool just closes (it IS the current view); `soon` rows are
-  // excluded from `rows`, so Enter can never land on one (§8.5 non-actionable).
+  // Activate the selected row: a Scales row sets `(root, scale)`; an `open` Tools
+  // row sets the §17.1 view seam (Tuner → the Tuner surface, Scale Map → the note
+  // map); both then close. `soon` rows are excluded from `rows`, so Enter can never
+  // land on one (§8.5 non-actionable).
   const activate = useCallback(
     (target: PaletteTarget | undefined) => {
       if (target === undefined) return;
       if (target.kind === 'scale') {
         onSelectScale(target.root, target.scale);
+      } else if (target.meta === 'open') {
+        onSelectTool(target.id);
       }
       onClose();
     },
-    [onSelectScale, onClose],
+    [onSelectScale, onSelectTool, onClose],
   );
 
   // Keyboard inside the modal (§11.3): ↑/↓ rove selection across groups, Enter

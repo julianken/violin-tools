@@ -76,6 +76,15 @@ is the single source of truth, and it is not restated here. If you spot a
 committed credential or personal data, please report it privately as above so
 the value can be rotated.
 
+**Microphone audio is on-device only.** The Tuner tool requests microphone
+access (via the browser's standard permission prompt) to detect pitch. That
+audio is processed **entirely in the browser** — pitch detection runs locally on
+the captured samples; nothing is recorded, persisted, or transmitted off the
+device. There is no backend to receive it, and the app collects no microphone
+data. Constraints that would distort the signal (echo cancellation, noise
+suppression, auto-gain) are turned off; the raw samples are read frame-by-frame
+and discarded.
+
 ## How this project is built
 
 Most code here is written by AI coding agents under human review, then

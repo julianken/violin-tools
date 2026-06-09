@@ -169,14 +169,35 @@ describe('empty state (§8.5)', () => {
 
 describe('soon rows are non-actionable (§8.5)', () => {
   it('clicking a soon row neither selects nor closes the palette', () => {
+    // Intonation is still a `soon` stub (Tuner became an `open` Tools row in S18
+    // ph6, §17.1). Clicking the soon row is inert.
     const dialog = openWithChord();
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'intonation' } });
+    const intonation = within(dialog).getByText('Intonation').closest('.pitem');
+    if (intonation === null) throw new Error('no intonation row');
+    fireEvent.click(intonation);
+    // Still open (not closing), and the soon row never gets the .sel fill.
+    expect(dialog.classList.contains('is-closing')).toBe(false);
+    expect(intonation.classList.contains('sel')).toBe(false);
+  });
+});
+
+describe('Tuner palette row opens the Tuner view (§17.1)', () => {
+  it('clicking the Tuner row swaps the main panel to the Tuner surface and closes', () => {
+    const dialog = openWithChord();
+    // Sanity: the note map is showing (its board exists in the main panel).
+    expect(document.getElementById('board')).not.toBeNull();
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'tuner' } });
     const tuner = within(dialog).getByText('Tuner').closest('.pitem');
     if (tuner === null) throw new Error('no tuner row');
+    // The Tuner row is now actionable (`open`, not `soon`).
+    expect(tuner.getAttribute('aria-disabled')).toBeNull();
     fireEvent.click(tuner);
-    // Still open (not closing), and the soon row never gets the .sel fill.
-    expect(dialog.classList.contains('is-closing')).toBe(false);
-    expect(tuner.classList.contains('sel')).toBe(false);
+    // The view swapped: the note-map board is gone, the Tuner H1 is shown, and the
+    // palette began closing.
+    expect(document.getElementById('board')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Chromatic tuner' })).toBeInTheDocument();
+    expect(dialog.classList.contains('is-closing')).toBe(true);
   });
 });
 

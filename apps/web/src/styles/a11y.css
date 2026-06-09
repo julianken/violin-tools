@@ -20,18 +20,25 @@
  *
  * The interactive chrome enumerated in §8 / §9.1: pills (root/scale/refs), nav
  * items (the live Scales link), the search trigger, the ghost button, the theme
- * toggle, the skip link, the palette input, and the note-map markers. Rounded
- * chrome (pills, the ghost button, nav/control radii) uses the box-shadow form so
+ * toggle, the skip link, the palette input, the note-map markers, and the §17.9
+ * Tuner controls (Start / Stop / the A4 −/+ steppers). Rounded chrome (pills, the
+ * ghost button, nav/control radii, the Tuner pills) uses the box-shadow form so
  * the ring follows the radius; square-ish / SVG targets use outline + offset. */
 
-/* Default: suppress the UA outline ONLY where we paint a replacement below. */
+/* Default: suppress the UA outline ONLY where we paint a replacement below.
+ * `.tuner-start`/`.tuner-stop`/`.a4-step` are the §17.9 Tuner operable controls
+ * (keyboard-operable + the visible {mint} ring); they sit on {canvas}, so the same
+ * {canvas} spacer + {mint} ring below applies unchanged. */
 .pill:focus-visible,
 .ni:focus-visible,
 .search:focus-visible,
 .ghost:focus-visible,
 .theme:focus-visible,
 .skip-link:focus-visible,
-.pinput:focus-visible {
+.pinput:focus-visible,
+.tuner-start:focus-visible,
+.tuner-stop:focus-visible,
+.a4-step:focus-visible {
   outline: none;
   /* 2px {mint} ring that hugs the element's border radius (§8 box-shadow form).
    * `0 0 0 2px` = a 2px ring; a preceding `0 0 0 2px transparent` spacer creates

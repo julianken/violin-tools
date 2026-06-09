@@ -1,6 +1,8 @@
 # Violin Tools
 
-A web app of focused practice tools for violinists. The first tool is **Scales** — a whole-neck fingerboard note map that shows where every note of a scale falls across the entire fingerboard at a glance.
+A web app of focused practice tools for violinists. The first tool is **Scales** — a whole-neck fingerboard note map that shows where every note of a scale falls across the entire fingerboard at a glance. A second tool, the **Tuner**, is a live, microphone-based chromatic tuner.
+
+**Microphone & privacy.** The Tuner listens through your microphone, but the audio is processed **entirely on-device, in your browser** — nothing is recorded, stored, or sent anywhere. There is no backend, so the audio never leaves your machine.
 
 ## Status: shipped — v1 is live at [strings-solo.com](https://strings-solo.com)
 

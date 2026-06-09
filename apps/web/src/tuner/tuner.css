@@ -1,0 +1,430 @@
+/*
+ * tuner.css — the §17 Tuner surface styles + its §7 motion. DESIGN.md §17 is the
+ * source of truth and wins on any conflict (AGENTS.md). All values resolve to §0
+ * tokens (tokens.css) by name — no raw hexes, no demo-default motion tokens.
+ *
+ * Motion (§17.8, no motion library — the transitions-dev NAMED-CUSTOM-PROPERTY
+ * pattern, values from §7):
+ *   • the dot's X is written DIRECTLY each frame via the SVG `transform` attribute
+ *     in TunerMeter.tsx — it is data, NOT a CSS transition (a transition would lag
+ *     the live signal, §17.8), so NO transition is declared on the dot group's
+ *     transform here;
+ *   • only the discrete off→in-tune morph is transitioned, on the two properties
+ *     §7.1 already animates: the dot RADIUS (`r`, --dot-radius / --ease-spring —
+ *     §0's sanctioned "dot RADIUS morph only" easing) and the glow OPACITY
+ *     (--glow-fade) — exactly the §12.2 in-scale↔root transitions, reused;
+ *   • under prefers-reduced-motion (§17.8 / §7.4) the radius/glow morph collapses
+ *     to instant, but the dot's POSITION still updates (it is data, suppressing it
+ *     would break the tool) — the §7.4 guard at the foot zeros only the morph.
+ *
+ * No red anywhere (§17.7 / §2.6): the only two pitch colours are {mint} (in tune)
+ * and neutral grey (seeking); {danger}/red is never referenced in this file.
+ */
+
+/* ── view scaffold ────────────────────────────────────────────────────────── */
+.tuner-view {
+  /* Inherits the §9 .content max-880 column + padding; the panel centers within. */
+  display: flex;
+  flex-direction: column;
+}
+
+.tuner-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-500); /* 20px */
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding-block: var(--space-600); /* 24px */
+  text-align: center;
+}
+
+/* ── idle / denied / unsupported (§17.6) ──────────────────────────────────── */
+.tuner-idle-glyph {
+  font-family: var(--family-mono);
+  font-size: 48px;
+  line-height: 1;
+  color: var(--mint);
+  opacity: 0.9;
+}
+
+.tuner-idle-h {
+  margin: 0;
+  font-family: var(--family-ui); /* §3 / §13 — a heading is human language */
+  font-size: 22px;
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+
+.tuner-idle-rationale {
+  max-width: 42ch;
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 14px;
+  line-height: var(--lh-normal); /* 1.5 */
+  color: var(--text2);
+}
+
+/* The Start affordance — a {mint}-OUTLINE pill (§17.6): {mint} border + {mint}
+ * text on a transparent background. NO second solid fill (§2.4) — only the root
+ * dot is solid {mint}. */
+.tuner-start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target-min); /* 44px (WCAG 2.5.5) */
+  padding: 0 var(--space-500); /* 20px */
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid var(--mint);
+  color: var(--mint);
+  font-family: var(--family-ui);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: var(--lh-flush);
+  cursor: pointer;
+  transition: background var(--color-shift) var(--ease-standard);
+}
+.tuner-start:hover {
+  /* A faint mint wash on hover — still no solid fill (§2.4). */
+  background: var(--pill-active-wash);
+}
+.tuner-start[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* The Stop control — a quiet, neutral default pill (no accent; stopping is not a
+ * primary affordance once tuning). */
+.tuner-stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target-min);
+  padding: 0 var(--space-400);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid var(--hairline2);
+  color: var(--text2);
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  cursor: pointer;
+  transition: border-color var(--color-shift) var(--ease-standard);
+}
+.tuner-stop:hover {
+  border-color: var(--hairline3);
+}
+
+/* The privacy line is genuine informational copy a player must be able to READ
+ * (the on-device posture, §17.6), not placeholder/section-header chrome — so it
+ * sits at {text2} (≥4.5:1 on {canvas}, §2.5), NOT the sub-threshold {text3}. */
+.tuner-privacy {
+  max-width: 42ch;
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 12px;
+  line-height: var(--lh-normal);
+  color: var(--text2);
+}
+
+.tuner-paused {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 13px;
+  color: var(--text2);
+}
+
+/* ── readout (§17.3) — note + octave + signed cents, ALL Geist Mono ─────────── */
+.tuner-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-100); /* 4px */
+  min-height: 96px; /* hold the box steady as the readout pops/changes */
+}
+
+/* Note + octave — Geist Mono (§17.3; the in-DOT label is the lone Inter exception,
+ * styled separately below). */
+.tuner-note {
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono); /* tnum lnum */
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: var(--text);
+}
+
+/* Signed cents — Geist Mono, tabular figures, always carrying its sign (§17.3). */
+.tuner-cents {
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text2);
+}
+
+/* The direction word `sharp ♯` / `flat ♭` — language backing the sign (§17.7). It
+ * is neutral grey (NOT red — out-of-tune is never red, §17.7). */
+.tuner-dir-word {
+  font-family: var(--family-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  color: var(--text2);
+}
+
+/* In tune — the readout resolves to {mint} and the `IN TUNE ✓` label appears, the
+ * ✓ glyph the redundant non-colour cue (§17.3 / §11.1). */
+.tuner-readout.is-in-tune .tuner-note,
+.tuner-readout.is-in-tune .tuner-cents {
+  color: var(--mint);
+}
+.tuner-intune {
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  line-height: var(--lh-flush);
+  color: var(--mint);
+}
+
+.tuner-readout-empty .tuner-note {
+  color: var(--text3);
+}
+.tuner-readout-empty .tuner-cents {
+  color: var(--text3);
+}
+
+/* ── the dot-echo meter (§17.2) ───────────────────────────────────────────── */
+.tuner-meter {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  overflow: visible;
+}
+
+/* The axis baseline — a hairline rule (§17.2). */
+.tuner-axis {
+  stroke: var(--hairline2);
+  stroke-width: 1;
+}
+
+/* The center tick — a faint 1px {mint} hairline anchor at 0¢ (§17.2). Not filled. */
+.tuner-tick {
+  stroke: var(--mint);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+/* Direction labels on the axis — `flat ♭` (left, anchored end) / `sharp ♯` (right,
+ * anchored start). Geist Mono-adjacent? No — these are direction WORDS (language),
+ * so Inter, neutral grey, never red (§17.7). They carry the §17.7 direction signal
+ * a player must READ to use the meter, so they sit at {text2} (7.09:1 on {canvas},
+ * clears the §2.5 4.5:1 AA floor), NOT the sub-threshold {text3} (≈3.70:1). */
+.tuner-dir {
+  font-family: var(--family-ui);
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--text2);
+}
+.tuner-dir-flat {
+  text-anchor: end;
+}
+.tuner-dir-sharp {
+  text-anchor: start;
+}
+
+/* The dot group — its TRANSFORM (x-position) is written per-frame in the component
+ * and is deliberately NOT transitioned (§17.8 — position is data, not chrome). */
+
+/* glow ring (§12.2 root-glow): present always, shown only in tune. The opacity
+ * fades on --glow-fade (§7.1 / §17.8). */
+.tuner-glow {
+  stroke: var(--root-glow);
+  stroke-width: 3;
+  opacity: 0;
+  transition: opacity var(--glow-fade) var(--ease-standard);
+}
+.tuner-dot-g.is-in-tune .tuner-glow {
+  opacity: 1;
+}
+
+/* dot — §12.2 states. Seeking = the in-scale dot ({mint} stroke 1.5, in-scale
+ * fill); in tune = the root dot (solid {mint}, no stroke). The `r` is set as the
+ * geometric attribute in the component; it morphs on --dot-radius / --ease-spring
+ * (§0 "dot RADIUS morph only", §17.8). fill/stroke cross on --state-color (§7.1). */
+.tuner-dot {
+  fill: var(--in-scale-fill);
+  stroke: var(--mint);
+  stroke-width: 1.5;
+  transition:
+    r var(--dot-radius) var(--ease-spring),
+    fill var(--state-color) var(--ease-standard),
+    stroke var(--state-color) var(--ease-standard),
+    stroke-width var(--state-color) var(--ease-standard);
+}
+.tuner-dot-g.is-in-tune .tuner-dot {
+  fill: var(--mint);
+  stroke: none;
+  stroke-width: 0;
+}
+
+/* in-dot label — the SOLE §3 "music = mono" exception: Inter (NOT Geist Mono) so
+ * it centres in the fixed-diameter circle at Inter's metrics (§17.2 / §12.2). Shown
+ * only in tune (the component emits an empty string while seeking). The fill is the
+ * §12.2 root-label ink on the solid {mint} dot. */
+.tuner-dot-lbl {
+  font-family: var(--family-ui);
+  font-feature-settings: var(--features-ui); /* tnum */
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--root-label);
+}
+
+/* ── open-string chips (§17.4) — §8.1 pills, Geist-Mono note names ─────────── */
+.tuner-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-200); /* 8px */
+}
+
+/* The chip is a self-contained §8.1 pill (the base `.pill` lives in controls.css,
+ * which does NOT load in the Tuner view, so the pill contract is restated here).
+ * Default variant: transparent bg, 1px {hairline2} border, {text2} text. The note
+ * name is Geist Mono tnum (§17.4) — note tokens are mono by §3. */
+.tuner-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--pill-h); /* 30px (§8.1) */
+  padding: 0 12px; /* §8.1 pill padding */
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid var(--hairline2);
+  color: var(--text2);
+  font-family: var(--family-mono); /* §17.4 — chip note names are Geist Mono */
+  font-feature-settings: var(--features-mono); /* tnum — fixed-height stability */
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  white-space: nowrap;
+  transition:
+    border-color var(--color-shift) var(--ease-standard),
+    background var(--color-shift) var(--ease-standard);
+}
+
+/* The string NEAREST the detected pitch is the active pill (§8.1 active row): the
+ * mint wash + 1px {mint} border + {text} text (§17.4). */
+.tuner-chip.is-active {
+  background: var(--pill-active-wash);
+  border-color: var(--mint);
+  color: var(--text);
+}
+
+/* The active chip gains a glow ONLY when in tune (§17.4) — echoing the meter's
+ * root-glow. While seeking it is the plain active pill, no glow. A box-shadow ring
+ * is the glow (no second fill, no red). */
+.tuner-chip.is-active.is-in-tune {
+  box-shadow: 0 0 0 3px var(--root-glow);
+  transition:
+    border-color var(--color-shift) var(--ease-standard),
+    background var(--color-shift) var(--ease-standard),
+    box-shadow var(--glow-fade) var(--ease-standard);
+}
+
+/* ── A4 calibration (§17.5) ────────────────────────────────────────────────── */
+.a4-cal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-200); /* 8px */
+}
+
+.a4-cal-caption {
+  font-family: var(--family-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.a4-cal-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-300); /* 12px */
+}
+
+/* The −/+ steppers — ≥44px hit target via transparent hit-padding (the §10/§8
+ * idiom), NOT a 44px painted box. The visible chip is small; the padding extends
+ * the tappable area. */
+.a4-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min); /* 44px (WCAG 2.5.5) */
+  min-height: var(--touch-target-min);
+  padding: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid var(--hairline2);
+  color: var(--text);
+  font-family: var(--family-mono);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--color-shift) var(--ease-standard);
+}
+.a4-step:hover:not(:disabled) {
+  border-color: var(--hairline3);
+}
+.a4-step:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* The value — Geist Mono tnum (§17.5; a technical numeral). */
+.a4-cal-value {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 7ch; /* hold steady across 415–446 (tnum keeps digits aligned) */
+  justify-content: center;
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+}
+.a4-cal-unit {
+  color: var(--text2);
+}
+
+/*
+ * §17.8 / §7.4 Reduced-motion guard. Under `prefers-reduced-motion: reduce` the
+ * radius/glow MORPH collapses to instant — but the dot's POSITION still updates
+ * (it is data, written via the transform attribute, and is never a transition
+ * here, so it tracks regardless). The readout/label swaps drop their motion. The
+ * meter stays fully usable and legible with motion off (§11.4).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .tuner-dot,
+  .tuner-glow,
+  .tuner-chip,
+  .tuner-chip.is-active.is-in-tune,
+  .tuner-start,
+  .tuner-stop,
+  .a4-step {
+    transition: none;
+  }
+}

@@ -1,11 +1,17 @@
+import { type View } from '../state/useView';
+
 import { IcScales, IcSearch } from './icons';
 
 // The 248px sticky left rail (DESIGN.md §9 tree, §4.2). Children render in the
 // spec's exact order: brand · search · section-heading · nav · spacer ·
-// theme-toggle. The three soon tools are inert stubs and the theme toggle is
-// inert; S6 wired the controls and S9 wires the palette: the search is now a
+// theme-toggle. S6 wired the controls and S9 wires the palette: the search is a
 // LIVE trigger that opens the command palette (§8.3 — a button that opens the
 // palette, not an inline text input).
+//
+// S18 ph6 (§17.1): the **Tuner** is now an ACTIVE nav item — it left the `soon`
+// stubs and renders like Scales (§8.2 active treatment, mint dot + label when
+// selected). Clicking Scales / Tuner sets the §17.1 view seam (the `onSelectView`
+// callback), swapping the `.main` content. Intonation + Vibrato stay `soon` stubs.
 //
 // S16 Phase 3 (U7) drops the mobile off-canvas drawer: this element is now the
 // desktop rail only (no off-canvas drawer chrome). Below the §10 breakpoint the
@@ -13,20 +19,27 @@ import { IcScales, IcSearch } from './icons';
 // and the controls bottom sheet — take over. The sidebar search KEEPS its label
 // and stays the desktop palette opener.
 
-// The three "soon" tools, in display order, with their Unicode glyph characters
-// (DESIGN.md §0 `icon.glyph-char`, §8.2) — set as text, never custom SVG.
+// The remaining "soon" tools, in display order, with their Unicode glyph
+// characters (DESIGN.md §0 `icon.glyph-char`, §8.2) — set as text, never custom
+// SVG. Tuner left this list in S18 ph6 (it became a live view).
 const SOON_TOOLS = [
   { label: 'Intonation', glyph: '◴' },
   { label: 'Vibrato', glyph: '∿' },
-  { label: 'Tuner', glyph: '◎' },
 ] as const;
 
 interface SidebarProps {
   /** Open the command palette — the search trigger calls this (§8.3, §9). */
   onOpenPalette: () => void;
+  /** The active view (§17.1) — drives which nav item carries the active treatment. */
+  view: View;
+  /** Switch the §17.1 view seam — the Scales / Tuner nav items call this. */
+  onSelectView: (view: View) => void;
 }
 
-export function Sidebar({ onOpenPalette }: SidebarProps) {
+export function Sidebar({ onOpenPalette, view, onSelectView }: SidebarProps) {
+  const scalesActive = view === 'scale-map';
+  const tunerActive = view === 'tuner';
+
   return (
     <header className="side">
       <div className="brand">
@@ -44,12 +57,39 @@ export function Sidebar({ onOpenPalette }: SidebarProps) {
       <div className="sec-h">Tools</div>
 
       <nav className="nav" aria-label="Tools">
-        <a className="ni active" href="#board" aria-current="page">
+        {/* Scales — the note-map view. An anchor to `#board` (the map slot) that
+            ALSO sets the view seam, so it works as both a skip target and a view
+            switch. aria-current marks the active view (§8.2). */}
+        <a
+          className={`ni${scalesActive ? ' active' : ''}`}
+          href="#board"
+          aria-current={scalesActive ? 'page' : undefined}
+          onClick={() => {
+            onSelectView('scale-map');
+          }}
+        >
           <span className="ic">
             <IcScales />
           </span>
           <span className="ni-label">Scales</span>
         </a>
+
+        {/* Tuner — the live §17.1 view (S18 ph6). A button (it swaps content, it is
+            not a hash target) styled like the active nav item, mint dot + label when
+            selected (§8.2). */}
+        <button
+          type="button"
+          className={`ni ni-button${tunerActive ? ' active' : ''}`}
+          aria-current={tunerActive ? 'page' : undefined}
+          onClick={() => {
+            onSelectView('tuner');
+          }}
+        >
+          <span className="ic" aria-hidden="true">
+            ◎
+          </span>
+          <span className="ni-label">Tuner</span>
+        </button>
 
         {SOON_TOOLS.map(({ label, glyph }) => (
           <span
