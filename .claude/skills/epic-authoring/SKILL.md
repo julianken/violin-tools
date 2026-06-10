@@ -10,13 +10,13 @@ description: |
   when the caller has a brainstorm brief and needs a structured epic before calling issue-authoring,
   or when any session asks to research and produce an epic spec for a new product feature.
   Self-contained for worktree dispatch — all hard constraints restated in-body.
-  model: opus
 tools:
   - Read
   - Bash
   - Write
   - WebSearch
   - WebFetch
+  - Skill
 model: opus
 ---
 
