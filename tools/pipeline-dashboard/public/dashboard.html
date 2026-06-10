@@ -439,12 +439,223 @@
     font-size: 11px;
   }
 
+  /* ---- phase card interactivity ---- */
+  .card[role="button"] {
+    cursor: pointer;
+    user-select: none;
+  }
+  .card[role="button"]:focus-visible {
+    outline: 2px solid var(--mint);
+    outline-offset: 2px;
+  }
+  .card[role="button"]:hover {
+    border-color: var(--mint-deep);
+  }
+  .card[role="button"][aria-expanded="true"] {
+    border-color: var(--teal);
+  }
+  .card-expand-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 4px;
+    transition: color .15s ease;
+  }
+  .card[role="button"]:hover .card-expand-hint,
+  .card[role="button"][aria-expanded="true"] .card-expand-hint {
+    color: var(--text-dim);
+  }
+
+  /* ---- drill-in panel ---- */
+  #drillPanel {
+    display: none;
+    margin-top: 16px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 18px 20px 20px;
+    transition: border-color .15s ease;
+  }
+  #drillPanel.visible {
+    display: block;
+  }
+  .drill-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .drill-title-block {}
+  .drill-phase-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-bottom: 4px;
+  }
+  .drill-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+  }
+  .drill-desc {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  button.drill-close {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 4px 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  button.drill-close:hover { border-color: var(--mint-deep); color: var(--text); }
+  button.drill-close:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+
+  .drill-section {
+    margin-top: 14px;
+  }
+  .drill-section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+  .drill-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px 16px;
+  }
+  .drill-meta-item {
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .drill-meta-key { color: var(--text-faint); margin-bottom: 2px; }
+  .drill-meta-val { color: var(--text); }
+  .drill-meta-val.dim { color: var(--text-dim); }
+  .drill-meta-val.skipped { color: var(--grey); font-style: italic; }
+
+  .drill-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .drill-links a {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--mint);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 9px;
+    transition: border-color .15s ease;
+  }
+  .drill-links a:hover { border-color: var(--mint-deep); text-decoration: none; }
+
+  .drill-agents {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .drill-agents th {
+    text-align: left;
+    color: var(--text-faint);
+    font-weight: 500;
+    padding: 4px 8px 6px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .drill-agents td {
+    padding: 5px 8px 5px 0;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border-soft);
+    vertical-align: middle;
+  }
+  .drill-agents tr:last-child td { border-bottom: none; }
+  .drill-agents .col-agent { color: var(--text); }
+
+  .agent-chip {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    border-radius: 5px;
+    padding: 2px 7px;
+    border: 1px solid transparent;
+    display: inline-block;
+  }
+  .agent-chip.running     { color: var(--amber); border-color: #4a3d12; background: #181408; }
+  .agent-chip.done,
+  .agent-chip.success     { color: var(--mint);  border-color: #224a37; background: #0d1813; }
+  .agent-chip.dispatched,
+  .agent-chip.skipped     { color: var(--grey);  border-color: #2a3530; background: #111815; }
+  .agent-chip.error       { color: var(--amber); border-color: #4a3d12; background: #181408; }
+  .agent-chip.unknown,
+  .agent-chip.warning     { color: var(--grey);  border-color: #2a3530; background: #111815; }
+
+  .no-activity {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 0;
+  }
+
+  .drill-raw-events {
+    margin-top: 14px;
+    border: 1px solid var(--border-soft);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .drill-raw-events summary {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: var(--text-faint);
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .drill-raw-events summary::-webkit-details-marker { display: none; }
+  .drill-raw-events summary::before {
+    content: "▶";
+    font-size: 9px;
+    transition: transform .15s ease;
+  }
+  .drill-raw-events[open] summary::before { transform: rotate(90deg); }
+  .drill-raw-events summary:hover { color: var(--text-dim); }
+  .drill-raw-events summary:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+  .drill-raw-list {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 4px 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   @media (max-width: 640px) {
     .grid { grid-template-columns: 1fr; }
     .summary { gap: 16px; }
     .big-count { font-size: 24px; }
     h1 { font-size: 17px; }
     .axis-tab { padding: 7px 12px 8px; }
+    .drill-meta-grid { grid-template-columns: 1fr 1fr; }
+    #drillPanel { padding: 14px 14px 16px; }
   }
 
   /* §7.4 reduced-motion guard — every animation and transition must be
@@ -454,7 +665,13 @@
     .bar > span,
     .card,
     .axis-tab,
-    button.refresh { transition: none; }
+    button.refresh,
+    #drillPanel,
+    .card[role="button"],
+    .card-expand-hint,
+    .drill-close,
+    .drill-links a,
+    .drill-raw-events summary::before { transition: none; }
   }
 </style>
 </head>
@@ -512,6 +729,9 @@
       <div class="grid" id="phaseCards" role="list"></div>
     </div>
 
+    <!-- Phase drill-in panel (shared, one at a time) -->
+    <div id="drillPanel" role="region" aria-label="Phase details" aria-hidden="true"></div>
+
     <!-- Live agent log -->
     <div class="log-section" id="logSection">
       <h2>
@@ -555,6 +775,14 @@ const phaseIdByOrder = new Map();
 const activePhaseIds = new Set();
 /** @type {string[]} SSE phase ids that had no matching config card */
 const unmappedPhases = [];
+/** @type {Map<string, object[]>} phase id → array of all SSE events for that phase */
+const phaseEvents = new Map();
+/** @type {Map<string, {startTime:string|null, endTime:string|null, skipped:boolean}>} phase timing */
+const phaseTiming = new Map();
+/** @type {Map<string, Map<string, {label:string|null, status:string, startTime:string|null, endTime:string|null}>>} phase id → agentId → row */
+const phaseAgents = new Map();
+/** Currently open drill phase id, or null */
+let drillOpenPhaseId = null;
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function el(tag, cls, text) {
@@ -619,7 +847,9 @@ function buildPhaseCard(stage, status, brainstormData, uiFeature) {
 
   const card = el("div", "card");
   card.id = "phase-card-" + stage.id;
-  card.setAttribute("role", "listitem");
+  card.setAttribute("role", "button");
+  card.setAttribute("tabindex", "0");
+  card.setAttribute("aria-expanded", "false");
   card.setAttribute("data-phase-id", stage.id);
   card.setAttribute("data-phase-order", String(stage.order));
 
@@ -649,6 +879,8 @@ function buildPhaseCard(stage, status, brainstormData, uiFeature) {
     }
     card.appendChild(foot);
   }
+
+  card.appendChild(el("div", "card-expand-hint", "click to view details"));
 
   return { card, statusBadge, displayStatus };
 }
@@ -681,7 +913,23 @@ async function initPhaseCards(uiFeatureOverride) {
     phaseCardMap.set(stage.id, { el: card, statusBadge, order: stage.order, stage });
     phaseIdByOrder.set(stage.order, stage.id);
     phaseIdByOrder.set(stage.id, stage.id);
+
+    // Wire up drill-in interactivity
+    card.addEventListener("click", () => toggleDrillPanel(stage.id));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleDrillPanel(stage.id);
+      }
+    });
   }
+
+  // Escape key closes the panel globally while focus is in the phases axis
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && drillOpenPhaseId !== null) {
+      closeDrillPanel();
+    }
+  });
 }
 
 function activatePhaseCard(phaseId) {
@@ -725,7 +973,224 @@ function renderUnmappedBanner() {
   banner.appendChild(flag);
 }
 
-// Update brainstorm card with status data
+// ── Phase drill-in panel ──────────────────────────────────────────────────────
+function fmtDuration(startIso, endIso) {
+  try {
+    const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+    if (isNaN(ms) || ms < 0) return "—";
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return s + "s";
+    const m = Math.floor(s / 60), rem = s % 60;
+    if (m < 60) return m + "m " + rem + "s";
+    return Math.floor(m / 60) + "h " + (m % 60) + "m";
+  } catch (_) { return "—"; }
+}
+
+function buildDrillPanel(phaseId) {
+  const entry = phaseCardMap.get(phaseId);
+  if (!entry) return null;
+  const { stage, order } = entry;
+
+  const timing = phaseTiming.get(phaseId) || { startTime: null, endTime: null, skipped: false };
+  const agentMap = phaseAgents.get(phaseId) || new Map();
+  const events = phaseEvents.get(phaseId) || [];
+  const hasActivity = events.length > 0;
+
+  const panel = document.createDocumentFragment();
+
+  // Header
+  const hdr = el("div", "drill-header");
+  const titleBlock = el("div", "drill-title-block");
+  titleBlock.appendChild(el("div", "drill-phase-badge", "P" + order + " — " + phaseId));
+  titleBlock.appendChild(el("h3", "drill-title", stage.title));
+  if (stage.description) {
+    titleBlock.appendChild(el("p", "drill-desc", stage.description));
+  }
+  hdr.appendChild(titleBlock);
+  const closeBtn = el("button", "drill-close");
+  closeBtn.type = "button";
+  closeBtn.textContent = "✕ Close";
+  closeBtn.setAttribute("aria-label", "Close phase details");
+  closeBtn.addEventListener("click", (e) => { e.stopPropagation(); closeDrillPanel(); });
+  hdr.appendChild(closeBtn);
+  panel.appendChild(hdr);
+
+  // Meta section: expectedAgents + links
+  const metaSection = el("div", "drill-section");
+  metaSection.appendChild(el("div", "drill-section-label", "Phase config"));
+  const metaGrid = el("div", "drill-meta-grid");
+
+  // Expected agents
+  const agents = stage.expectedAgents || [];
+  const agentsItem = el("div", "drill-meta-item");
+  agentsItem.appendChild(el("div", "drill-meta-key", "expected agents"));
+  agentsItem.appendChild(el("div", agents.length ? "drill-meta-val" : "drill-meta-val dim",
+    agents.length ? agents.join(", ") : "none"));
+  metaGrid.appendChild(agentsItem);
+
+  metaSection.appendChild(metaGrid);
+
+  // Links
+  const links = (stage.links || []).filter(l => l.href);
+  if (links.length) {
+    const linksDiv = el("div", "drill-links");
+    for (const link of links) {
+      const a = el("a", null, link.label || link.href);
+      a.href = link.href;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      linksDiv.appendChild(a);
+    }
+    metaSection.appendChild(linksDiv);
+  }
+  panel.appendChild(metaSection);
+
+  // Timing section
+  const timingSection = el("div", "drill-section");
+  timingSection.appendChild(el("div", "drill-section-label", "Phase timing"));
+  if (!hasActivity) {
+    timingSection.appendChild(el("p", "no-activity", "no activity yet"));
+  } else {
+    const timingGrid = el("div", "drill-meta-grid");
+
+    const startItem = el("div", "drill-meta-item");
+    startItem.appendChild(el("div", "drill-meta-key", "started"));
+    startItem.appendChild(el("div", timing.startTime ? "drill-meta-val" : "drill-meta-val dim",
+      timing.startTime ? fmtTime(timing.startTime) : "—"));
+    timingGrid.appendChild(startItem);
+
+    const endItem = el("div", "drill-meta-item");
+    endItem.appendChild(el("div", "drill-meta-key", "ended"));
+    if (timing.skipped) {
+      endItem.appendChild(el("div", "drill-meta-val skipped", "skipped (backend feature)"));
+    } else {
+      endItem.appendChild(el("div", timing.endTime ? "drill-meta-val" : "drill-meta-val dim",
+        timing.endTime ? fmtTime(timing.endTime) : "—"));
+    }
+    timingGrid.appendChild(endItem);
+
+    const durItem = el("div", "drill-meta-item");
+    durItem.appendChild(el("div", "drill-meta-key", "duration"));
+    if (timing.skipped) {
+      durItem.appendChild(el("div", "drill-meta-val skipped", "skipped"));
+    } else {
+      durItem.appendChild(el("div",
+        (timing.startTime && timing.endTime) ? "drill-meta-val" : "drill-meta-val dim",
+        (timing.startTime && timing.endTime) ? fmtDuration(timing.startTime, timing.endTime) : "—"));
+    }
+    timingGrid.appendChild(durItem);
+
+    timingSection.appendChild(timingGrid);
+  }
+  panel.appendChild(timingSection);
+
+  // Agent roster section
+  const agentSection = el("div", "drill-section");
+  agentSection.appendChild(el("div", "drill-section-label", "Agent roster"));
+  if (!hasActivity || agentMap.size === 0) {
+    agentSection.appendChild(el("p", "no-activity", "no activity yet"));
+  } else {
+    const table = el("table", "drill-agents");
+    const thead = el("thead");
+    const headerRow = el("tr");
+    for (const h of ["agent", "status", "start", "end", "duration"]) {
+      headerRow.appendChild(el("th", null, h));
+    }
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    const tbody = el("tbody");
+    for (const [agentId, row] of agentMap.entries()) {
+      const tr = el("tr");
+      tr.appendChild(el("td", "col-agent", row.label || agentId));
+
+      const statusTd = el("td");
+      const chip = el("span", "agent-chip " + row.status, row.status);
+      statusTd.appendChild(chip);
+      tr.appendChild(statusTd);
+
+      tr.appendChild(el("td", null, row.startTime ? fmtTime(row.startTime) : "—"));
+      tr.appendChild(el("td", null, row.endTime ? fmtTime(row.endTime) : "—"));
+      tr.appendChild(el("td", null,
+        (row.startTime && row.endTime) ? fmtDuration(row.startTime, row.endTime) : "—"));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    agentSection.appendChild(table);
+  }
+  panel.appendChild(agentSection);
+
+  // Raw events collapsible
+  const rawDetails = el("details", "drill-raw-events");
+  const rawSummary = el("summary");
+  rawSummary.appendChild(document.createTextNode("Raw events (" + events.length + ")"));
+  rawDetails.appendChild(rawSummary);
+  const rawList = el("div", "drill-raw-list");
+  // most recent first
+  for (const ev of [...events].reverse()) {
+    const row = el("div", "log-entry");
+    row.appendChild(el("span", "log-time", fmtTime(ev.timestamp || "")));
+    row.appendChild(el("span", "log-type " + (ev.type || "log"), ev.type || "log"));
+    const msg = ev.label || ev.agentId || ev.phase ||
+      (ev.payload && JSON.stringify(ev.payload)) || "";
+    row.appendChild(el("span", "log-msg", msg));
+    rawList.appendChild(row);
+  }
+  rawDetails.appendChild(rawList);
+  panel.appendChild(rawDetails);
+
+  return panel;
+}
+
+function openDrillPanel(phaseId) {
+  const entry = phaseCardMap.get(phaseId);
+  if (!entry) return;
+
+  // Close any previously open card
+  if (drillOpenPhaseId && drillOpenPhaseId !== phaseId) {
+    const prevEntry = phaseCardMap.get(drillOpenPhaseId);
+    if (prevEntry) prevEntry.el.setAttribute("aria-expanded", "false");
+  }
+
+  drillOpenPhaseId = phaseId;
+  entry.el.setAttribute("aria-expanded", "true");
+
+  const panel = document.getElementById("drillPanel");
+  panel.textContent = "";
+
+  const content = buildDrillPanel(phaseId);
+  if (content) panel.appendChild(content);
+
+  // Update accessible label to reflect the open phase
+  panel.setAttribute("aria-label", "Phase details: " + (entry.stage.title || phaseId));
+  panel.setAttribute("aria-hidden", "false");
+  panel.classList.add("visible");
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function closeDrillPanel() {
+  if (drillOpenPhaseId) {
+    const entry = phaseCardMap.get(drillOpenPhaseId);
+    if (entry) {
+      entry.el.setAttribute("aria-expanded", "false");
+      entry.el.focus();
+    }
+    drillOpenPhaseId = null;
+  }
+  const panel = document.getElementById("drillPanel");
+  panel.classList.remove("visible");
+  panel.setAttribute("aria-hidden", "true");
+  panel.textContent = "";
+}
+
+function toggleDrillPanel(phaseId) {
+  if (drillOpenPhaseId === phaseId) {
+    closeDrillPanel();
+  } else {
+    openDrillPanel(phaseId);
+  }
+}
+
+// ── Update brainstorm card with status data
 function updateBrainstormCard(brainstormData) {
   if (!brainstormData) return;
   const entry = phaseCardMap.get("phase-0-brainstorm");
@@ -779,14 +1244,83 @@ function openSse() {
 
     appendLogEntry(event);
 
+    // Index event by phase for drill-in panel
+    if (event.phase) {
+      if (!phaseEvents.has(event.phase)) phaseEvents.set(event.phase, []);
+      phaseEvents.get(event.phase).push(event);
+    }
+
     switch (event.type) {
       case "phase_start":
-        if (event.phase) activatePhaseCard(event.phase);
+        if (event.phase) {
+          activatePhaseCard(event.phase);
+          // Record phase start time
+          if (!phaseTiming.has(event.phase)) {
+            phaseTiming.set(event.phase, { startTime: null, endTime: null, skipped: false });
+          }
+          phaseTiming.get(event.phase).startTime = event.timestamp || null;
+        }
         break;
       case "phase_end":
-        if (event.phase) deactivatePhaseCard(event.phase);
+        if (event.phase) {
+          deactivatePhaseCard(event.phase);
+          // Record phase end time
+          if (!phaseTiming.has(event.phase)) {
+            phaseTiming.set(event.phase, { startTime: null, endTime: null, skipped: false });
+          }
+          const t = phaseTiming.get(event.phase);
+          t.endTime = event.timestamp || null;
+          t.skipped = (event.status === "skipped");
+        }
         break;
-      // agent_start, agent_end, log, run_start, run_end: logged only
+      case "agent_start":
+        if (event.phase && event.agentId) {
+          if (!phaseAgents.has(event.phase)) phaseAgents.set(event.phase, new Map());
+          const agMap = phaseAgents.get(event.phase);
+          agMap.set(event.agentId, {
+            label: event.label || null,
+            status: "running",
+            startTime: event.timestamp || null,
+            endTime: null,
+          });
+        }
+        break;
+      case "agent_end":
+        if (event.phase && event.agentId) {
+          if (!phaseAgents.has(event.phase)) phaseAgents.set(event.phase, new Map());
+          const agMap2 = phaseAgents.get(event.phase);
+          const existing = agMap2.get(event.agentId) || {
+            label: event.label || null, status: "unknown", startTime: null, endTime: null,
+          };
+          // Derive agent status: map the documented envelope vocabulary without
+          // treating legitimate non-failure statuses as errors.
+          // Vocabulary: done|success → green; dispatched|skipped|warning → grey;
+          // error → amber error chip; unknown/anything else → grey unknown.
+          const rawStatus = event.status || "";
+          let agentStatus;
+          if (rawStatus === "done" || rawStatus === "success") agentStatus = "done";
+          else if (rawStatus === "dispatched" || rawStatus === "skipped") agentStatus = "dispatched";
+          else if (rawStatus === "warning") agentStatus = "unknown"; // grey/neutral
+          else if (rawStatus === "error") agentStatus = "error";
+          else if (rawStatus === "") agentStatus = "done"; // no status = implicit done
+          else agentStatus = "unknown"; // unrecognised — grey, not amber
+          agMap2.set(event.agentId, {
+            ...existing,
+            label: event.label || existing.label,
+            status: agentStatus,
+            endTime: event.timestamp || null,
+          });
+        }
+        break;
+      // log, run_start, run_end: logged only
+    }
+
+    // Refresh drill panel if it's currently showing this phase
+    if (drillOpenPhaseId && event.phase === drillOpenPhaseId) {
+      const panel = document.getElementById("drillPanel");
+      panel.textContent = "";
+      const content = buildDrillPanel(drillOpenPhaseId);
+      if (content) panel.appendChild(content);
     }
   };
 
