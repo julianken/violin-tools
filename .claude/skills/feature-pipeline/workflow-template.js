@@ -239,12 +239,29 @@ async function resolveBlocker(args, runState, emit_, phase, description) {
   });
 
   if (attempt > RESOLUTION_MAX_ATTEMPTS) {
-    await postAgentComment(
-      args.repoSlug,
-      runState.epicIssueNumber ?? 0,
+    // Escalate to HIL — post AGENT:-prefixed comment naming the exact info-need (AC19).
+    // Never prefix a literal machine command; this is human-readable prose only.
+    //
+    // Guard: epicIssueNumber is only set after phase 5 (issue fan-out). Phases 3
+    // and 4 (FIGMA_DESIGN / FIGMA_REVIEW) run before the epic exists, so
+    // epicIssueNumber may be undefined here. Posting to issue #0 would 404 on
+    // GitHub and swallow the notification entirely. When no epic exists yet, fall
+    // back to a prominent console.error so the escalation is visible in the run
+    // trace; the throw below still terminates the engine and surfaces the message
+    // to the operator.
+    const escalationBody =
       `Phase ${phase} blocker unresolvable after ${RESOLUTION_MAX_ATTEMPTS} attempts: ${description}. ` +
-        `Human review required — please diagnose and re-run the engine once resolved.`
-    );
+      `Human review required — please diagnose and re-run the engine once resolved.`;
+
+    if (runState.epicIssueNumber) {
+      await postAgentComment(args.repoSlug, runState.epicIssueNumber, escalationBody);
+    } else {
+      // No epic issue exists yet (pre-fan-out phase). Log prominently so the
+      // escalation is not silently lost, then let the throw propagate.
+      console.error(
+        `[workflow-template] HIL ESCALATION (no epic issue yet — phase ${phase}): ${escalationBody}`
+      );
+    }
     throw new Error(`HIL_ESCALATED: phase=${phase} description="${description}"`);
   }
 
