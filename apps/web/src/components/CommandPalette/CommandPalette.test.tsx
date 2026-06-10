@@ -206,6 +206,22 @@ describe('empty state (§8.5)', () => {
     expect(within(dialog).queryAllByRole('option')).toHaveLength(0); // no rows
     expect(within(dialog).getByText('navigate')).toBeInTheDocument(); // footer remains
   });
+
+  it('Enter on a 0-result list does not throw and leaves the palette open', () => {
+    // The activate() crash-guard (`if (target === undefined) return`): with no
+    // matches `rows` is empty so `rows[selectedIndex]` is undefined — Enter would
+    // TypeError on `target.kind` without the guard. Assert it is inert: no throw,
+    // and the palette stays open (no spurious close).
+    const dialog = openWithChord();
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'zzzzz' } });
+    expect(within(dialog).getByText('No matches')).toBeInTheDocument();
+    expect(() => {
+      fireEvent.keyDown(dialog, { key: 'Enter' });
+    }).not.toThrow();
+    // Inert: the palette did not begin closing (activate returned early).
+    expect(dialog.classList.contains('is-closing')).toBe(false);
+    expect(dialog.classList.contains('is-open')).toBe(true);
+  });
 });
 
 describe('soon rows are non-actionable (§8.5)', () => {

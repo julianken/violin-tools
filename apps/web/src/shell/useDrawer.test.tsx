@@ -53,6 +53,26 @@ describe('useDrawer — open / close / toggle state', () => {
     });
     expect(result.current.isOpen).toBe(false);
   });
+
+  it('a non-Escape keydown while open does NOT close the drawer', () => {
+    // The keydown listener only acts on 'Escape' (`if (event.key === 'Escape')`):
+    // any other key must fall through and leave the drawer open. Without this pin,
+    // a regression that closed on every keydown would go unnoticed.
+    const { result } = renderHook(() => useDrawer());
+    act(() => {
+      result.current.open();
+    });
+    expect(result.current.isOpen).toBe(true);
+    act(() => {
+      fireEvent.keyDown(window, { key: 'a' });
+    });
+    expect(result.current.isOpen).toBe(true); // a non-Escape key never closes
+    // A second unrelated key (Enter) is likewise inert.
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Enter' });
+    });
+    expect(result.current.isOpen).toBe(true);
+  });
 });
 
 // A tiny harness that mounts a real trigger + a panel wired to the hook, so the
