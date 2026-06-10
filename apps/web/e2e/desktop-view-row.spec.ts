@@ -90,4 +90,101 @@ test.describe('S16 ph4 — desktop View row drives the resolved render', () => {
     // choice persists (storeMapView), it isn't reset by the re-resolve.
     await expect(vertical).toHaveAttribute('aria-checked', 'true');
   });
+
+  test("Density 'Comfort' (with Vertical) drives the board's viewBox to the §12.1 vertical-comfort literal", async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const board = page.locator('svg#board');
+    await expect(board).toBeVisible();
+
+    // Pick Vertical first so the resolved render is vertical (the desktop default
+    // resolves to horizontal, where Comfort would be '0 0 850 264'). The CORRECTED
+    // literal: vertical+comfort is '0 0 352 850' (Content.tsx L107/169; the
+    // geometry.test.ts axisOf check pins the same value). Density only stretches the
+    // NECK, so the cross WIDTH (352) is unchanged and the neck HEIGHT grows to 850.
+    await page
+      .getByRole('radiogroup', { name: 'Orientation' })
+      .getByRole('radio', { name: 'Vertical', exact: true })
+      .click();
+    await expect(board).toHaveAttribute('data-orientation', 'vertical');
+
+    const comfort = page
+      .getByRole('radiogroup', { name: 'Density' })
+      .getByRole('radio', { name: 'Comfort', exact: true });
+    await comfort.click();
+    await expect(comfort).toHaveAttribute('aria-checked', 'true');
+    // The render reached the viewBox via useMapView → axisOf (end-to-end wiring).
+    await expect(board).toHaveAttribute('viewBox', '0 0 352 850');
+  });
+
+  test("Handedness 'Left' (vertical) mirrors the dot geometry — the outer strings swap cross position", async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const board = page.locator('svg#board');
+    await expect(board).toBeVisible();
+
+    // Go vertical so handedness is observable on the CROSS axis (the dot cx). There
+    // is NO data-handedness attribute — handedness is visible ONLY through the
+    // mirrored dot geometry (geometry.ts crossOrder L111–116): vertical+right uses a
+    // DESCENDING string order [3,2,1,0], vertical+left an ASCENDING [0,1,2,3], so the
+    // outermost strings (E5 = first g.note, G3 = the 46th = string 3 col 0) SWAP
+    // their cross coordinate. We read the dot cx before and after — a pure
+    // source-derived mirror, no hardcoded pixel literal.
+    await page
+      .getByRole('radiogroup', { name: 'Orientation' })
+      .getByRole('radio', { name: 'Vertical', exact: true })
+      .click();
+    await expect(board).toHaveAttribute('data-orientation', 'vertical');
+
+    // The open-string dots: g.note index 0 = (string 0 = E5, col 0); index 45 =
+    // (string 3 = G3, col 0). Their dot circle cx is the cross coordinate.
+    const cxOf = (index: number) =>
+      board.evaluate((svg, i) => {
+        const dot = svg.querySelectorAll('g.note')[i]?.querySelector('circle.dot');
+        return dot ? Number(dot.getAttribute('cx')) : null;
+      }, index);
+
+    const e5Right = await cxOf(0);
+    const g3Right = await cxOf(45);
+    expect(e5Right).not.toBeNull();
+    expect(g3Right).not.toBeNull();
+    // Right-handed vertical: descending order puts E5 at the FAR cross slot and G3
+    // at the NEAR slot — so they differ.
+    expect(e5Right).not.toBe(g3Right);
+
+    await page
+      .getByRole('radiogroup', { name: 'Handedness' })
+      .getByRole('radio', { name: 'Left', exact: true })
+      .click();
+
+    // Mirror: the ascending left order swaps the outer strings' cross slots, so E5
+    // now sits where G3 was and vice versa (the geometry flipped, no attribute to
+    // read). This is the only observable proof handedness reached the render.
+    await expect
+      .poll(() => cxOf(0))
+      .toBe(g3Right);
+    expect(await cxOf(45)).toBe(e5Right);
+  });
+
+  test("Density 'Comfort' persists across a reload (storeMapView round-trips)", async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const density = page.getByRole('radiogroup', { name: 'Density' });
+    const comfort = density.getByRole('radio', { name: 'Comfort', exact: true });
+
+    // Default density is 'auto'; pick Comfort, then reload. The stored MapView
+    // (storeMapView → localStorage) must survive so Comfort is STILL checked on the
+    // fresh load — the persistence the unit test asserts, proven end-to-end.
+    await comfort.click();
+    await expect(comfort).toHaveAttribute('aria-checked', 'true');
+
+    await page.reload();
+    const comfortAfter = page
+      .getByRole('radiogroup', { name: 'Density' })
+      .getByRole('radio', { name: 'Comfort', exact: true });
+    await expect(comfortAfter).toHaveAttribute('aria-checked', 'true');
+  });
 });

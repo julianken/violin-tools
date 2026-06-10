@@ -84,10 +84,16 @@ type CtxState = 'suspended' | 'running' | 'closed';
 class FakeAudioContext {
   static lastInstance: FakeAudioContext | null = null;
   static initialState: CtxState = 'running';
+  // When true, `resume()` REJECTS (the documented iOS failure where a suspended
+  // context can't be resumed) instead of resolving to 'running'.
+  static resumeRejects = false;
   state: CtxState;
   sampleRate = 48000;
   analyser = new FakeAnalyser();
   resume = vi.fn((): Promise<void> => {
+    if (FakeAudioContext.resumeRejects) {
+      return Promise.reject(new DOMException('cannot resume', 'InvalidStateError'));
+    }
     this.state = 'running';
     return Promise.resolve();
   });
@@ -150,6 +156,7 @@ beforeEach(() => {
   installRaf();
   FakeAudioContext.lastInstance = null;
   FakeAudioContext.initialState = 'running';
+  FakeAudioContext.resumeRejects = false;
   setHidden(false);
 });
 
@@ -279,6 +286,31 @@ describe('useTuner — permission state machine', () => {
     expect(ctx?.resume).toHaveBeenCalled();
     expect(ctx?.state).toBe('running');
     expect(result.current.status).toBe('listening');
+  });
+
+  it('a rejecting ctx.resume() fails the start: status "denied", tracks stopped (no leak)', async () => {
+    // The documented iOS failure (useTuner.ts L401–409): a suspended context whose
+    // resume() REJECTS. The catch must release the session — stop the mic track AND
+    // close the context — and set status 'denied', leaving no orphaned capture.
+    FakeAudioContext.initialState = 'suspended';
+    FakeAudioContext.resumeRejects = true;
+    const { stream, stop } = makeStream();
+    const getUserMedia = vi.fn(() => Promise.resolve(stream));
+    installSupported(getUserMedia);
+
+    const { result } = renderHook(() => useTuner());
+    await act(async () => {
+      await result.current.start();
+    });
+
+    const ctx = FakeAudioContext.lastInstance;
+    expect(ctx?.resume).toHaveBeenCalled();
+    // The catch path: session released (track stopped, context closed) and denied.
+    expect(result.current.status).toBe('denied');
+    expect(stop).toHaveBeenCalledTimes(1); // mic track stopped — no leak
+    expect(ctx?.close).toHaveBeenCalledTimes(1); // context torn down too
+    expect(pendingFrames()).toBe(0); // no rAF loop armed (start never adopted)
+    expect(result.current.readout).toBeNull();
   });
 });
 
@@ -664,5 +696,57 @@ describe('useTuner — A4 calibration', () => {
       result.current.setA4(10);
     });
     expect(result.current.a4).toBe(415); // A4_MIN
+  });
+
+  it('a mid-session setA4 rebuilds the live smoother without restarting the rAF loop', async () => {
+    // A4Calibration is a LIVE control: changing A4 while listening must rebuild the
+    // running smoother (useTuner.ts L490–494, `if (smootherRef.current)`) so the
+    // readout resolves against the NEW reference — and it must NOT tear down or
+    // re-arm the detection loop (the session keeps running; the next frame seeds the
+    // fresh smoother). 0-hit on main: the existing setA4 test never start()s.
+    const { stream } = makeStream();
+    const getUserMedia = vi.fn(() => Promise.resolve(stream));
+    installSupported(getUserMedia);
+
+    const { result } = renderHook(() => useTuner());
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.status).toBe('listening');
+    const armedFrames = pendingFrames();
+    expect(armedFrames).toBeGreaterThan(0); // the loop is running
+
+    // Recalibrate to A4 = 442 Hz mid-session. The A4=442 in-tune A4 pitch is 442 Hz
+    // (frequencyOfNote(9, 4, 442)); feeding that raw frequency through a smoother
+    // STILL keyed to 440 would read ~+8¢ sharp, so a green/in-tune A4 readout proves
+    // the rebuilt smoother (a4=442) is the one wired to the loop.
+    const a442Freq = frequencyOfNote(9, 4, 442);
+    expect(a442Freq).toBeCloseTo(442, 6);
+    act(() => {
+      result.current.setA4(442);
+    });
+    expect(result.current.a4).toBe(442);
+    // The loop was NOT torn down or re-armed: same in-flight frame still pending,
+    // the session stayed 'listening' (rebuild is in-place, not a restart).
+    expect(result.current.status).toBe('listening');
+    expect(pendingFrames()).toBe(armedFrames);
+
+    // Point the analyser at the 442 Hz sine and pump frames; the rebuilt smoother
+    // resolves it to A4, in-tune (it would NOT be in-tune against the stale a4=440).
+    FakeAudioContext.lastInstance!.analyser.fillBuffer = (buf: Float32Array): void => {
+      const w = (2 * Math.PI * a442Freq) / 48000;
+      for (let i = 0; i < buf.length; i++) buf[i] = 0.8 * Math.sin(w * i);
+    };
+    act(() => {
+      pumpFrames(10);
+    });
+
+    await waitFor(() => {
+      expect(result.current.readout).not.toBeNull();
+    });
+    expect(result.current.readout?.note).toBe('A');
+    expect(result.current.readout?.octave).toBe(4);
+    expect(result.current.readout?.inTune).toBe(true);
+    expect(Math.abs(result.current.readout?.cents ?? 99)).toBeLessThanOrEqual(5);
   });
 });
