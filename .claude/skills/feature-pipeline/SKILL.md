@@ -90,7 +90,7 @@ uiFeature: yes  <!-- adds visible UI to the note map -->
 
 The engine requires Claude Code v2.1.154+ for schema-driven arg prompting (automatic prompting for missing required args). If your version is older, pass all args explicitly in the Workflow invocation — the engine will not prompt you.
 
-Seven args total (five required, two optional):
+Eight args total (five required, three optional):
 
 | Arg | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
@@ -101,6 +101,7 @@ Seven args total (five required, two optional):
 | `brainstormBriefPath` | string | **required** | — | Absolute path to `tmp/docs/<featureSlug>-brief.md` produced by the front-door brainstorm (phase 0). **NOT a prompt-fill arg** — the schema-driven missing-arg prompt EXCLUDES `brainstormBriefPath`; the front-door brainstorm is its sole producer. Never ask the user for a path; run the brainstorm to produce it. |
 | `uiFeature` | boolean | optional | derived from brief | Explicit override. The engine DERIVES it at phase 1 from the brief's `uiFeature: yes\|no` marker; this arg forces it. Drives the conditional Figma design+review phases (3 & 4) and the Figma-Design-Verdict gate before fan-out. |
 | `model` | string | optional | per-phase routing | Override model tier. Accepts `'opus'` \| `'sonnet'` \| a full model id. When omitted, the engine applies per-phase routing (opus for review/synthesis stages, sonnet for mechanical stages); a supplied value overrides only the mechanical-stage tier — review gates always use opus. |
+| `dryRun` | boolean | optional | `false` | When `true`, logs each phase decision without mutating GitHub state (no issues created, no PRs opened, no reviews posted, no merges triggered). Use for rehearsal or testing the pipeline wiring without side-effects. |
 
 > **`brainstormBriefPath` is NOT a prompt-fill arg.** The schema-driven missing-arg prompt excludes it. The only way to produce it is the front-door brainstorm (phase 0, above). Never satisfy it by asking the user for a path.
 
