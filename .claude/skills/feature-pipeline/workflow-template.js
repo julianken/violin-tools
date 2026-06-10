@@ -155,10 +155,13 @@ async function ghJson(args) {
 }
 
 async function runCommand(cmd, args) {
-  const { exec } = await import("node:child_process");
+  // Uses execFile (not exec) — no shell interpolation; arg list passed directly
+  // to the OS exec call. Satisfies AC14 and keeps this template's no-drift
+  // relationship with the engine helper correct.
+  const { execFile } = await import("node:child_process");
   const { promisify } = await import("node:util");
-  const execAsync = promisify(exec);
-  return execAsync([cmd, ...args].join(" "));
+  const execFileAsync = promisify(execFile);
+  return execFileAsync(cmd, args);
 }
 
 function fileExists(p) {

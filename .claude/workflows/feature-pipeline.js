@@ -153,15 +153,19 @@ async function ghJson(args) {
 /**
  * runCommand — thin process-execution wrapper used by ghJson and fix agents.
  * Throws on non-zero exit so callers can route to the RESOLUTION sub-workflow.
+ *
+ * Uses execFile (not exec) so the argument list is passed directly to the OS
+ * without shell interpolation — satisfies AC14. No string joining; cmd and args
+ * are kept separate all the way to the kernel exec call.
  */
 async function runCommand(cmd, args) {
   // NOTE: The Claude Code Workflow runtime exposes process execution via the
   // agent tools; in a real deployment this delegates to the runtime's exec
   // primitive. The interface is kept thin so the swap is one-line.
-  const { exec } = await import("node:child_process");
+  const { execFile } = await import("node:child_process");
   const { promisify } = await import("node:util");
-  const execAsync = promisify(exec);
-  const result = await execAsync([cmd, ...args].join(" "));
+  const execFileAsync = promisify(execFile);
+  const result = await execFileAsync(cmd, args);
   return result;
 }
 
@@ -1047,7 +1051,11 @@ async function resolveBlocker(args, runState, emit_, phase, description) {
  * Uses fixed argument lists only (AC14).
  */
 function classifyChecks(statusCheckRollup) {
-  if (!statusCheckRollup || statusCheckRollup.length === 0) return true; // no checks = green
+  // Return false when the check list is absent or empty: an empty rollup means
+  // checks haven't reported yet (e.g. CI not yet enqueued after a push), NOT
+  // that they passed. Treating [] as green would let the pipeline race ahead of
+  // required gates. At least one COMPLETED/SUCCESS entry must be present.
+  if (!statusCheckRollup || statusCheckRollup.length === 0) return false;
   const allPassed = statusCheckRollup.every(
     (c) => c.status === "COMPLETED" && c.conclusion === "SUCCESS"
   );
