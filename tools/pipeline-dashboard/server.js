@@ -543,19 +543,21 @@ const { values: cliArgs } = parseArgs({
   options: {
     port: { type: "string", short: "p", default: "8765" },
     brief: { type: "string", default: "" },
+    host: { type: "string", default: "127.0.0.1" },
   },
   strict: false,
 });
 
 const port = parseInt(cliArgs.port ?? "8765", 10);
+const host = cliArgs.host ?? "127.0.0.1";
 const brainstormBriefPath =
   cliArgs.brief || process.env.BRAINSTORM_BRIEF_PATH || DEFAULT_BRIEF_PATH;
 
 const app = await createApp(brainstormBriefPath);
 const server = createServer(app);
 
-server.listen(port, HOST, () => {
-  const url = `http://${HOST}:${port}/`;
+server.listen(port, host, () => {
+  const url = `http://${host}:${port}/`;
   console.log(`Violin Tools — Pipeline dashboard serving at ${url}`);
   console.log(`  GET /api/config   pipeline stage taxonomy (P1 pipeline.json)`);
   console.log(`  GET /api/status   gh-poll ground truth (${CACHE_TTL_SECONDS}s cache; ?force=1 to bypass)`);

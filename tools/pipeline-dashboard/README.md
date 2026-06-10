@@ -34,8 +34,11 @@ Then open **http://127.0.0.1:8765/** in a browser.
 
 | Flag | Default | Description |
 |---|---|---|
-| `--port` / `-p` | `8765` | TCP port to listen on (`127.0.0.1` only) |
+| `--port` / `-p` | `8765` | TCP port to listen on |
+| `--host` | `127.0.0.1` | Interface address to bind (`127.0.0.1` = loopback only; `0.0.0.0` = all interfaces) |
 | `--brief` | see below | Absolute path to the brainstorm brief file |
+
+**Warning:** passing `0.0.0.0` exposes gh-derived repo status to every host on the local network.
 
 `BRAINSTORM_BRIEF_PATH` env var is an alternative to `--brief`.
 Default brief path: `../../tmp/docs/pipeline-infra-brief.md` (relative to server.js).
@@ -72,7 +75,7 @@ Default brief path: `../../tmp/docs/pipeline-infra-brief.md` (relative to server
   "phase": "phase-7-implement",
   "agentId": "implementer-p2",
   "label": "optional human label",
-  "status": "ok|error",
+  "status": "done|dispatched|skipped|warning|success",
   "payload": {},
   "timestamp": "2026-06-09T12:00:00Z"
 }
