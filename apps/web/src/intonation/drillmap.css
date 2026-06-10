@@ -1,0 +1,120 @@
+/*
+ * drillmap.css — the C6 DrillMap visuals (DESIGN.md §12.2 wins on any
+ * conflict, AGENTS.md). Every color resolves to a §0 token from tokens.css;
+ * NO raw hex. The re-frame transition uses the §7 --state-color duration +
+ * --ease-standard easing (technique from transitions-dev; values from §0).
+ *
+ * S19/C6: DrillMap renders the note map in drill mode — drill dots with
+ * ramp fill (played), in-scale-fill (pending), and an active-target pulse
+ * ring gated on prefers-reduced-motion. The fingerboard window re-frames
+ * discretely as the player climbs the neck; the re-frame is a CSS
+ * translateX / translateY on the map container.
+ *
+ * NO motion library; NO hand-rolled durations (every value is a §0 token).
+ * The reduced-motion gate lives at the foot of this file.
+ */
+
+/* ── drill-dot states (§12.2 radius 14px = in-scale; no root-size dots) ──── */
+
+/* The drill dot wrapper `<g class="drill-dot">` carries no CSS fill/stroke —
+ * those are set as inline SVG attributes in DrillMap (state-driven). The
+ * pulse ring and the letter label DO have CSS rules here. */
+
+/* Letter inside every drill dot — same metrics as the note-map lbl (§12.2). */
+.board .drill-dot .drill-lbl {
+  font-family: var(--family-ui);
+  font-feature-settings: var(--features-ui); /* 'tnum' (§0/§3) */
+  font-size: 12px;
+  font-weight: 500;
+  fill: var(--scale-label); /* same {white} as in-scale label (§12.2) */
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* played dot: ramp fill (set inline) → override label color for legibility.
+ * The ramp lands between mint (contrast 9.59:1) and amber (7.87:1) against
+ * --panel; both clear WCAG AA. The label uses root-label (near-black) on
+ * the darker (mint) end and scale-label (white) on the amber end — since
+ * both endpoints clear AA with BOTH label colors, we keep scale-label
+ * (white) throughout to avoid a JS-computed label-color switch. */
+.board .drill-dot.is-played .drill-lbl {
+  fill: var(--root-label); /* #08130f — invariant (§12.2); clear on mint AND amber */
+}
+
+/* active dot label: white on in-scale-fill background (§12.2 in-scale label). */
+.board .drill-dot.is-active .drill-lbl {
+  fill: var(--scale-label); /* #ffffff (§12.2) */
+}
+
+/* ── pulse ring on the active drill dot ──────────────────────────────────── */
+
+/* The pulse ring is an additive <circle class="drill-pulse"> child of the
+ * active drill-dot <g>. It is present in the DOM on ALL dots (not just active)
+ * and shown only on the active dot via the .is-active wrapper class — the
+ * "mounted-but-hidden" pattern (§7.1). Under prefers-reduced-motion: reduce
+ * it is absent from the render entirely (the AC says "absent, not just
+ * invisible" — the DrillMap component conditionally omits the element). */
+
+/* The ring's animation keyframe — a breathing pulse outward and back. */
+@keyframes drillPulse {
+  0% {
+    r: 17;
+    opacity: 0.9;
+  }
+  50% {
+    r: 22;
+    opacity: 0.4;
+  }
+  100% {
+    r: 17;
+    opacity: 0.9;
+  }
+}
+
+/* Pulse ring: hidden by default (on non-active dots via opacity:0). */
+.board .drill-dot .drill-pulse {
+  fill: none;
+  stroke: var(--mint);
+  stroke-width: 1.5;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* On the active dot: show and animate. The animation uses --state-color
+ * (200ms) as the pulse period — doubled here for a comfortable breath.
+ * ease-standard keeps it consistent with the §0 standard easing. */
+.board .drill-dot.is-active .drill-pulse {
+  opacity: 1;
+  /* 2× --state-color = 400ms breath cycle; infinite; ease-standard (§0). */
+  animation: drillPulse calc(var(--state-color) * 2) var(--ease-standard) infinite;
+}
+
+/* ── fingerboard window re-frame transition ──────────────────────────────── */
+
+/* The .drill-window container wraps the drill dots and is translated along
+ * the neck axis to expose the current window slice. The chrome (strings/nut/
+ * guides) renders full-width BEHIND this container; the container clips to the
+ * current window via the parent SVG's overflow:hidden + a clipPath. The
+ * re-frame translate is a single §7 transition: --state-color duration +
+ * --ease-standard easing. */
+.board .drill-window {
+  transition: transform var(--state-color) var(--ease-standard);
+}
+
+/* ── reduced-motion gate (§7.4) ──────────────────────────────────────────── */
+
+/* Under reduce: the pulse ring is removed in JS (DrillMap does not render
+ * <circle class="drill-pulse"> at all); the re-frame snaps instantly; the
+ * dot fill still updates (it is data). The `transition: none` below covers
+ * any stray property tween that might sneak in (forward-proofing). */
+@media (prefers-reduced-motion: reduce) {
+  .board .drill-dot .drill-pulse {
+    animation: none; /* belt-and-suspenders: the element is not rendered anyway */
+  }
+  .board .drill-dot.is-active .drill-pulse {
+    animation: none;
+  }
+  .board .drill-window {
+    transition: none;
+  }
+}
