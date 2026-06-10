@@ -88,26 +88,48 @@ Default brief path: `../../tmp/docs/pipeline-infra-brief.md` (relative to server
   "fetchedAt": "2026-06-09T12:00:00Z",
   "ageSeconds": 12,
   "epic": { "number": 114, "title": "...", "state": "OPEN", "url": "..." },
+  "program": { "label": "pipeline", "epic": { "number": 114, ... } },
   "brainstorm": { "status": "done|not_started", "source": "brief_file|epic_present|brief_absent", "briefPath": "tmp/docs/..." },
   "steps": [{ "s": 5, "issue": 42, "title": "S5 ...", "status": "merged", ... }],
+  "programChildren": [{ "issue": 107, "title": "...", "status": "merged", ... }],
   "counts": { "merged": 3, "inFlight": 1, "notStarted": 8, "total": 12 },
   "mainCi": { "status": "completed", "conclusion": "success", ... },
   "error": "optional: gh not authenticated"
 }
 ```
 
+**`program`** is `null` when no epic-labeled issue exists. When present, `label` is the
+derived program/topic label (e.g. `"pipeline"`); `epic` is the selected open epic object.
+
+**`programChildren`** — issues (excluding the epic itself) that carry the program label,
+unioned with any issues linked via `closingIssuesReferences`. Each element has the same
+fields as a step row except there is no `s` or `sNum` field; `issue` (number) is the sort key.
+
+**`counts`** — scoped to `programChildren`, not the legacy S-regex population.
+When `program` is null (no active epic), `counts` includes `"noActiveProgram": true`
+and all numeric fields are `0`.
+
+**`steps`** — retained as the legacy `^\s*S(\d+)\b` axis (S1–S18 history). Unchanged derivation.
+
 ## Dashboard
 
-The dashboard renders **two distinct axes**, never conflated:
+The dashboard renders **three distinct axes**, never conflated:
+
+- **Active program** *(default tab)* — label-scoped children of the current open epic,
+  derived by `deriveActiveProgram`. Uses the `epic` label for candidacy, derives the
+  program/topic label via a denylist + most-frequent rule, and collects children by that
+  label. `payload.counts` and the header progress bar are driven by this axis.
+  When no open epic exists the panel shows an honest "no active program" empty state.
 
 - **Pipeline phases** — config-driven cards from `/api/config` (P1 `pipeline.json`),
   keyed by `pipeline.json` stage `id`/`order`. SSE `phase_start` activates the
   matching card. An unmapped SSE phase ID (no matching config entry) is surfaced
   loudly with a visible flag.
 
-- **Build steps (gh)** — `gh`-derived `S<n>` issue/PR cards, keyed by the integer
-  parsed from the `^\s*S(\d+)\b` title regex. This axis is entirely separate; no
-  `S<n>` step maps to a `pipeline.json` phase entry.
+- **Build steps (legacy S-titled)** — `gh`-derived `S<n>` issue/PR cards, keyed by the
+  integer parsed from the `^\s*S(\d+)\b` title regex. This axis is historical (S1–S17
+  v1 steps + S18 Tuner); the tab is explicitly labelled legacy. No `S<n>` step maps to
+  a `pipeline.json` phase entry.
 
 ## Dependency
 

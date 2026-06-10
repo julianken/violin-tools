@@ -691,7 +691,7 @@
     <div class="summary">
       <div class="big-count">
         <span class="num" id="mergedNum">0</span> / <span id="totalNum">0</span>
-        <span class="label">steps merged</span>
+        <span class="label" id="summaryLabel">merged</span>
       </div>
       <div class="bar-block">
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
@@ -714,17 +714,28 @@
   <!-- Axis tabs -->
   <div class="axis-tabs" role="tablist" aria-label="Dashboard axes">
     <button class="axis-tab active" role="tab" aria-selected="true"
+            aria-controls="panel-program" id="tab-program" data-axis="program">
+      Active program
+    </button>
+    <button class="axis-tab" role="tab" aria-selected="false"
             aria-controls="panel-phases" id="tab-phases" data-axis="phases">
       Pipeline phases
     </button>
     <button class="axis-tab" role="tab" aria-selected="false"
             aria-controls="panel-steps" id="tab-steps" data-axis="steps">
-      Build steps (gh)
+      Build steps (legacy S-titled)
     </button>
   </div>
 
+  <!-- Active program axis: label-scoped children of the current open epic -->
+  <div id="panel-program" class="axis-panel visible" role="tabpanel" aria-labelledby="tab-program">
+    <div id="programContent" style="margin-top:4px">
+      <div class="empty" id="programEmpty">loading active program from GitHub…</div>
+    </div>
+  </div>
+
   <!-- Phase axis: config-driven cards from /api/config -->
-  <div id="panel-phases" class="axis-panel visible" role="tabpanel" aria-labelledby="tab-phases">
+  <div id="panel-phases" class="axis-panel" role="tabpanel" aria-labelledby="tab-phases">
     <div id="phaseGrid" class="group" style="margin-top:20px">
       <div class="grid" id="phaseCards" role="list"></div>
     </div>
@@ -1471,6 +1482,88 @@ function renderSteps(steps, container) {
   }
 }
 
+// ── Active-program axis ───────────────────────────────────────────────────────
+/**
+ * Render a single program-child card.
+ * Shape: { issue, title, issueState, issueUrl, status, prNumber, prState,
+ *          reviewDecision, checks, prUrl }
+ * Deliberately has no `s` field — uses `issue` number as the ordinal badge.
+ */
+function renderProgramChildCard(child) {
+  const status = child.status || "not_started";
+  const hasPr = child.prNumber !== "" && child.prNumber != null;
+  const inflight = hasPr && status !== "merged";
+
+  const card = el("div", "card" + (inflight ? " inflight" : ""));
+  card.setAttribute("role", "listitem");
+
+  const top = el("div", "card-top");
+  top.appendChild(el("span", "sbadge", "#" + child.issue));
+  top.appendChild(el("div", "card-title", child.title || ("Issue #" + child.issue)));
+  top.appendChild(el("span", "status-badge st-" + status,
+    STATUS_LABEL[status] || status.replace(/_/g, " ")));
+  card.appendChild(top);
+
+  const foot = el("div", "card-foot");
+  if (child.issueUrl) {
+    foot.appendChild(makeLink(child.issueUrl,
+      "issue #" + child.issue));
+  }
+  if (hasPr) {
+    if (child.prUrl) {
+      foot.appendChild(makeLink(child.prUrl, "PR #" + child.prNumber, "pr-link"));
+    } else {
+      foot.appendChild(el("span", null, "PR #" + child.prNumber));
+    }
+    const ci = ciChip(child.checks);
+    if (ci) foot.appendChild(ci);
+    const rv = reviewChip(child.reviewDecision);
+    if (rv) foot.appendChild(rv);
+  }
+  card.appendChild(foot);
+  return card;
+}
+
+/**
+ * Render the active-program panel.
+ *
+ * @param {object|null} program  data.program ({ label, epic }) or null
+ * @param {object[]}    children data.programChildren
+ * @param {object}      counts   data.counts
+ */
+function renderProgram(program, children, counts) {
+  const container = document.getElementById("programContent");
+  const emptyEl = document.getElementById("programEmpty");
+
+  container.textContent = "";
+  container.appendChild(emptyEl); // keep the empty element in the DOM
+
+  if (counts && counts.noActiveProgram) {
+    emptyEl.textContent = "No active program — all epics are closed.";
+    emptyEl.style.display = "";
+    return;
+  }
+
+  if (!children || children.length === 0) {
+    emptyEl.textContent = "No children yet — feature just started.";
+    emptyEl.style.display = "";
+    return;
+  }
+
+  emptyEl.style.display = "none";
+
+  const grid = el("div", "grid");
+  grid.setAttribute("role", "list");
+  for (const child of children) {
+    grid.appendChild(renderProgramChildCard(child));
+  }
+
+  const wrap = el("div", "group");
+  wrap.style.marginTop = "20px";
+  wrap.appendChild(grid);
+  container.appendChild(wrap);
+}
+
 // ── Header helpers ────────────────────────────────────────────────────────────
 function tickUpdated() {
   const node = document.getElementById("updated");
@@ -1492,14 +1585,43 @@ function renderEpic(epic) {
   }
 }
 
-function renderSummary(counts) {
+function renderSummary(counts, program) {
   counts = counts || {};
+  const labelEl = document.getElementById("summaryLabel");
+
+  if (counts.noActiveProgram) {
+    // No open epic: show honest "no active program" state
+    document.getElementById("mergedNum").textContent = "—";
+    document.getElementById("totalNum").textContent = "—";
+    document.getElementById("cMerged").textContent = "0";
+    document.getElementById("cInflight").textContent = "0";
+    document.getElementById("cNot").textContent = "0";
+    if (labelEl) labelEl.textContent = "no active program";
+    const bar = document.querySelector(".bar");
+    document.getElementById("barFill").style.width = "0%";
+    bar.setAttribute("aria-valuenow", "0");
+    bar.setAttribute("aria-valuemax", "0");
+    return;
+  }
+
   const merged = counts.merged || 0, total = counts.total || 0;
   document.getElementById("mergedNum").textContent = merged;
   document.getElementById("totalNum").textContent = total;
   document.getElementById("cMerged").textContent = merged;
   document.getElementById("cInflight").textContent = counts.inFlight || 0;
   document.getElementById("cNot").textContent = counts.notStarted || 0;
+
+  // Label: "<program-label> · merged" when program is known
+  if (labelEl) {
+    if (program && program.label) {
+      labelEl.textContent = program.label + " · merged";
+    } else if (program && program.epic && program.epic.title) {
+      labelEl.textContent = program.epic.title + " · merged";
+    } else {
+      labelEl.textContent = "merged";
+    }
+  }
+
   const pct = total > 0 ? Math.round((merged / total) * 100) : 0;
   const bar = document.querySelector(".bar");
   document.getElementById("barFill").style.width = pct + "%";
@@ -1520,10 +1642,19 @@ function showError(msg) {
 
 // ── Status fetch (gh-derived, polls /api/status) ──────────────────────────────
 function applyPayload(data) {
+  // Always render program panel (even if empty — honest state matters)
+  if (data) {
+    renderEpic(data.epic);
+    renderSummary(data.counts, data.program);
+    renderProgram(
+      data.program || null,
+      Array.isArray(data.programChildren) ? data.programChildren : [],
+      data.counts
+    );
+  }
+
   const hasUsable = data && Array.isArray(data.steps) && data.steps.length > 0;
   if (hasUsable || (data && Array.isArray(data.steps) && !lastGood)) {
-    renderEpic(data.epic);
-    renderSummary(data.counts);
     const stepsContainer = document.getElementById("stepsContent");
     renderSteps(data.steps, stepsContainer);
     if (!data.error) lastGood = data;

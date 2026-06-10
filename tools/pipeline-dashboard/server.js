@@ -96,7 +96,7 @@ function runGh(args) {
 async function fetchIssues() {
   return runGh([
     "issue", "list", "--repo", REPO, "--state", "all", "--limit", "200",
-    "--json", "number,title,state,stateReason,url",
+    "--json", "number,title,state,stateReason,url,labels",
   ]);
 }
 
@@ -129,7 +129,151 @@ const PENDING_STATES = new Set([
   "PENDING", "QUEUED", "IN_PROGRESS", "EXPECTED", "WAITING",
 ]);
 const STEP_TITLE_RE = /^\s*S(\d+)\b/;
-const EPIC_MARKER = "Violin Tools v1";
+
+// Labels that are classifier/triage signals and must not be treated as
+// program/topic identifiers when deriving the program label from an epic.
+const PROGRAM_LABEL_DENYLIST = new Set([
+  "epic", "enhancement", "bug", "template-prep",
+]);
+
+/**
+ * Derive the active program from the issue list.
+ *
+ * Epic selection: issues whose labels include "epic".
+ *   - Prefer open epics; tiebreak by highest number (most-recent).
+ *   - If none exist, return { epic: null, children: [] }.
+ *
+ * Program-label derivation (from the selected epic):
+ *   1. Strip PROGRAM_LABEL_DENYLIST labels.
+ *   2. Among surviving candidates, pick the label most frequent on
+ *      non-epic issues in issueList (most-frequent wins; alphabetical tiebreak).
+ *   3. Fall back to first non-"epic" label alphabetically, or null.
+ *
+ * Children: all non-epic issues that carry the program label (union with any
+ * issues linked via closingIssuesReferences already indexed in prsByIssue);
+ * deduped by number; each has deriveStatus run via the existing chain.
+ *
+ * Never throws; all zero-epic / zero-children paths are explicit guards.
+ *
+ * @param {object[]} issueList
+ * @param {Map<number, object[]>} prsByIssue
+ * @returns {{ epic: object|null, programLabel: string|null, children: object[] }}
+ */
+function deriveActiveProgram(issueList, prsByIssue) {
+  // --- 1. Select the active epic ---
+  const epicCandidates = issueList.filter((issue) => {
+    const labels = Array.isArray(issue.labels) ? issue.labels : [];
+    return labels.some((l) => (typeof l === "string" ? l : l.name) === "epic");
+  });
+
+  if (epicCandidates.length === 0) {
+    return { epic: null, programLabel: null, children: [] };
+  }
+
+  const openEpics = epicCandidates.filter(
+    (i) => (i.state ?? "").toUpperCase() === "OPEN"
+  );
+  const pool = openEpics.length > 0 ? openEpics : epicCandidates;
+  const selectedEpic = pool.reduce((best, cur) =>
+    cur.number > best.number ? cur : best
+  );
+
+  const epicObj = {
+    number: selectedEpic.number,
+    title: selectedEpic.title,
+    state: selectedEpic.state,
+    url: selectedEpic.url,
+  };
+
+  // --- 2. Derive program label ---
+  const epicLabels = (
+    Array.isArray(selectedEpic.labels) ? selectedEpic.labels : []
+  ).map((l) => (typeof l === "string" ? l : l.name));
+
+  const candidateLabels = epicLabels.filter((l) => !PROGRAM_LABEL_DENYLIST.has(l));
+
+  let programLabel = null;
+  if (candidateLabels.length > 0) {
+    // Count occurrences of each candidate label on non-epic issues
+    const freq = new Map();
+    for (const l of candidateLabels) freq.set(l, 0);
+
+    for (const issue of issueList) {
+      const issueLabels = (
+        Array.isArray(issue.labels) ? issue.labels : []
+      ).map((l) => (typeof l === "string" ? l : l.name));
+      const isEpicIssue = issueLabels.includes("epic");
+      if (isEpicIssue) continue;
+      for (const l of candidateLabels) {
+        if (issueLabels.includes(l)) freq.set(l, (freq.get(l) ?? 0) + 1);
+      }
+    }
+
+    // Pick most-frequent; alphabetical tiebreak
+    programLabel = candidateLabels.slice().sort((a, b) => {
+      const diff = (freq.get(b) ?? 0) - (freq.get(a) ?? 0);
+      return diff !== 0 ? diff : a.localeCompare(b);
+    })[0];
+  } else {
+    // Fallback: first non-"epic" label alphabetically
+    const fallback = epicLabels
+      .filter((l) => l !== "epic")
+      .sort((a, b) => a.localeCompare(b));
+    programLabel = fallback.length > 0 ? fallback[0] : null;
+  }
+
+  // --- 3. Build children set ---
+  const childrenByNumber = new Map();
+
+  // Primary: label-based (all non-epic issues carrying programLabel)
+  if (programLabel !== null) {
+    for (const issue of issueList) {
+      if (issue.number === selectedEpic.number) continue;
+      const issueLabels = (
+        Array.isArray(issue.labels) ? issue.labels : []
+      ).map((l) => (typeof l === "string" ? l : l.name));
+      if (issueLabels.includes(programLabel)) {
+        childrenByNumber.set(issue.number, issue);
+      }
+    }
+  }
+
+  // Secondary: closingIssuesReferences already indexed in prsByIssue
+  for (const [issueNum] of prsByIssue) {
+    const issue = issueList.find((i) => i.number === issueNum);
+    if (issue && issue.number !== selectedEpic.number) {
+      // Only union in if the PR actually closes this issue and is not already in set
+      if (!childrenByNumber.has(issueNum)) {
+        childrenByNumber.set(issueNum, issue);
+      }
+    }
+  }
+
+  // Build child rows (same derivation chain as steps, but no s/sNum)
+  const children = [];
+  for (const issue of childrenByNumber.values()) {
+    const issueState = issue.state ?? "";
+    const stateReason = issue.stateReason ?? "";
+    const pr = pickPrForIssue(issue.number, prsByIssue);
+    const checks = classifyChecks(pr ? pr.statusCheckRollup : null);
+    const status = deriveStatus(issueState, stateReason, pr, checks);
+    children.push({
+      issue: issue.number,
+      title: issue.title ?? "",
+      issueState,
+      issueUrl: s(issue.url),
+      status,
+      prNumber: pr ? s(pr.number) : "",
+      prState: pr ? s(pr.state) : "",
+      reviewDecision: pr ? s(pr.reviewDecision) : "",
+      checks: pr ? checks : "",
+      prUrl: pr ? s(pr.url) : "",
+    });
+  }
+  children.sort((a, b) => a.issue - b.issue);
+
+  return { epic: epicObj, programLabel, children };
+}
 
 /** Map a statusCheckRollup array to "FAIL" | "PENDING" | "PASS" | "" */
 function classifyChecks(rollup) {
@@ -209,7 +353,9 @@ async function buildPayload(brainstormBriefPath) {
     fetchedAt,
     ageSeconds: 0,
     epic: null,
+    program: null,
     steps: [],
+    programChildren: [],
     counts: { merged: 0, inFlight: 0, notStarted: 0, total: 0 },
     mainCi: null,
     brainstorm: null,
@@ -239,18 +385,13 @@ async function buildPayload(brainstormBriefPath) {
     }
   }
 
-  // Epic: first issue whose title contains the marker.
-  for (const issue of issueList) {
-    if ((issue.title ?? "").includes(EPIC_MARKER)) {
-      payload.epic = {
-        number: issue.number,
-        title: issue.title,
-        state: issue.state,
-        url: issue.url,
-      };
-      break;
-    }
-  }
+  // Active program: label-based open-preferred epic + scoped children.
+  const activeProgram = deriveActiveProgram(issueList, prsByIssue);
+  payload.epic = activeProgram.epic;
+  payload.program = activeProgram.epic !== null
+    ? { label: activeProgram.programLabel, epic: activeProgram.epic }
+    : null;
+  payload.programChildren = activeProgram.children;
 
   // Brainstorm stage status (AC20a/20b):
   // 1. If epic issue exists → brainstorm is necessarily done (gh-side corroborator).
@@ -304,15 +445,21 @@ async function buildPayload(brainstormBriefPath) {
   steps.sort((a, b) => a.s - b.s);
   payload.steps = steps;
 
-  // Counts — explicit allow-list for in-flight (never miscounts closed/not-planned).
+  // Counts — scoped to the active program (programChildren), not the S-regex axis.
+  // Explicit allow-list for in-flight (never miscounts closed/not-planned).
   const IN_FLIGHT_STATES = new Set([
     "approved", "in_review", "in_progress", "ci_failing", "changes_requested",
   ]);
-  const total = steps.length;
-  const merged = steps.filter((s) => s.status === "merged").length;
-  const notStarted = steps.filter((s) => s.status === "not_started").length;
-  const inFlight = steps.filter((s) => IN_FLIGHT_STATES.has(s.status)).length;
-  payload.counts = { total, merged, notStarted, inFlight };
+  if (activeProgram.epic === null) {
+    payload.counts = { total: 0, merged: 0, notStarted: 0, inFlight: 0, noActiveProgram: true };
+  } else {
+    const children = activeProgram.children;
+    const total = children.length;
+    const merged = children.filter((c) => c.status === "merged").length;
+    const notStarted = children.filter((c) => c.status === "not_started").length;
+    const inFlight = children.filter((c) => IN_FLIGHT_STATES.has(c.status)).length;
+    payload.counts = { total, merged, notStarted, inFlight };
+  }
 
   // Best-effort main CI.
   try {
@@ -363,9 +510,11 @@ class StatusCache {
             fetchedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
             ageSeconds: 0,
             epic: null,
+            program: null,
             brainstorm: null,
             steps: [],
-            counts: { merged: 0, inFlight: 0, notStarted: 0, total: 0 },
+            programChildren: [],
+            counts: { merged: 0, inFlight: 0, notStarted: 0, total: 0, noActiveProgram: true },
             mainCi: null,
             error: "internal error building status",
           };
@@ -492,9 +641,11 @@ async function createApp(brainstormBriefPath) {
         fetchedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
         ageSeconds: 0,
         epic: null,
+        program: null,
         brainstorm: null,
         steps: [],
-        counts: { merged: 0, inFlight: 0, notStarted: 0, total: 0 },
+        programChildren: [],
+        counts: { merged: 0, inFlight: 0, notStarted: 0, total: 0, noActiveProgram: true },
         mainCi: null,
         error: "internal error building status",
       });
