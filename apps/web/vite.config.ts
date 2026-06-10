@@ -22,6 +22,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**'],
+      // The createRoot bootstrap is unreachable from jsdom (it throws on a missing
+      // #root and is never imported by a unit test), so it drags the headline as a
+      // permanent 0% file — exclude it from coverage (#149).
+      exclude: ['src/main.tsx'],
       reporter: ['text', 'html'],
     },
   },

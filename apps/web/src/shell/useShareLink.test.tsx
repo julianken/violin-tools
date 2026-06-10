@@ -146,6 +146,68 @@ describe('useShareLink — copy branch (no navigator.share)', () => {
     expect(result.current.announcement).toBe('');
   });
 
+  it('default buildUrl shares the live window.location.href (the actual production URL)', async () => {
+    // Every other test injects a stub buildUrl, so the DEFAULT param
+    // (`() => window.location.href`, the real shared URL) is never exercised.
+    // Stub window.location.href, call useShareLink() with NO arg, and assert the
+    // copy branch writes that live href.
+    const liveHref = 'https://strings-solo.com/?r=D&s=harmonic-minor';
+    const savedLocation = Object.getOwnPropertyDescriptor(window, 'location');
+    Object.defineProperty(window, 'location', {
+      value: { href: liveHref },
+      configurable: true,
+    });
+    const writeText = vi.fn(() => Promise.resolve());
+    stubNavigator('clipboard', { writeText });
+
+    try {
+      const { result } = renderHook(() => useShareLink()); // DEFAULT buildUrl
+      await act(async () => {
+        result.current.share();
+        await Promise.resolve();
+      });
+      expect(writeText).toHaveBeenCalledWith(liveHref);
+    } finally {
+      if (savedLocation !== undefined) {
+        Object.defineProperty(window, 'location', savedLocation);
+      }
+    }
+  });
+
+  it('reverts phase/caption/announcement after the revert delay; announcement returns to ""', async () => {
+    // The revert-timer body (setPhase('idle') / setCaption('') / setAnnouncement(''))
+    // is 0-hit on main. The blank announcement is a real a11y contract: a polite
+    // region only re-speaks on text CHANGE, so the one-shot message must clear so a
+    // later copy of the SAME text re-announces. Fake timers advance past REVERT_MS.
+    vi.useFakeTimers();
+    try {
+      const writeText = vi.fn(() => Promise.resolve());
+      stubNavigator('clipboard', { writeText });
+
+      const { result } = renderHook(() => useShareLink(buildUrl));
+      await act(async () => {
+        result.current.share();
+        await Promise.resolve();
+      });
+      // Mid-feedback: copied + caption + announcement are all set.
+      expect(result.current.phase).toBe('copied');
+      expect(result.current.caption).toBe('Link copied');
+      expect(result.current.announcement).toBe('Link copied to clipboard');
+
+      // Advance past the 1500ms (REVERT_MS) revert delay: everything reverts.
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      expect(result.current.phase).toBe('idle');
+      expect(result.current.caption).toBe('');
+      // The load-bearing a11y assertion: the announcement blanks so the polite
+      // region will re-speak the same message on a later copy.
+      expect(result.current.announcement).toBe('');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('routes an ABSENT clipboard API to the failure caption (never stuck on "copying")', () => {
     // Neither share NOR clipboard — an insecure/old context. A bare
     // navigator.clipboard.writeText() would throw synchronously; the guard must

@@ -215,6 +215,48 @@ describe('roving tabindex + arrow selection-follows-focus (§11.3)', () => {
       'true',
     );
   });
+
+  // ArrowDown/ArrowUp are §9.1 vertical aliases of ArrowRight/ArrowLeft and End
+  // jumps to the last pill — the per-key preventDefault + the End jump are the new
+  // logic (Down/Up are case-fallthrough aliases). These pin the otherwise-0-hit
+  // keys so a regression that drops a `case` (or the End branch) goes red.
+  it('ArrowDown selects the next pill (vertical alias of ArrowRight)', () => {
+    const { root } = setup();
+    const a = within(root).getByRole('radio', { name: 'A' });
+    const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+    fireEvent(a, event);
+    expect(event.defaultPrevented).toBe(true); // per-key preventDefault ran
+    // A → Bb (the next in §9.1 order), selection follows focus.
+    expect(within(root).getByRole('radio', { name: 'Bb' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    expect(within(root).getByRole('radio', { name: 'A' }).getAttribute('aria-checked')).toBe(
+      'false',
+    );
+  });
+
+  it('ArrowUp selects the previous pill (vertical alias of ArrowLeft)', () => {
+    const { root } = setup();
+    const a = within(root).getByRole('radio', { name: 'A' });
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true });
+    fireEvent(a, event);
+    expect(event.defaultPrevented).toBe(true);
+    // A → Ab (the previous in §9.1 order).
+    expect(within(root).getByRole('radio', { name: 'Ab' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+  });
+
+  it('End jumps the selection to the last pill (B)', () => {
+    const { root } = setup();
+    const a = within(root).getByRole('radio', { name: 'A' });
+    const event = new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true });
+    fireEvent(a, event);
+    expect(event.defaultPrevented).toBe(true);
+    // End → the last §9.1 pill, B.
+    expect(within(root).getByRole('radio', { name: 'B' }).getAttribute('aria-checked')).toBe('true');
+    expect(within(root).getByRole('radio', { name: 'B' }).getAttribute('tabindex')).toBe('0');
+  });
 });
 
 describe('Refs independence — behavioural (the checkbox guard)', () => {
