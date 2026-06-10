@@ -45,6 +45,7 @@ description: |
 model: opus
 tools:
   - Read
+  - Edit
   - Bash
   - mcp__plugin_figma_figma__use_figma
   - mcp__plugin_figma_figma__get_metadata
@@ -262,17 +263,18 @@ designContextSections: ["§0", "§7"]
 
 ---
 
-### Eval 4 — Near-miss (backend-only feature, pipeline skips Figma phase)
+### Eval 4 — Pipeline skip (backend-only feature; P5 suppresses this phase)
 
 **Prompt:**
-> "Design the scale-cache warm-up optimization in Figma before we write the issues."
+> "The scale-cache warm-up optimization is ready for issue creation — the pipeline
+> brainstorm brief has `uiFeature: no`."
 
-**Expected:** figma-design does **NOT** fire for a pure backend/algorithmic feature.
-The pipeline checks `uiFeature` in the brainstorm brief; when `uiFeature: no`, phases
-3–4 (figma-design + reviewing-figma-designs) are skipped entirely. If the user
-explicitly wants Figma frames for a backend feature, the invocation should include
-explicit args confirming it is UI-bearing; without them, the skill should clarify
-before proceeding.
+**Expected:** figma-design does **NOT** run for this feature.
+This is **not a trigger-discrimination case** — the phrase "design ... in Figma" does
+not appear in the prompt. The skip is an upstream P5 orchestrator decision: when the
+brainstorm brief has `uiFeature: no`, the P5 pipeline engine suppresses phases 3–4
+(figma-design + reviewing-figma-designs) before the skill is ever consulted. There is
+no trigger-routing ambiguity here; the skill is simply not called.
 
 ---
 
