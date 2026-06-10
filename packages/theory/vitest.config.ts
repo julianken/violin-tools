@@ -6,13 +6,16 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    // Informational only — no `thresholds`, deliberately not a CI gate (#144 / #149;
-    // the threshold-gate deferral is the GAPS.md row). Runs via `test:coverage`,
-    // never the plain `test` gate. Globs are relative to this package root.
+    // This IS the CI coverage gate (#155): the `gates` job runs `pnpm
+    // test:coverage`, and these `thresholds` fail the gate if aggregate coverage
+    // drops below the floors. Floors are ratchet-only — they rise as coverage
+    // durably rises; lowering one requires an owner `HIL:` decision (policy in
+    // AGENTS.md → "Working in the tree"). Globs are relative to this package root.
     coverage: {
       provider: 'v8',
       include: ['src/**'],
       reporter: ['text', 'html'],
+      thresholds: { statements: 97, branches: 87, functions: 100, lines: 98 },
     },
   },
 });

@@ -1,9 +1,11 @@
 name: ci
 
-# The repo's first real app-CI gate: typecheck / lint / test / build on every PR
-# and on push to main. Runs alongside scaffolding.yml (the file/shim presence
-# guard) — it does not replace it. These are the four checks that the PR template
-# Test-plan and AGENTS.md "Working in the tree" now reference as real commands.
+# The repo's first real app-CI gate: typecheck / lint / test (+coverage) / build
+# on every PR and on push to main. Runs alongside scaffolding.yml (the file/shim
+# presence guard) — it does not replace it. These are the four checks that the PR
+# template Test-plan and AGENTS.md "Working in the tree" now reference as real
+# commands. The Test gate runs `pnpm test:coverage` (#155): the same Vitest suites
+# plus coverage threshold enforcement, so a coverage regression fails the gate.
 
 on:
   pull_request:
@@ -43,8 +45,8 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Test
-        run: pnpm test
+      - name: Test + coverage gate
+        run: pnpm test:coverage
 
       - name: Build
         run: pnpm build

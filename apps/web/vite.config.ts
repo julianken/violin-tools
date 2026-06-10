@@ -16,9 +16,11 @@ export default defineConfig({
     // Vitest — exclude it so `vitest run` (the `test` gate) does not try to load
     // its `@playwright/test` imports as jsdom unit tests.
     exclude: [...configDefaults.exclude, 'e2e/**'],
-    // Informational only — no `thresholds`, deliberately not a CI gate (#144;
-    // the threshold-gate deferral is the GAPS.md row). Runs via `test:coverage`,
-    // never the plain `test` gate. Globs are relative to this package root.
+    // This IS the CI coverage gate (#155): the `gates` job runs `pnpm
+    // test:coverage`, and these `thresholds` fail the gate if aggregate coverage
+    // drops below the floors. Floors are ratchet-only — they rise as coverage
+    // durably rises; lowering one requires an owner `HIL:` decision (policy in
+    // AGENTS.md → "Working in the tree"). Globs are relative to this package root.
     coverage: {
       provider: 'v8',
       include: ['src/**'],
@@ -27,6 +29,7 @@ export default defineConfig({
       // permanent 0% file — exclude it from coverage (#149).
       exclude: ['src/main.tsx'],
       reporter: ['text', 'html'],
+      thresholds: { statements: 95, branches: 88, functions: 96, lines: 96 },
     },
   },
 });
