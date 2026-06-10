@@ -1,7 +1,7 @@
 // Cloudflare Worker — serves the public GCS website bucket over HTTPS as the
 // edge for strings-solo.com. This is the free alternative to a GCP load
 // balancer: Cloudflare provides TLS + CDN; this Worker provides index-default,
-// SPA fallback, and the www->apex 301.
+// SPA fallback, the force-HTTPS 301, and the www->apex 301.
 //
 // NOT committed with secrets and NOT deployed via Wrangler-in-CI. The
 // orchestrator deploys it in Phase C via the Cloudflare API / MCP, bound to a
@@ -16,8 +16,14 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
 
-    // www -> apex 301 (the redirect the dropped GCP URL map used to do).
-    if (url.hostname === `www.${APEX}`) {
+    // Force HTTPS and www -> apex in a single 301 (the www redirect is what
+    // the dropped GCP URL map used to do). The Worker owns the scheme
+    // redirect because the zone-level "Always Use HTTPS" toggle is NOT
+    // enabled — the out-of-band MCP token lacks zone-settings scope. Folding
+    // both into one branch also means http://www.… reaches https://apex in
+    // one hop instead of leaking the visitor back onto plain HTTP.
+    if (url.protocol === "http:" || url.hostname === `www.${APEX}`) {
+      url.protocol = "https:";
       url.hostname = APEX;
       return Response.redirect(url.toString(), 301);
     }
