@@ -3,20 +3,21 @@
 // The product is "one subject, no rivals" (DESIGN.md §1 / §17.1): the Tuner is not
 // a pane BESIDE the note map but the OTHER value of one view seam — selecting it
 // SWAPS the `.main` content, it never splits the layout. There is deliberately NO
-// router (§1): the two surfaces are one piece of state, lifted to AppShell exactly
+// router (§1): the three surfaces are one piece of state, lifted to AppShell exactly
 // like `useControls` / `useMapView` / `usePaletteController` already are, so the
 // sidebar nav, the command palette, and the topbar title all read and write the
 // same source of truth.
 //
-// `'scale-map'` is the default (the shipped first tool); `'tuner'` is the new
-// capstone surface. This is intentionally a plain `useState` — the view is session
-// state, not a deep link (the address bar mirrors `(root, scale)`, §16, not the
-// active tool), so there is no persistence or URL mirroring here.
+// `'scale-map'` is the default (the shipped first tool); `'tuner'` is the chromatic
+// tuner surface (S18 ph6); `'intonation'` is the Intonation drill view (C9). This
+// is intentionally a plain `useState` — the view is session state, not a deep link
+// (the address bar mirrors `(root, scale)`, §16, not the active tool), so there is
+// no persistence or URL mirroring here.
 
 import { useState } from 'react';
 
 /** The tool currently filling `.main` (§17.1). `'scale-map'` is the default. */
-export type View = 'scale-map' | 'tuner';
+export type View = 'scale-map' | 'tuner' | 'intonation';
 
 /** The view seam's api: the current view plus a setter. */
 export interface ViewApi {

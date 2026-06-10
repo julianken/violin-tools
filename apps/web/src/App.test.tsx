@@ -46,16 +46,24 @@ describe('App shell', () => {
     expect(tuner).not.toHaveAttribute('aria-current');
   });
 
-  it('renders the two remaining soon stubs (Intonation, Vibrato) as inert affordances', () => {
+  it('renders the sole remaining soon stub (Vibrato) as an inert affordance', () => {
     render(<App />);
     const nav = screen.getByRole('navigation', { name: 'Tools' });
-    // Tuner left the soon list in S18 ph6 — only Intonation + Vibrato remain `soon`.
-    for (const label of ['Intonation', 'Vibrato']) {
-      const stub = within(nav).getByText(label).closest('.ni');
-      expect(stub).toHaveAttribute('aria-disabled', 'true');
-      expect(stub).not.toHaveAttribute('href');
-      expect(stub).not.toHaveAttribute('tabindex');
-    }
+    // Tuner left the soon list in S18 ph6; Intonation left in C9.
+    // Only Vibrato remains `soon`.
+    const stub = within(nav).getByText('Vibrato').closest('.ni');
+    expect(stub).toHaveAttribute('aria-disabled', 'true');
+    expect(stub).not.toHaveAttribute('href');
+    expect(stub).not.toHaveAttribute('tabindex');
+  });
+
+  it('renders the Intonation nav item as a live button (C9 — promoted from soon)', () => {
+    render(<App />);
+    const nav = screen.getByRole('navigation', { name: 'Tools' });
+    // C9: Intonation is now a LIVE nav item (a button), not a soon stub.
+    const intonation = within(nav).getByRole('button', { name: 'Intonation' });
+    expect(intonation).not.toHaveAttribute('aria-disabled');
+    expect(intonation).not.toHaveAttribute('aria-current');
   });
 
   it('exposes the four desktop controls rows: Root/Scale + View (Orientation/Density/Handedness) as radiogroups, Refs as a group', () => {

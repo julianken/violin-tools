@@ -53,9 +53,22 @@ interface TopbarProps {
    * Tuner topbar is only the text "Tuner".)
    */
   isTuner: boolean;
+  /**
+   * C9 — Intonation is a SIBLING of the note map on the view seam (same pattern
+   * as Tuner). On the Intonation view the breadcrumb collapses to just the tool
+   * name ("Intonation") and "Share scale" is suppressed (no scale to share on a
+   * drill run).
+   */
+  isIntonation: boolean;
 }
 
-export function Topbar({ scaleName, onOpenPalette, shareLink, isTuner }: TopbarProps) {
+export function Topbar({
+  scaleName,
+  onOpenPalette,
+  shareLink,
+  isTuner,
+  isIntonation,
+}: TopbarProps) {
   const { phase, caption, share } = shareLink;
   // The copy branch swaps the in-button label to "Copying…" while busy (the
   // §04 text-states-swap technique, CSS-driven via .is-busy); every other phase
@@ -85,11 +98,12 @@ export function Topbar({ scaleName, onOpenPalette, shareLink, isTuner }: TopbarP
 
         {/* §17.1 — the breadcrumb is view-aware. On the note-map view it reads
             "Scales / <spelled selection>" (the tool name + its active segment). On
-            the Tuner view it collapses to JUST the tool name ("Tuner"): the Tuner
-            is a sibling of the note map on the view seam, not a child UNDER Scales,
-            so a leading "Scales / " segment would falsely imply nesting. */}
+            the Tuner or Intonation view it collapses to JUST the tool name ("Tuner"
+            / "Intonation"): these are siblings of the note map on the view seam,
+            not children UNDER Scales, so a leading "Scales / " segment would
+            falsely imply nesting. */}
         <nav className="crumb" aria-label="Breadcrumb">
-          {!isTuner && (
+          {!isTuner && !isIntonation && (
             <>
               <span className="crumb-seg">Scales</span>
               <span className="crumb-sep" aria-hidden="true">
@@ -104,12 +118,11 @@ export function Topbar({ scaleName, onOpenPalette, shareLink, isTuner }: TopbarP
       </div>
 
       {/* §17.1 — the "Share scale" cluster is a Scales-only action (it shares the
-          deep-linked `(root, scale)`); on the Tuner view there is nothing to share,
-          so the whole right cluster is SUPPRESSED. On the note-map view it groups
-          the ghost button with its inline status caption so the topbar's two-end
-          `space-between` is preserved — the `.ghost` was a direct child of
-          `.topbar`, and a third child would break the layout. */}
-      {!isTuner && (
+          deep-linked `(root, scale)`); on the Tuner or Intonation view there is
+          nothing to share, so the whole right cluster is SUPPRESSED. On the
+          note-map view it groups the ghost button with its inline status caption
+          so the topbar's two-end `space-between` is preserved. */}
+      {!isTuner && !isIntonation && (
         <div className="topbar-right">
           {/* The ✓ + caption sit BEFORE the button (lead side) so they don't shift
               the button as they appear/revert. Both are aria-hidden — the single

@@ -7,9 +7,9 @@
 //
 // Two groups, in the §9 tree order: a **Scales** group (one jump target per
 // root × scale, e.g. "A Major" — choosing one sets that `(root, scale)`), then a
-// **Tools** group (Scale Map = the live tool, `open`; Intonation/Tuner = `soon`
-// stubs). The glyphs are Unicode characters set as text (§0 `icon.glyph-char`,
-// §8.5), never drawn SVG.
+// **Tools** group (Scale Map / Intonation / Tuner — all `open`, all live views).
+// The glyphs are Unicode characters set as text (§0 `icon.glyph-char`, §8.5),
+// never drawn SVG.
 
 import { type Root, type ScaleType } from '@violin-tools/theory';
 
@@ -108,16 +108,16 @@ const SCALE_TARGETS: readonly ScaleTarget[] = ROOT_PILLS.flatMap((root) =>
 );
 
 /**
- * The Tools group (§8.5): the live **Scale Map** (`▦`, `open`) and the live
- * **Tuner** (`◎`, `open`, S18 ph6 — now a real navigable view, §17.1), with the
- * `soon` stub **Intonation** (`◴`) between them in display order (Vibrato is a
- * sidebar nav stub, not a palette row). Selecting an `open` Tools row sets the
- * §17.1 view seam (the Tuner row → the Tuner surface; the Scale Map row → the note
- * map); a `soon` row stays non-actionable.
+ * The Tools group (§8.5): the live **Scale Map** (`▦`, `open`), the live
+ * **Intonation** (`◴`, `open`, C9 — now a real navigable view), and the live
+ * **Tuner** (`◎`, `open`, S18 ph6 — now a real navigable view, §17.1), in display
+ * order (Vibrato is a sidebar nav stub, not a palette row). Selecting an `open`
+ * Tools row sets the view seam (Scale Map → note map; Intonation → Intonation
+ * view; Tuner → Tuner surface).
  */
 const TOOL_TARGETS: readonly ToolTarget[] = [
   { kind: 'tool', id: 'tool:scale-map', label: 'Scale Map', glyph: '▦', meta: 'open' },
-  { kind: 'tool', id: 'tool:intonation', label: 'Intonation', glyph: '◴', meta: 'soon' },
+  { kind: 'tool', id: 'tool:intonation', label: 'Intonation', glyph: '◴', meta: 'open' },
   { kind: 'tool', id: 'tool:tuner', label: 'Tuner', glyph: '◎', meta: 'open' },
 ];
 

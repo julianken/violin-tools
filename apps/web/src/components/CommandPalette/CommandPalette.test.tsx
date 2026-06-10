@@ -91,11 +91,13 @@ describe('ARIA names (§11.3)', () => {
     expect(within(dialog).getByRole('listbox', { name: 'Results' })).toBeInTheDocument();
   });
 
-  it('soon-stub tool rows carry aria-disabled="true" (§11.3)', () => {
+  it('no soon-stub tool rows for Intonation — it is now a live open row (C9)', () => {
+    // C9 promoted Intonation from soon to open. The Intonation row in the palette
+    // should NOT carry aria-disabled (it is actionable, like Tuner / Scale Map).
     const dialog = openWithChord();
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'intonation' } });
     const intonation = within(dialog).getByText('Intonation').closest('.pitem');
-    expect(intonation).toHaveAttribute('aria-disabled', 'true');
+    expect(intonation).not.toHaveAttribute('aria-disabled');
   });
 });
 
@@ -224,18 +226,22 @@ describe('empty state (§8.5)', () => {
   });
 });
 
-describe('soon rows are non-actionable (§8.5)', () => {
-  it('clicking a soon row neither selects nor closes the palette', () => {
-    // Intonation is still a `soon` stub (Tuner became an `open` Tools row in S18
-    // ph6, §17.1). Clicking the soon row is inert.
+describe('Intonation palette row opens the Intonation view (C9)', () => {
+  it('clicking the Intonation row swaps the main panel to IntonationView and closes', () => {
     const dialog = openWithChord();
+    // Sanity: the note map is showing (its board exists in the main panel).
+    expect(document.getElementById('board')).not.toBeNull();
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'intonation' } });
     const intonation = within(dialog).getByText('Intonation').closest('.pitem');
     if (intonation === null) throw new Error('no intonation row');
+    // The Intonation row is now actionable (`open`, not `soon`).
+    expect(intonation.getAttribute('aria-disabled')).toBeNull();
     fireEvent.click(intonation);
-    // Still open (not closing), and the soon row never gets the .sel fill.
-    expect(dialog.classList.contains('is-closing')).toBe(false);
-    expect(intonation.classList.contains('sel')).toBe(false);
+    // The view swapped: the note-map board is gone, IntonationView (#main) is shown,
+    // and the palette began closing.
+    expect(document.getElementById('board')).toBeNull();
+    expect(document.getElementById('main')).not.toBeNull();
+    expect(dialog.classList.contains('is-closing')).toBe(true);
   });
 });
 
