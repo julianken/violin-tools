@@ -418,9 +418,11 @@ function registerSseSubscriber(req, res) {
   res.flushHeaders();
 
   // Catch-up: no-gap-no-duplicate invariant.
-  const lastId = req.headers["last-event-id"]
+  const _parsedId = req.headers["last-event-id"]
     ? parseInt(req.headers["last-event-id"], 10)
     : null;
+  // Guard against NaN (malformed header) — fall through to full-replay branch.
+  const lastId = Number.isFinite(_parsedId) ? _parsedId : null;
 
   const catchUp =
     lastId == null

@@ -6,7 +6,8 @@
 <title>Violin Tools — Pipeline Dashboard</title>
 <style>
   :root {
-    --bg: #0b0f0e;
+    /* Surface ramp — steps up from §0 {canvas}=#0a0a0a */
+    --bg: #0a0a0a;      /* {canvas} = {gray-950} */
     --panel: #111715;
     --panel-2: #0f1413;
     --border: #1f2a27;
@@ -14,12 +15,24 @@
     --text: #cbd5cf;
     --text-dim: #8a978f;
     --text-faint: #5f6c66;
-    --mint: #4ade80;
-    --mint-deep: #34d399;
-    --teal: #2dd4bf;
-    --amber: #fbbf24;
-    --red: #f87171;
+    /* §0 brand + functional primitives */
+    --mint: #00d4a4;      /* {mint} = {mint-500} — brand accent */
+    --mint-deep: #00b48a; /* {mint-deep} = {mint-600} */
+    --teal: #2A9D8F;      /* {teal} = {teal-500} — octave landmark */
+    --amber: #caa45f;     /* {tape} = {amber-400} — tape/in-progress (see note below) */
+    --red: #e5644e;       /* {danger} = {red-500} — RESERVED; used here as ci-fail only */
     --grey: #6b7770;
+    /* NOTE (process tool): status colors (success/warning/error) are not
+       defined in DESIGN.md §2.6 for the product surfaces.  This dashboard
+       is an internal tooling surface (not shipped to end-users); it borrows
+       the §0 primitives for status roles as follows:
+         success  → {mint} #00d4a4  (§2.6: success reuses {mint})
+         warning  → {tape}/{amber-400} #caa45f  (product §2.6 reserves amber
+                    for beginner-tape only; advisory for this internal surface)
+         error    → {danger}/{red-500} #e5644e  (product §2.6 reserves red-500;
+                    advisory for this internal surface)
+       "Matches DESIGN.md" in the PR body refers to the §0 primitives used,
+       not to a product-surface status-color claim. */
     --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
@@ -433,6 +446,16 @@
     h1 { font-size: 17px; }
     .axis-tab { padding: 7px 12px 8px; }
   }
+
+  /* §7.4 reduced-motion guard — every animation and transition must be
+     collapsed to instant when the OS setting requests it. */
+  @media (prefers-reduced-motion: reduce) {
+    .live-dot { animation: none; }
+    .bar > span,
+    .card,
+    .axis-tab,
+    button.refresh { transition: none; }
+  }
 </style>
 </head>
 <body>
@@ -769,7 +792,6 @@ function openSse() {
 
   es.onerror = () => {
     // EventSource auto-reconnects with Last-Event-ID; no manual action needed.
-    process && process.stderr; // noop — just note that reconnect is automatic
   };
 }
 
