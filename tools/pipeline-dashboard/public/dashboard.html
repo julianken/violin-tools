@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Violin Tools — Pipeline Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0f0e;
+    --panel: #111715;
+    --panel-2: #0f1413;
+    --border: #1f2a27;
+    --border-soft: #18211f;
+    --text: #cbd5cf;
+    --text-dim: #8a978f;
+    --text-faint: #5f6c66;
+    --mint: #4ade80;
+    --mint-deep: #34d399;
+    --teal: #2dd4bf;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --grey: #6b7770;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 0 64px;
+    overflow-x: hidden;
+  }
+  a { color: var(--mint); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---- header ---- */
+  header.app {
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #0d1311 0%, var(--bg) 100%);
+    padding: 22px 0 24px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    backdrop-filter: blur(6px);
+  }
+  .title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0;
+    font-weight: 650;
+    letter-spacing: 0.2px;
+    color: #e6efe9;
+  }
+  h1 .dot { color: var(--mint); }
+  .meta-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  .updated { color: var(--text-faint); }
+  .updated.stale { color: var(--amber); }
+  button.refresh {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  button.refresh:hover { border-color: var(--mint-deep); background: #14201c; }
+  button.refresh:active { transform: translateY(1px); }
+  button.refresh:disabled { opacity: .5; cursor: default; }
+
+  /* ---- progress summary ---- */
+  .summary {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+  }
+  .big-count {
+    font-family: var(--mono);
+    font-size: 30px;
+    font-weight: 600;
+    color: #eafff2;
+    white-space: nowrap;
+  }
+  .big-count .num { color: var(--mint); }
+  .big-count .label { font-size: 13px; color: var(--text-dim); font-weight: 400; margin-left: 8px; }
+  .bar-block { flex: 1 1 280px; min-width: 220px; }
+  .bar {
+    height: 10px;
+    background: #0c1210;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--mint-deep), var(--mint));
+    border-radius: 999px;
+    transition: width .5s cubic-bezier(.2,.7,.2,1);
+  }
+  .counts-mini {
+    display: flex;
+    gap: 16px;
+    margin-top: 9px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .counts-mini b { color: var(--text); font-weight: 600; }
+  .counts-mini .swatch {
+    display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+    margin-right: 5px; vertical-align: middle;
+  }
+
+  /* ---- banners ---- */
+  .banner {
+    margin: 16px 0 0;
+    border-radius: 9px;
+    padding: 11px 14px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    display: none;
+  }
+  .banner.error {
+    background: #2a1414;
+    border: 1px solid #5a2222;
+    color: #ffb4b4;
+    display: block;
+  }
+  .banner.warn {
+    background: #1e1a0c;
+    border: 1px solid #4a3d12;
+    color: #f3dca0;
+    display: block;
+    margin: 0 0 16px;
+  }
+  .banner.warn b { color: var(--amber); }
+
+  /* ---- two-axis layout ---- */
+  .axis-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-top: 26px;
+  }
+  .axis-tab {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-faint);
+    padding: 8px 16px 9px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .12s ease, border-color .12s ease;
+  }
+  .axis-tab.active {
+    color: var(--mint);
+    border-bottom-color: var(--mint);
+  }
+  .axis-tab:hover:not(.active) { color: var(--text-dim); }
+  .axis-panel { display: none; }
+  .axis-panel.visible { display: block; }
+
+  /* ---- groups ---- */
+  .group { margin-top: 30px; }
+  .group h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--text-faint);
+    margin: 0 0 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .group h2 .rule { flex: 1; height: 1px; background: var(--border-soft); }
+  .group h2 .wave {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-faint);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+  }
+
+  /* ---- cards ---- */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 14px 15px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    transition: border-color .15s ease;
+  }
+  .card.inflight {
+    border-color: #2d4a3e;
+    box-shadow: 0 0 0 1px rgba(74,222,128,.10), 0 6px 22px -14px rgba(74,222,128,.45);
+  }
+  .card.active-phase {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 1px rgba(45,212,191,.12), 0 6px 22px -14px rgba(45,212,191,.5);
+  }
+  .card.inflight::before,
+  .card.active-phase::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, var(--mint), var(--teal));
+  }
+  .card.active-phase::before {
+    background: linear-gradient(180deg, var(--teal), var(--mint-deep));
+  }
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .sbadge {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: #d7f7e3;
+    background: #14211c;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .card-title {
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--text);
+    flex: 1;
+  }
+  .card-desc {
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.4;
+  }
+  .status-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    border-radius: 6px;
+    padding: 3px 8px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    text-transform: uppercase;
+    align-self: flex-start;
+    flex-shrink: 0;
+  }
+  /* step status colors */
+  .st-merged            { color: #052e16; background: var(--mint); }
+  .st-approved          { color: #042f2a; background: var(--teal); }
+  .st-in_review,
+  .st-in_progress       { color: #2a1d02; background: var(--amber); }
+  .st-ci_failing,
+  .st-changes_requested { color: #2a0b0b; background: var(--red); }
+  .st-not_started       { color: #d6ddd8; background: #2a332f; border-color: var(--border); }
+  .st-closed            { color: #98a39c; background: #20272400; border: 1px solid var(--border); text-decoration: line-through; }
+  /* phase status colors */
+  .ph-done        { color: #052e16; background: var(--mint); }
+  .ph-in_progress { color: #2a1d02; background: var(--amber); }
+  .ph-not_started { color: #d6ddd8; background: #2a332f; border-color: var(--border); }
+  .ph-skipped     { color: #5f6c66; background: #1a211d; border: 1px solid var(--border); font-style: italic; }
+  .ph-unmapped    { color: #2a0b0b; background: var(--red); }
+
+  .card-foot {
+    display: flex;
+    align-items: center;
+    gap: 8px 12px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 10px;
+  }
+  .card-foot a { color: var(--text-dim); }
+  .card-foot a:hover { color: var(--mint); }
+  .chip {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    border-radius: 5px;
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+  }
+  .chip.ci-pass    { color: var(--mint);  border-color: #224a37; background: #0d1813; }
+  .chip.ci-pending { color: var(--amber); border-color: #4a3d12; background: #181408; }
+  .chip.ci-fail    { color: var(--red);   border-color: #5a2222; background: #1a0d0d; }
+  .chip.rv-approved          { color: var(--teal);  border-color: #1d4a44; background: #0a1716; }
+  .chip.rv-review_required   { color: var(--amber); border-color: #4a3d12; background: #181408; }
+  .chip.rv-changes_requested { color: var(--red);   border-color: #5a2222; background: #1a0d0d; }
+  .pr-link { color: var(--mint) !important; }
+
+  /* ---- live agent log ---- */
+  .log-section { margin-top: 28px; }
+  .log-section h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--text-faint);
+    margin: 0 0 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .log-section h2 .rule { flex: 1; height: 1px; background: var(--border-soft); }
+  .log-section h2 .live-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--mint);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .2; }
+  }
+  .log-empty {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    padding: 12px 0;
+  }
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .log-entry {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text-dim);
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { color: var(--text-faint); flex-shrink: 0; font-size: 11px; }
+  .log-type { flex-shrink: 0; }
+  .log-type.phase_start { color: var(--mint); }
+  .log-type.phase_end   { color: var(--teal); }
+  .log-type.agent_start { color: var(--amber); }
+  .log-type.agent_end   { color: var(--mint-deep); }
+  .log-type.run_start   { color: #b8cfff; }
+  .log-type.run_end     { color: #b8cfff; }
+  .log-type.log         { color: var(--text-faint); }
+  .log-msg { flex: 1; word-break: break-word; }
+
+  /* ---- empty / misc ---- */
+  .empty {
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 40px 0;
+    text-align: center;
+  }
+  .unmapped-flag {
+    background: #2a1414;
+    border: 1px solid #5a2222;
+    color: #ffb4b4;
+    font-family: var(--mono);
+    font-size: 11px;
+    border-radius: 5px;
+    padding: 2px 8px;
+    display: inline-block;
+    margin-left: 6px;
+  }
+  footer.app {
+    margin-top: 40px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-soft);
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  @media (max-width: 640px) {
+    .grid { grid-template-columns: 1fr; }
+    .summary { gap: 16px; }
+    .big-count { font-size: 24px; }
+    h1 { font-size: 17px; }
+    .axis-tab { padding: 7px 12px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="wrap">
+    <div class="title-row">
+      <h1>Violin Tools <span class="dot">—</span> Pipeline Dashboard</h1>
+      <div class="meta-row">
+        <span id="epicLink"></span>
+        <span class="updated" id="updated">never updated</span>
+        <button class="refresh" id="refreshBtn" type="button">Refresh</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="big-count">
+        <span class="num" id="mergedNum">0</span> / <span id="totalNum">0</span>
+        <span class="label">steps merged</span>
+      </div>
+      <div class="bar-block">
+        <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+          <span id="barFill"></span>
+        </div>
+        <div class="counts-mini">
+          <span><span class="swatch" style="background:var(--mint)"></span><b id="cMerged">0</b> merged</span>
+          <span><span class="swatch" style="background:var(--amber)"></span><b id="cInflight">0</b> in-flight</span>
+          <span><span class="swatch" style="background:#2a332f"></span><b id="cNot">0</b> not started</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="banner error" id="errorBanner" role="alert"></div>
+  </div>
+</header>
+
+<main class="wrap" aria-live="polite">
+
+  <!-- Axis tabs -->
+  <div class="axis-tabs" role="tablist" aria-label="Dashboard axes">
+    <button class="axis-tab active" role="tab" aria-selected="true"
+            aria-controls="panel-phases" id="tab-phases" data-axis="phases">
+      Pipeline phases
+    </button>
+    <button class="axis-tab" role="tab" aria-selected="false"
+            aria-controls="panel-steps" id="tab-steps" data-axis="steps">
+      Build steps (gh)
+    </button>
+  </div>
+
+  <!-- Phase axis: config-driven cards from /api/config -->
+  <div id="panel-phases" class="axis-panel visible" role="tabpanel" aria-labelledby="tab-phases">
+    <div id="phaseGrid" class="group" style="margin-top:20px">
+      <div class="grid" id="phaseCards" role="list"></div>
+    </div>
+
+    <!-- Live agent log -->
+    <div class="log-section" id="logSection">
+      <h2>
+        <span>Live event log</span>
+        <span class="rule"></span>
+        <span class="live-dot" aria-hidden="true"></span>
+      </h2>
+      <div class="log-empty" id="logEmpty">no events yet — waiting for workflow…</div>
+      <div class="log-list" id="logList" role="log" aria-live="polite" aria-label="Live workflow events"></div>
+    </div>
+  </div>
+
+  <!-- Build-step axis: gh-derived S<n> cards -->
+  <div id="panel-steps" class="axis-panel" role="tabpanel" aria-labelledby="tab-steps">
+    <div id="stepsContent" style="margin-top:4px">
+      <div class="empty" id="stepsEmpty">loading live status from GitHub…</div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="app">
+  <div class="wrap">
+    Pipeline dashboard · <code>gh</code>-backed (25s server cache, 30s page poll) ·
+    SSE live events · not the violin-tools product
+  </div>
+</footer>
+
+<script>
+"use strict";
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let lastGood = null;
+let lastFetchMs = 0;
+let inflightFetch = false;
+/** @type {Map<string, {el: HTMLElement, order: number}>} Map from phase id to card element */
+const phaseCardMap = new Map();
+/** @type {Map<string|number, string>} Map from phase id/order to id — for SSE activation */
+const phaseIdByOrder = new Map();
+/** @type {Set<string>} ids of phases currently active (SSE phase_start received) */
+const activePhaseIds = new Set();
+/** @type {string[]} SSE phase ids that had no matching config card */
+const unmappedPhases = [];
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+function makeLink(href, text, cls) {
+  const a = el("a", cls || null, text);
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  return a;
+}
+
+function fmtAge(sec) {
+  if (sec < 60) return sec + "s ago";
+  const m = Math.floor(sec / 60), s = sec % 60;
+  if (m < 60) return m + "m " + s + "s ago";
+  return Math.floor(m / 60) + "h " + (m % 60) + "m ago";
+}
+
+function fmtTime(ts) {
+  try {
+    return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  } catch (_) { return ""; }
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll(".axis-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".axis-tab").forEach((t) => {
+      t.classList.remove("active");
+      t.setAttribute("aria-selected", "false");
+    });
+    document.querySelectorAll(".axis-panel").forEach((p) => p.classList.remove("visible"));
+    tab.classList.add("active");
+    tab.setAttribute("aria-selected", "true");
+    document.getElementById("panel-" + tab.dataset.axis).classList.add("visible");
+  });
+});
+
+// ── Phase cards (config-driven, from /api/config) ─────────────────────────────
+function phaseStatusClass(status) {
+  const map = { done: "ph-done", in_progress: "ph-in_progress",
+                not_started: "ph-not_started", skipped: "ph-skipped" };
+  return map[status] || "ph-not_started";
+}
+
+function phaseStatusLabel(status) {
+  const map = { done: "done", in_progress: "in progress",
+                not_started: "not started", skipped: "skipped (backend feature)" };
+  return map[status] || status;
+}
+
+function buildPhaseCard(stage, status, brainstormData, uiFeature) {
+  // Figma cards (order 3, 4) are skipped when uiFeature == false
+  const isSkipped = (stage.order === 3 || stage.order === 4) && uiFeature === false;
+  const displayStatus = isSkipped ? "skipped" : (status || "not_started");
+
+  const card = el("div", "card");
+  card.id = "phase-card-" + stage.id;
+  card.setAttribute("role", "listitem");
+  card.setAttribute("data-phase-id", stage.id);
+  card.setAttribute("data-phase-order", String(stage.order));
+
+  const top = el("div", "card-top");
+  const badge = el("span", "sbadge", "P" + stage.order);
+  top.appendChild(badge);
+  const titleEl = el("div", "card-title", stage.title);
+  top.appendChild(titleEl);
+  const statusBadge = el("span", "status-badge " + phaseStatusClass(displayStatus),
+                         phaseStatusLabel(displayStatus));
+  top.appendChild(statusBadge);
+  card.appendChild(top);
+
+  if (stage.description) {
+    card.appendChild(el("div", "card-desc", stage.description));
+  }
+
+  // Brainstorm card: show brief link if available
+  if (stage.order === 0 && brainstormData) {
+    const foot = el("div", "card-foot");
+    if (brainstormData.status === "done" && brainstormData.briefPath) {
+      foot.appendChild(el("span", null, "brief: " + brainstormData.briefPath));
+    } else if (brainstormData.status === "done") {
+      foot.appendChild(el("span", null, "brief present"));
+    } else {
+      foot.appendChild(el("span", null, "waiting for brief file"));
+    }
+    card.appendChild(foot);
+  }
+
+  return { card, statusBadge, displayStatus };
+}
+
+async function initPhaseCards(uiFeatureOverride) {
+  const container = document.getElementById("phaseCards");
+  container.textContent = "";
+  phaseCardMap.clear();
+  phaseIdByOrder.clear();
+
+  let stages;
+  try {
+    const res = await fetch("/api/config", { cache: "no-store" });
+    const data = await res.json();
+    if (data.error) {
+      container.appendChild(el("div", "empty",
+        "config unavailable: " + data.error));
+      return;
+    }
+    stages = (data.stages || []).slice().sort((a, b) => a.order - b.order);
+  } catch (err) {
+    container.appendChild(el("div", "empty",
+      "could not load /api/config (" + (err.message || "network error") + ")"));
+    return;
+  }
+
+  for (const stage of stages) {
+    const { card, statusBadge } = buildPhaseCard(stage, "not_started", null, uiFeatureOverride);
+    container.appendChild(card);
+    phaseCardMap.set(stage.id, { el: card, statusBadge, order: stage.order, stage });
+    phaseIdByOrder.set(stage.order, stage.id);
+    phaseIdByOrder.set(stage.id, stage.id);
+  }
+}
+
+function activatePhaseCard(phaseId) {
+  const entry = phaseCardMap.get(phaseId);
+  if (!entry) {
+    // Unmapped phase — surface loudly (AC20)
+    if (!unmappedPhases.includes(phaseId)) {
+      unmappedPhases.push(phaseId);
+      renderUnmappedBanner();
+    }
+    return;
+  }
+  activePhaseIds.add(phaseId);
+  entry.el.classList.add("active-phase");
+  entry.statusBadge.className = "status-badge ph-in_progress";
+  entry.statusBadge.textContent = "in progress";
+}
+
+function deactivatePhaseCard(phaseId) {
+  const entry = phaseCardMap.get(phaseId);
+  if (!entry) return;
+  activePhaseIds.delete(phaseId);
+  entry.el.classList.remove("active-phase");
+  entry.statusBadge.className = "status-badge ph-done";
+  entry.statusBadge.textContent = "done";
+}
+
+function renderUnmappedBanner() {
+  // Show a visible unmapped-phase flag in the phases panel header
+  let banner = document.getElementById("unmappedBanner");
+  if (!banner) {
+    banner = el("div", "banner warn");
+    banner.id = "unmappedBanner";
+    document.getElementById("panel-phases").prepend(banner);
+  }
+  const b = el("b", null, "Unmapped phase IDs received: ");
+  banner.textContent = "";
+  banner.appendChild(b);
+  banner.appendChild(document.createTextNode(unmappedPhases.join(", ")));
+  const flag = el("span", "unmapped-flag", "UNMAPPED PHASE");
+  banner.appendChild(flag);
+}
+
+// Update brainstorm card with status data
+function updateBrainstormCard(brainstormData) {
+  if (!brainstormData) return;
+  const entry = phaseCardMap.get("phase-0-brainstorm");
+  if (!entry) return;
+  const card = entry.el;
+  const { stage } = entry;
+  // Update status badge
+  const displayStatus = brainstormData.status === "done" ? "done" : "not_started";
+  entry.statusBadge.className = "status-badge " + phaseStatusClass(displayStatus);
+  entry.statusBadge.textContent = phaseStatusLabel(displayStatus);
+  // Update or add foot with brief path
+  let foot = card.querySelector(".card-foot");
+  if (!foot) {
+    foot = el("div", "card-foot");
+    card.appendChild(foot);
+  }
+  foot.textContent = "";
+  if (brainstormData.status === "done" && brainstormData.briefPath) {
+    foot.appendChild(el("span", null, "brief: " + brainstormData.briefPath));
+  } else if (brainstormData.status === "done") {
+    foot.appendChild(el("span", null, "brief present (or epic exists)"));
+  } else {
+    foot.appendChild(el("span", null, "waiting for brief file…"));
+  }
+}
+
+// ── Live event log ────────────────────────────────────────────────────────────
+function appendLogEntry(event) {
+  const logEmpty = document.getElementById("logEmpty");
+  const logList = document.getElementById("logList");
+  if (logEmpty.style.display !== "none") logEmpty.style.display = "none";
+
+  const row = el("div", "log-entry");
+  row.appendChild(el("span", "log-time",
+    fmtTime(event.timestamp || new Date().toISOString())));
+  row.appendChild(el("span", "log-type " + (event.type || "log"), event.type || "log"));
+  const msg = event.label || event.agentId || event.phase ||
+              (event.payload && JSON.stringify(event.payload)) || "";
+  row.appendChild(el("span", "log-msg", msg));
+  logList.appendChild(row);
+  logList.scrollTop = logList.scrollHeight;
+}
+
+// ── SSE (additive in-flight layer) ────────────────────────────────────────────
+function openSse() {
+  const es = new EventSource("/api/events");
+
+  es.onmessage = (e) => {
+    let event;
+    try { event = JSON.parse(e.data); } catch (_) { return; }
+
+    appendLogEntry(event);
+
+    switch (event.type) {
+      case "phase_start":
+        if (event.phase) activatePhaseCard(event.phase);
+        break;
+      case "phase_end":
+        if (event.phase) deactivatePhaseCard(event.phase);
+        break;
+      // agent_start, agent_end, log, run_start, run_end: logged only
+    }
+  };
+
+  es.onerror = () => {
+    // EventSource auto-reconnects with Last-Event-ID; no manual action needed.
+    process && process.stderr; // noop — just note that reconnect is automatic
+  };
+}
+
+// ── Build-step axis (gh-derived S<n> overlay) ─────────────────────────────────
+// This is a SEPARATE axis from pipeline phases; S<n> steps never map to phase IDs.
+const STEP_META = {
+  "1":{"wave":0,"phase":"Foundation"},
+  "2":{"wave":1,"phase":"Tokens & Theory"},
+  "3":{"wave":2,"phase":"Shell & Render"},
+  "4":{"wave":1,"phase":"Tokens & Theory"},
+  "5":{"wave":3,"phase":"Shell & Render"},
+  "6":{"wave":4,"phase":"Interaction"},
+  "7":{"wave":5,"phase":"Interaction"},
+  "8":{"wave":6,"phase":"Interaction"},
+  "9":{"wave":5,"phase":"Interaction"},
+  "10":{"wave":7,"phase":"Quality"},
+  "11":{"wave":7,"phase":"Quality"},
+  "12":{"wave":8,"phase":"Deploy"},
+  "13":{"wave":9,"phase":"Deploy"},
+  "14":{"wave":"gap","phase":"Gap fixes"},
+  "15":{"wave":7,"phase":"Quality"},
+  "16":{"wave":9,"phase":"Deploy"},
+  "17":{"wave":9,"phase":"Deploy"},
+  "18":{"wave":9,"phase":"Deploy"},
+};
+
+const STATUS_LABEL = {
+  merged: "merged", approved: "approved", in_review: "in review",
+  in_progress: "in progress", ci_failing: "ci failing",
+  changes_requested: "changes req", not_started: "not started",
+  closed: "closed (not planned)",
+};
+
+function ciChip(checks) {
+  const map = { PASS: "ci-pass", PENDING: "ci-pending", FAIL: "ci-fail" };
+  const cls = map[checks];
+  return cls ? el("span", "chip " + cls, "CI " + checks) : null;
+}
+
+function reviewChip(decision) {
+  if (!decision) return null;
+  const d = String(decision).toUpperCase();
+  if (d === "APPROVED") return el("span", "chip rv-approved", "APPROVED");
+  if (d === "CHANGES_REQUESTED") return el("span", "chip rv-changes_requested", "CHANGES_REQUESTED");
+  if (d === "REVIEW_REQUIRED") return el("span", "chip rv-review_required", "REVIEW_REQUIRED");
+  return el("span", "chip rv-review_required", d);
+}
+
+function renderStepCard(step) {
+  const status = step.status || "not_started";
+  const hasPr = step.prNumber !== "" && step.prNumber != null;
+  const inflight = hasPr && status !== "merged";
+
+  const card = el("div", "card" + (inflight ? " inflight" : ""));
+  card.setAttribute("role", "listitem");
+
+  const top = el("div", "card-top");
+  top.appendChild(el("span", "sbadge", "S" + step.s));
+  top.appendChild(el("div", "card-title", step.title || ("Step " + step.s)));
+  top.appendChild(el("span", "status-badge st-" + status,
+    STATUS_LABEL[status] || status.replace(/_/g, " ")));
+  card.appendChild(top);
+
+  const foot = el("div", "card-foot");
+  if (step.issueUrl) {
+    foot.appendChild(makeLink(step.issueUrl,
+      "issue #" + (step.issue != null ? step.issue : "")));
+  }
+  if (hasPr) {
+    if (step.prUrl) {
+      foot.appendChild(makeLink(step.prUrl, "PR #" + step.prNumber, "pr-link"));
+    } else {
+      foot.appendChild(el("span", null, "PR #" + step.prNumber));
+    }
+    const ci = ciChip(step.checks);
+    if (ci) foot.appendChild(ci);
+    const rv = reviewChip(step.reviewDecision);
+    if (rv) foot.appendChild(rv);
+  }
+  card.appendChild(foot);
+  return card;
+}
+
+function phaseForStep(step) {
+  const meta = STEP_META[String(step.s)];
+  return meta ? meta.phase : "Other";
+}
+
+function renderSteps(steps, container) {
+  container.textContent = "";
+  const empty = document.getElementById("stepsEmpty");
+  if (!steps || steps.length === 0) {
+    empty && (empty.style.display = "");
+    return;
+  }
+  empty && (empty.style.display = "none");
+
+  // Group by phase
+  const groups = new Map();
+  for (const s of steps) {
+    const phase = phaseForStep(s);
+    if (!groups.has(phase)) groups.set(phase, []);
+    groups.get(phase).push(s);
+  }
+
+  function groupRank(phase, gsteps) {
+    if (phase === "Other") return 1e9;
+    let min = Infinity, allGap = true;
+    for (const s of gsteps) {
+      const meta = STEP_META[String(s.s)];
+      if (!meta) continue;
+      if (meta.wave === "gap") continue;
+      allGap = false;
+      if (typeof meta.wave === "number" && meta.wave < min) min = meta.wave;
+    }
+    if (allGap || min === Infinity) return 1e8;
+    return min;
+  }
+
+  const ordered = Array.from(groups.entries())
+    .sort((a, b) => groupRank(a[0], a[1]) - groupRank(b[0], b[1]));
+
+  for (const [phase, gsteps] of ordered) {
+    gsteps.sort((a, b) => a.s - b.s);
+    const grp = el("section", "group");
+    const h2 = el("h2");
+    h2.appendChild(el("span", null, phase));
+    h2.appendChild(el("span", "rule"));
+    const waves = gsteps
+      .map((s) => (STEP_META[String(s.s)] || {}).wave)
+      .filter((w) => typeof w === "number");
+    if (waves.length) {
+      const lo = Math.min(...waves), hi = Math.max(...waves);
+      h2.appendChild(el("span", "wave",
+        lo === hi ? "wave " + lo : "waves " + lo + "–" + hi));
+    }
+    grp.appendChild(h2);
+    const grid = el("div", "grid");
+    grid.setAttribute("role", "list");
+    for (const s of gsteps) grid.appendChild(renderStepCard(s));
+    grp.appendChild(grid);
+    container.appendChild(grp);
+  }
+}
+
+// ── Header helpers ────────────────────────────────────────────────────────────
+function tickUpdated() {
+  const node = document.getElementById("updated");
+  if (!lastFetchMs) { node.textContent = "never updated"; return; }
+  const sec = Math.floor((Date.now() - lastFetchMs) / 1000);
+  node.textContent = "updated " + fmtAge(sec);
+  node.classList.toggle("stale", sec > 90);
+}
+
+function renderEpic(epic) {
+  const span = document.getElementById("epicLink");
+  span.textContent = "";
+  if (epic && epic.url) {
+    const a = el("a", null, "epic #" + (epic.number ?? ""));
+    a.href = epic.url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    span.appendChild(a);
+  }
+}
+
+function renderSummary(counts) {
+  counts = counts || {};
+  const merged = counts.merged || 0, total = counts.total || 0;
+  document.getElementById("mergedNum").textContent = merged;
+  document.getElementById("totalNum").textContent = total;
+  document.getElementById("cMerged").textContent = merged;
+  document.getElementById("cInflight").textContent = counts.inFlight || 0;
+  document.getElementById("cNot").textContent = counts.notStarted || 0;
+  const pct = total > 0 ? Math.round((merged / total) * 100) : 0;
+  const bar = document.querySelector(".bar");
+  document.getElementById("barFill").style.width = pct + "%";
+  bar.setAttribute("aria-valuenow", String(merged));
+  bar.setAttribute("aria-valuemax", String(total));
+}
+
+function showError(msg) {
+  const banner = document.getElementById("errorBanner");
+  if (msg) {
+    banner.textContent = "⚠ " + msg + (lastGood ? "  (showing last-good data)" : "");
+    banner.classList.add("error");
+  } else {
+    banner.textContent = "";
+    banner.classList.remove("error");
+  }
+}
+
+// ── Status fetch (gh-derived, polls /api/status) ──────────────────────────────
+function applyPayload(data) {
+  const hasUsable = data && Array.isArray(data.steps) && data.steps.length > 0;
+  if (hasUsable || (data && Array.isArray(data.steps) && !lastGood)) {
+    renderEpic(data.epic);
+    renderSummary(data.counts);
+    const stepsContainer = document.getElementById("stepsContent");
+    renderSteps(data.steps, stepsContainer);
+    if (!data.error) lastGood = data;
+  }
+  // Update brainstorm card from server-derived status (AC20a/20b)
+  if (data && data.brainstorm) {
+    updateBrainstormCard(data.brainstorm);
+  }
+  showError(data && data.error ? data.error : null);
+}
+
+async function load(force) {
+  if (inflightFetch) return;
+  inflightFetch = true;
+  const btn = document.getElementById("refreshBtn");
+  btn.disabled = true;
+  try {
+    const url = "/api/status" + (force ? "?force=1" : "");
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json();
+    applyPayload(data);
+    if (!data.error || (Array.isArray(data.steps) && data.steps.length > 0)) {
+      lastFetchMs = Date.now();
+    }
+    tickUpdated();
+  } catch (err) {
+    showError("could not reach /api/status (" +
+              (err && err.message ? err.message : "network error") + ")");
+  } finally {
+    inflightFetch = false;
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("refreshBtn").addEventListener("click", () => load(true));
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+(async function init() {
+  // Load config-driven phase cards first (no hardcoded list).
+  // uiFeature: the server doesn't pass it yet; default undefined (show all phases).
+  await initPhaseCards(undefined);
+
+  // Then start gh-poll and SSE.
+  load(false);
+  setInterval(() => load(false), 30_000);
+  setInterval(tickUpdated, 1000);
+  openSse();
+})();
+</script>
+</body>
+</html>

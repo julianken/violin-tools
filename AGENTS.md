@@ -101,6 +101,8 @@ When unsure whether something is sensitive, treat it as sensitive and keep it ou
 ## Working in the tree
 Run `git status` / `ls` for current state — don't trust a snapshot here. The stack is a **Turborepo + pnpm-workspaces monorepo**: `apps/web` is the React + Vite + TypeScript app (the only real workspace today); `packages/*` is reserved for later items; `infra/` holds the S12 hosting IaC (Terraform: public-read GCS bucket + keyless WIF; Cloudflare edge applied out-of-band — see `infra/README.md`). The package manager is **pnpm** (pinned via `packageManager` in the root `package.json`); the four gates run through `turbo.json`. The real commands:
 
+**Pipeline tooling (outside the four gates):** `tools/pipeline-dashboard/` is a committed, on-demand Node tool (`express@4.22.2`) — not in the pnpm workspace, not in `turbo.json`, not in CI gates. Start it with `cd tools/pipeline-dashboard && node server.js` (default port 8765, binds `127.0.0.1` only). It requires `gh` auth. Its run/route contract (`GET /api/config`, `GET /api/status`, `POST /api/runs/:runId/events`, `GET /api/events`) is a drift-prone surface: changes to those routes must reconcile `tools/pipeline-dashboard/README.md` in the same PR.
+
 - `pnpm install` — install workspace deps (CI uses `pnpm install --frozen-lockfile` against the committed `pnpm-lock.yaml`).
 - `pnpm typecheck` — `turbo run typecheck` (TypeScript `tsc --noEmit`).
 - `pnpm lint` — `turbo run lint` (ESLint flat config, `eslint.config.js`).
