@@ -238,12 +238,20 @@ function deriveActiveProgram(issueList, prsByIssue) {
     }
   }
 
-  // Secondary: closingIssuesReferences already indexed in prsByIssue
-  for (const [issueNum] of prsByIssue) {
-    const issue = issueList.find((i) => i.number === issueNum);
-    if (issue && issue.number !== selectedEpic.number) {
-      // Only union in if the PR actually closes this issue and is not already in set
-      if (!childrenByNumber.has(issueNum)) {
+  // Secondary: union in issues that (a) carry programLabel AND (b) have a PR
+  // closing them (closingIssuesReferences), in case they were missed by the
+  // label scan above (e.g. label applied after the primary pass ran).
+  // The programLabel gate is mandatory — without it every issue closed by any
+  // PR in the repo would be pulled in, re-conflating all programs.
+  if (programLabel !== null) {
+    for (const [issueNum] of prsByIssue) {
+      if (childrenByNumber.has(issueNum)) continue; // already in set
+      const issue = issueList.find((i) => i.number === issueNum);
+      if (!issue || issue.number === selectedEpic.number) continue;
+      const issueLabels = (
+        Array.isArray(issue.labels) ? issue.labels : []
+      ).map((l) => (typeof l === "string" ? l : l.name));
+      if (issueLabels.includes(programLabel)) {
         childrenByNumber.set(issueNum, issue);
       }
     }
