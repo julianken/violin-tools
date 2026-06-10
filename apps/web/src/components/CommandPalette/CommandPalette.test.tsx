@@ -153,6 +153,47 @@ describe('roving selection (§8.5 / §11.3)', () => {
     expect(sel).toHaveLength(1); // still exactly one fill
     expect(sel[0]).toBe(target); // and it followed the pointer
   });
+
+  it('ArrowUp reverses an ArrowDown move — selection returns to the prior row', () => {
+    // The untested navigation DIRECTION (useRovingListbox.moveUp, 0-hit on main):
+    // every other keyboard test fires ArrowDown only. ArrowDown×2 advances to row
+    // index 2, then ArrowUp must step BACK to row index 1 (the row ArrowDown×1
+    // selected) — the inverse of moveDown, clamped the same way.
+    const dialog = openWithChord();
+    const listbox = within(dialog).getByRole('listbox', { name: 'Results' });
+    const selected = () => listbox.querySelector('.pitem.sel');
+    const top = selected(); // index 0, the pre-selected top match
+    fireEvent.keyDown(dialog, { key: 'ArrowDown' });
+    const row1 = selected(); // index 1
+    expect(row1).not.toBe(top);
+    fireEvent.keyDown(dialog, { key: 'ArrowDown' });
+    const row2 = selected(); // index 2
+    expect(row2).not.toBe(row1);
+    // ArrowUp from index 2 lands back on index 1 — moveUp is the mirror of moveDown.
+    fireEvent.keyDown(dialog, { key: 'ArrowUp' });
+    expect(listbox.querySelectorAll('.pitem.sel')).toHaveLength(1);
+    expect(selected()).toBe(row1);
+  });
+
+  it('ArrowUp at index 0 clamps (no negative selection) and preventDefault is called', () => {
+    // At the top row, moveUp clamps at 0 (Math.max(i-1, 0)) — it must not produce a
+    // negative index that would drop the .sel fill, and it still preventDefaults the
+    // key (so the cursor never jumps inside the input behind the modal).
+    const dialog = openWithChord();
+    const listbox = within(dialog).getByRole('listbox', { name: 'Results' });
+    const top = listbox.querySelector('.pitem.sel'); // index 0 (top match)
+    expect(top).not.toBeNull();
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowUp',
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(dialog, event);
+    expect(event.defaultPrevented).toBe(true); // preventDefault ran
+    // Still exactly one selection, still the top row — clamped, never negative.
+    expect(listbox.querySelectorAll('.pitem.sel')).toHaveLength(1);
+    expect(listbox.querySelector('.pitem.sel')).toBe(top);
+  });
 });
 
 describe('empty state (§8.5)', () => {
