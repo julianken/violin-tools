@@ -1,0 +1,16 @@
+{
+  "name": "@violin-tools/pipeline-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node tracking server + dashboard for the violin-tools feature pipeline (P2).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "4.22.2"
+  }
+}
