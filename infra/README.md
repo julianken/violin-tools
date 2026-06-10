@@ -12,14 +12,18 @@ add ~$18/mo of standing cost for a low-traffic static SPA, so they are deferred
             HTTPS                         HTTPS (anonymous, public-read)
   user  ───────────►  Cloudflare edge  ─────────────────────────────►  GCS bucket
                       (TLS + CDN +                                       strings-solo-prod-web
-                       Worker: index/SPA/www->apex)                      (static site + assets)
+                       Worker: index/SPA/https/www->apex)                (static site + assets)
 ```
 
 - **TLS + CDN + DNS:** Cloudflare (free). A small **Worker** (`cloudflare/worker.js`)
   serves the bucket: maps `/` to `index.html`, does SPA fallback (404 -> `index.html`
-  with 200), redirects `www` -> apex with a 301, and sets cache headers (immutable
-  for `assets/`, `no-cache` for the entry). TLS is end-to-end: the Worker fetches the
-  origin over `https://storage.googleapis.com/...`.
+  with 200), 301-redirects plain HTTP -> HTTPS and `www` -> apex (one hop for
+  `http://www.…`), and sets cache headers (immutable for `assets/`, `no-cache` for
+  the entry). The **Worker owns the force-HTTPS redirect** — the zone-level
+  "Always Use HTTPS" toggle is not enabled (the out-of-band MCP token lacks
+  zone-settings scope; flipping it in the dashboard would be harmless
+  defense-in-depth). TLS is end-to-end: the Worker fetches the origin over
+  `https://storage.googleapis.com/...`.
 - **Origin:** a single **public-read** GCS bucket (`storage.tf`). Public-read is
   intentional — a public static site with no secrets, no user data, no backend
   (see repo `SECURITY.md` / `README.md`). `public_access_prevention=enforced` is
@@ -99,5 +103,5 @@ add a long-lived CF token to CI.
 | `storage.tf`               | Public-read website bucket (SPA index fallback)            |
 | `wif.tf`                   | WIF pool + OIDC provider + keyless deploy SA (storage-only) |
 | `outputs.tf`               | `wif_provider`, `deploy_sa_email`, `website_bucket`        |
-| `cloudflare/worker.js`     | Edge Worker (index/SPA/www->apex) — deployed via MCP        |
+| `cloudflare/worker.js`     | Edge Worker (index/SPA/https/www->apex) — deployed via MCP  |
 | `.terraform.lock.hcl`      | Provider lock (committed for reproducible CI resolution)   |
