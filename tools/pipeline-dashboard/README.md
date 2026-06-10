@@ -115,16 +115,16 @@ and all numeric fields are `0`.
 
 The dashboard renders **three distinct axes**, never conflated:
 
-- **Active program** *(default tab)* — label-scoped children of the current open epic,
+- **Pipeline phases** *(default tab)* — config-driven cards from `/api/config` (P1
+  `pipeline.json`), keyed by `pipeline.json` stage `id`/`order`. SSE `phase_start`
+  activates the matching card. An unmapped SSE phase ID (no matching config entry) is
+  surfaced loudly with a visible flag.
+
+- **Active program** — label-scoped children of the current open epic,
   derived by `deriveActiveProgram`. Uses the `epic` label for candidacy, derives the
   program/topic label via a denylist + most-frequent rule, and collects children by that
   label. `payload.counts` and the header progress bar are driven by this axis.
   When no open epic exists the panel shows an honest "no active program" empty state.
-
-- **Pipeline phases** — config-driven cards from `/api/config` (P1 `pipeline.json`),
-  keyed by `pipeline.json` stage `id`/`order`. SSE `phase_start` activates the
-  matching card. An unmapped SSE phase ID (no matching config entry) is surfaced
-  loudly with a visible flag.
 
 - **Build steps (legacy S-titled)** — `gh`-derived `S<n>` issue/PR cards, keyed by the
   integer parsed from the `^\s*S(\d+)\b` title regex. This axis is historical (S1–S17
