@@ -16,5 +16,13 @@ export default defineConfig({
     // Vitest — exclude it so `vitest run` (the `test` gate) does not try to load
     // its `@playwright/test` imports as jsdom unit tests.
     exclude: [...configDefaults.exclude, 'e2e/**'],
+    // Informational only — no `thresholds`, deliberately not a CI gate (#144;
+    // the threshold-gate deferral is the GAPS.md row). Runs via `test:coverage`,
+    // never the plain `test` gate. Globs are relative to this package root.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**'],
+      reporter: ['text', 'html'],
+    },
   },
 });
