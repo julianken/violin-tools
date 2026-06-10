@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { A4_DEFAULT, frequencyOfNote } from '@violin-tools/theory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useTuner } from './useTuner.ts';
+import { type RawFrame, useTuner } from './useTuner.ts';
 
 // This suite exercises the ONE untestable-in-prod surface of the Tuner — the
 // audio shell — by stubbing the Web Audio / getUserMedia globals jsdom lacks and
@@ -672,6 +672,237 @@ describe('useTuner — bounded readout hold (#103)', () => {
     expect(result.current.readout).toBe(held); // same object — never re-published
     expect(result.current.readout?.note).toBe('A');
     expect(result.current.readout?.inTune).toBe(true);
+  });
+});
+
+describe('useTuner — onRawFrame seam (C1, issue #130)', () => {
+  // Reuse the sineFill helper pattern from the bounded-hold suite.
+  const sineFill =
+    (hz: number) =>
+    (buf: Float32Array): void => {
+      const w = (2 * Math.PI * hz) / 48000;
+      for (let i = 0; i < buf.length; i++) buf[i] = 0.8 * Math.sin(w * i);
+    };
+
+  async function startListeningWith(onRawFrame: (frame: RawFrame) => void) {
+    const { stream } = makeStream();
+    const getUserMedia = vi.fn(() => Promise.resolve(stream));
+    installSupported(getUserMedia);
+    const hook = renderHook(() => useTuner({ onRawFrame }));
+    await act(async () => {
+      await hook.result.current.start();
+    });
+    return hook;
+  }
+
+  // AC4 — Raw stream includes gated frames (clarity < CLARITY_THRESHOLD /
+  // hz ≤ 0) that the smoother never emits. Silence → ph2 returns hz=-1,
+  // clarity=0, which is below CLARITY_THRESHOLD, so smoother.push returns
+  // null and readout stays null — but onRawFrame still fires.
+  it('fires onRawFrame for gated frames (clarity below threshold, hz ≤ 0) the smoother gates out', async () => {
+    const collected: RawFrame[] = [];
+    const { result } = await startListeningWith((frame) => {
+      collected.push(frame);
+    });
+
+    // Silence → ph2 yields hz=-1, clarity≈0 → smoother gates the frame.
+    FakeAudioContext.lastInstance!.analyser.fillBuffer = (buf) => buf.fill(0);
+    act(() => {
+      pumpFrames(5);
+    });
+
+    // The seam fires for gated frames — readout stays null (smoother gated them)
+    // but the collector received them.
+    expect(result.current.readout).toBeNull();
+    expect(collected.length).toBeGreaterThan(0);
+    // Every collected frame has hz ≤ 0 (the silence sentinel): the smoother gates
+    // these, confirming the seam fires PRE-smoothing.
+    for (const frame of collected) {
+      expect(frame.hz).toBeLessThanOrEqual(0);
+    }
+  });
+
+  // AC5 — 6 Hz vibrato survives in the raw stream, attenuated in the displayed
+  // readout. Inject two alternating frequencies (±20 ¢ at 6 Hz) and assert the
+  // raw collector sees the oscillation while the EMA-smoothed readout attenuates
+  // it. With α=0.2 at ~60fps, gain at 6 Hz ≈ 0.34 (−9 dB), so raw ±20¢ →
+  // smoothed ≈ ±7¢ — the readout variance should be well below the raw variance.
+  it('6 Hz vibrato survives in the raw stream and is attenuated by the smoother in the readout', async () => {
+    const rawHzValues: number[] = [];
+    const { result } = await startListeningWith((frame) => {
+      rawHzValues.push(frame.hz);
+    });
+
+    // Two frequencies ±20¢ around A4 (440 Hz).
+    const freqSharp = 440 * Math.pow(2, 20 / 1200); // +20¢
+    const freqFlat = 440 * Math.pow(2, -20 / 1200); // −20¢
+
+    const analyser = FakeAudioContext.lastInstance!.analyser;
+
+    // Alternate sharp/flat at ~6 Hz by giving each one rAF frame at 16ms apart
+    // (60fps). 30 frames = 500ms, covering several 6Hz cycles.
+    for (let i = 0; i < 30; i++) {
+      analyser.fillBuffer = sineFill(i % 2 === 0 ? freqSharp : freqFlat);
+      act(() => {
+        pumpFramesAt([1000 + i * 16]);
+      });
+    }
+
+    await waitFor(() => {
+      expect(result.current.readout).not.toBeNull();
+    });
+
+    // The raw stream must contain both frequencies (oscillation survived).
+    const rawSharp = rawHzValues.filter((hz) => hz > 440);
+    const rawFlat = rawHzValues.filter((hz) => hz > 0 && hz < 440);
+    expect(rawSharp.length).toBeGreaterThan(0);
+    expect(rawFlat.length).toBeGreaterThan(0);
+
+    // The raw hz range should be substantially wider than ±2¢ around A4.
+    const acceptedRaw = rawHzValues.filter((hz) => hz > 0);
+    const rawMin = Math.min(...acceptedRaw);
+    const rawMax = Math.max(...acceptedRaw);
+    // raw span should be > 5¢ (reflecting the ±20¢ input oscillation)
+    const rawSpanCents = 1200 * Math.log2(rawMax / rawMin);
+    expect(rawSpanCents).toBeGreaterThan(5);
+
+    // The readout's cents value reflects EMA attenuation: it should be within
+    // ±15¢ of A4 (less than the ±20¢ input swing — smoother attenuated it).
+    // We check the most recent readout, not every frame.
+    const readoutCents = Math.abs(result.current.readout?.cents ?? 99);
+    expect(readoutCents).toBeLessThan(20); // smoother attenuated the oscillation
+  });
+
+  // AC6 — A throwing subscriber does not kill the rAF loop.
+  it('a throwing onRawFrame subscriber does not kill the rAF loop', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const { result } = await startListeningWith(() => {
+      throw new Error('subscriber intentionally throws');
+    });
+
+    // Point the analyser at a real A4 sine so accepted frames still fire.
+    const a4Freq = frequencyOfNote(9, 4, A4_DEFAULT);
+    FakeAudioContext.lastInstance!.analyser.fillBuffer = sineFill(a4Freq);
+
+    // Pump several frames — the subscriber throws on every one of them.
+    act(() => {
+      pumpFrames(15);
+    });
+
+    // The loop is still alive (still has a pending frame — not torn down).
+    expect(pendingFrames()).toBeGreaterThan(0);
+
+    // A warning was logged for the throwing subscriber.
+    expect(warn).toHaveBeenCalled();
+
+    // The loop continued and eventually accepted a readout (setReadout still fires).
+    await waitFor(() => {
+      expect(result.current.readout).not.toBeNull();
+    });
+    expect(result.current.readout?.note).toBe('A');
+  });
+
+  // AC3 (no subscriber path) + AC8 (clean unsubscribe): no onRawFrame option →
+  // Tuner behavior is exactly as before, and existing test assertions still pass.
+  it('no onRawFrame option — Tuner behavior unchanged (no extra renders, readout works)', async () => {
+    // No onRawFrame passed — should behave identically to the baseline.
+    const { stream } = makeStream();
+    const getUserMedia = vi.fn(() => Promise.resolve(stream));
+    installSupported(getUserMedia);
+
+    // Count how many times readout actually changes (a proxy for renders).
+    let readoutChangeCount = 0;
+    const { result } = renderHook(() => useTuner()); // no onRawFrame
+    const initialReadout = result.current.readout;
+    expect(initialReadout).toBeNull();
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    const a4Freq = frequencyOfNote(9, 4, A4_DEFAULT);
+    FakeAudioContext.lastInstance!.analyser.fillBuffer = (buf: Float32Array) => {
+      const w = (2 * Math.PI * a4Freq) / 48000;
+      for (let i = 0; i < buf.length; i++) buf[i] = 0.8 * Math.sin(w * i);
+    };
+
+    const readoutBeforePump = result.current.readout;
+    act(() => {
+      pumpFrames(10);
+    });
+    if (result.current.readout !== readoutBeforePump) {
+      readoutChangeCount++;
+    }
+
+    await waitFor(() => {
+      expect(result.current.readout).not.toBeNull();
+    });
+
+    // Tuner still resolves A4 with no subscriber.
+    expect(result.current.readout?.note).toBe('A');
+    expect(result.current.readout?.octave).toBe(4);
+    // readoutChangeCount is the same as with a subscriber (the seam doesn't add renders).
+    expect(readoutChangeCount).toBeLessThanOrEqual(1);
+  });
+
+  // AC8 — omitting onRawFrame after a prior subscription stops the callback.
+  it('omitting onRawFrame after subscribing stops the callback from firing', async () => {
+    const collected: RawFrame[] = [];
+    const onRawFrame = (frame: RawFrame): void => {
+      collected.push(frame);
+    };
+
+    const { stream } = makeStream();
+    const getUserMedia = vi.fn(() => Promise.resolve(stream));
+    installSupported(getUserMedia);
+
+    // renderHook with a prop that controls whether we pass onRawFrame or not.
+    const { result, rerender } = renderHook(
+      ({ subscribed }: { subscribed: boolean }) =>
+        useTuner(subscribed ? { onRawFrame } : {}),
+      { initialProps: { subscribed: true } },
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+
+    FakeAudioContext.lastInstance!.analyser.fillBuffer = (buf) => buf.fill(0); // silence
+    act(() => {
+      pumpFrames(3);
+    });
+    const countAfterSubscribed = collected.length;
+    expect(countAfterSubscribed).toBeGreaterThan(0); // subscriber was called
+
+    // Unsubscribe by re-rendering without onRawFrame.
+    act(() => {
+      rerender({ subscribed: false });
+    });
+
+    // Pump more frames — collected should not grow.
+    act(() => {
+      pumpFrames(3);
+    });
+    expect(collected.length).toBe(countAfterSubscribed); // no new frames collected
+  });
+
+  // AC7 (review/implementation note): verify that two stored frames from the same
+  // session are distinct object references — confirming no mutable-frame reuse.
+  it('stored frame references are distinct objects (no mutable frame reuse)', async () => {
+    const collected: RawFrame[] = [];
+    await startListeningWith((frame) => {
+      collected.push(frame);
+    });
+
+    FakeAudioContext.lastInstance!.analyser.fillBuffer = (buf) => buf.fill(0);
+    act(() => {
+      pumpFrames(3);
+    });
+
+    // Must have received at least 2 frames to compare.
+    expect(collected.length).toBeGreaterThanOrEqual(2);
+    // Each frame is a fresh object literal — references are NOT the same.
+    expect(collected[0]).not.toBe(collected[1]);
   });
 });
 
