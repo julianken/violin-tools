@@ -714,12 +714,12 @@
   <!-- Axis tabs -->
   <div class="axis-tabs" role="tablist" aria-label="Dashboard axes">
     <button class="axis-tab active" role="tab" aria-selected="true"
-            aria-controls="panel-program" id="tab-program" data-axis="program">
-      Active program
-    </button>
-    <button class="axis-tab" role="tab" aria-selected="false"
             aria-controls="panel-phases" id="tab-phases" data-axis="phases">
       Pipeline phases
+    </button>
+    <button class="axis-tab" role="tab" aria-selected="false"
+            aria-controls="panel-program" id="tab-program" data-axis="program">
+      Active program
     </button>
     <button class="axis-tab" role="tab" aria-selected="false"
             aria-controls="panel-steps" id="tab-steps" data-axis="steps">
@@ -728,14 +728,14 @@
   </div>
 
   <!-- Active program axis: label-scoped children of the current open epic -->
-  <div id="panel-program" class="axis-panel visible" role="tabpanel" aria-labelledby="tab-program">
+  <div id="panel-program" class="axis-panel" role="tabpanel" aria-labelledby="tab-program">
     <div id="programContent" style="margin-top:4px">
       <div class="empty" id="programEmpty">loading active program from GitHub…</div>
     </div>
   </div>
 
   <!-- Phase axis: config-driven cards from /api/config -->
-  <div id="panel-phases" class="axis-panel" role="tabpanel" aria-labelledby="tab-phases">
+  <div id="panel-phases" class="axis-panel visible" role="tabpanel" aria-labelledby="tab-phases">
     <div id="phaseGrid" class="group" style="margin-top:20px">
       <div class="grid" id="phaseCards" role="list"></div>
     </div>
