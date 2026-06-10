@@ -1,174 +1,236 @@
 /*
- * intonation.css — styles for the drill-context cents meter (§17.2 / C7).
- * DESIGN.md §17.2 is the source of truth and wins on any conflict (AGENTS.md).
- * All values resolve to §0 tokens (tokens.css) by name — no raw hexes.
+ * intonation.css — styles for the Intonation epic (C7+/C8). DESIGN.md is the
+ * source of truth and wins on any conflict (AGENTS.md). Every value resolves to
+ * a §0 token from tokens.css — NO raw hexes. No red anywhere (§2.6 / §17.7):
+ * {danger} / red-500 / #e5644e are never referenced in this file.
  *
- * Pattern: mirrors tuner.css (.tuner-axis / .tuner-tick / .tuner-dot-g / etc.)
- * with .drill-* class names; design-token references are identical.
+ * Mobile-first layout: the drill summary is a single column, content stacks
+ * vertically. No horizontal overflow at 390 px viewport width (§10 / AC11).
  *
- * Motion (§17.8, no motion library — the transitions-dev NAMED-CUSTOM-PROPERTY
- * pattern, values from §7):
- *   • the dot's X is written DIRECTLY each frame via the SVG `transform` attribute
- *     in DrillMeter.tsx — it is data, NOT a CSS transition (§17.8);
- *   • only the discrete seeking→in-tune morph is transitioned on --dot-radius /
- *     --ease-spring (radius) and --glow-fade / --ease-standard (glow opacity) —
- *     exactly the §12.2 in-scale↔root transitions, reused;
- *   • under prefers-reduced-motion: reduce (§7.4) the morph collapses to instant,
- *     and .drill-echo nodes are hidden — the live dot's position still updates
- *     (it is data, suppressing it would break the tool).
- *
- * No red anywhere (§17.7 / §2.6): the only two pitch colours are {mint} (in tune)
- * and neutral grey (seeking); {danger}/red is never referenced in this file.
+ * C8 adds the DrillSummary surface:
+ *   .drill-summary            — outer region container
+ *   .drill-summary-header     — run label heading (h2)
+ *   .drill-summary-list       — ordered list of per-degree rows
+ *   .drill-summary-row        — one row: swatch + degree + cents
+ *   .drill-summary-swatch     — 4px left-border accent (ramp fill via inline style)
+ *   .drill-summary-degree     — note name / degree label
+ *   .drill-summary-cents      — signed cents value
+ *   .drill-summary-empty      — shown when no targets completed
+ *   .drill-summary-callout    — average + farthest block
+ *   .drill-summary-callout-line  — one callout line
+ *   .drill-summary-callout-value — the numeric value in a callout line
+ *   .drill-summary-tendency   — §13-voice tendency prose (italic / lighter)
+ *   .drill-summary-caveat     — 12-TET informational line (subdued)
+ *   .drill-summary-actions    — post-run button row
+ *   .drill-summary-action     — base button style (primary + secondary)
+ *   .drill-summary-action--primary   — "Run again" — {mint}-outline pill
+ *   .drill-summary-action--secondary — "New scale" — ghost/neutral pill
  */
 
-/* ── meter SVG container ─────────────────────────────────────────────────── */
-.drill-meter {
+/* ── outer region ────────────────────────────────────────────────────────── */
+.drill-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-500); /* 20px */
   width: 100%;
-  max-width: 360px;
-  height: auto;
-  overflow: visible;
+  max-width: 520px;
+  margin: 0 auto;
+  padding-block: var(--space-600); /* 24px */
+  padding-inline: var(--space-400); /* 16px */
+  box-sizing: border-box;
 }
 
-/* ── axis baseline ──────────────────────────────────────────────────────────
- * A hairline rule the dot rides (§17.2). */
-.drill-axis {
-  stroke: var(--hairline2);
-  stroke-width: 1;
+/* ── run label heading ───────────────────────────────────────────────────── */
+.drill-summary-header {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.3px;
+  color: var(--text);
 }
 
-/* ── ticks ───────────────────────────────────────────────────────────────────
- * Faint {mint} hairlines at ±25¢ / ±50¢ reference positions.
- * Never filled; they are line strokes only (§2.4). */
-.drill-tick {
-  stroke: var(--mint);
-  stroke-width: 1;
-  opacity: 0.40;
+/* ── per-degree list ─────────────────────────────────────────────────────── */
+.drill-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* rows are separated by hairline borders */
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
 }
 
-/* The center (zero) tick is TALLER than the §17.2 version to foreground the
- * "on target" anchor for the drill context. Still a hairline stroke, never a
- * filled element (§2.4 — no second solid fill except the root dot). */
-.drill-tick-center {
-  stroke: var(--mint);
-  stroke-width: 1;
-  opacity: 0.70;
+.drill-summary-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300); /* 12px */
+  padding: var(--space-200) 0; /* 8px */
+  border-bottom: 1px solid var(--hairline);
+  min-height: 36px;
 }
 
-/* ── ±5-cent in-tune zone ────────────────────────────────────────────────────
- * Low-opacity mint rect spanning centsToX(-5) → centsToX(5). Signals the in-tune
- * window without inventing a new color token (mint at reduced opacity is not a
- * second accent, §2.4). Opacity ≤0.15 so it never challenges the zero tick or
- * dot as the primary visual. */
-.drill-zone {
-  fill: var(--mint);
-  opacity: 0.10;
+/* Remove the redundant last-child border inside the bordered list */
+.drill-summary-row:last-child {
+  border-bottom: none;
 }
 
-/* ── direction labels ────────────────────────────────────────────────────────
- * `flat ♭` (left) / `sharp ♯` (right). Language backs the direction signal —
- * never colour alone (§17.7 / §11.1). Inter (NOT Geist Mono — these are words,
- * not note tokens), neutral grey, never red. {text2} ≥4.5:1 (§2.5). */
-.drill-dir {
+/* ── swatch — 4px left-border accent filled by rampColor inline style ──── */
+.drill-summary-swatch {
+  flex: none;
+  width: 4px;
+  height: 20px;
+  border-radius: var(--radius-chip); /* 3px */
+  /* backgroundColor is set via inline style from rampColor() */
+  background-color: var(--mint); /* fallback to {mint} if inline style not applied */
+}
+
+/* ── degree label (Geist Mono, §12.2) ───────────────────────────────────── */
+.drill-summary-degree {
+  flex: 1; /* take remaining space */
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  color: var(--text);
+}
+
+/* ── cents value (Geist Mono, tabular, right-aligned, fixed-width col) ──── */
+.drill-summary-cents {
+  flex: none;
+  width: 56px; /* fits "+100 ¢" (the widest plausible value) */
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text2);
+  text-align: right;
+}
+
+/* ── empty state ─────────────────────────────────────────────────────────── */
+.drill-summary-empty {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 14px;
+  line-height: var(--lh-normal);
+  color: var(--text3);
+  text-align: center;
+  padding-block: var(--space-600);
+}
+
+/* ── callout — average + farthest ───────────────────────────────────────── */
+.drill-summary-callout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100); /* 4px */
+  padding: var(--space-400); /* 16px */
+  background: var(--surface);
+  border-radius: var(--radius-card); /* 12px */
+  border: 1px solid var(--hairline);
+}
+
+.drill-summary-callout-line {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 13px;
+  line-height: var(--lh-normal);
+  color: var(--text2);
+}
+
+.drill-summary-callout-value {
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ── tendency line — §13 prose (italic, visually distinct) ─────────────── */
+.drill-summary-tendency {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-style: italic;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: var(--lh-normal);
+  color: var(--text2);
+}
+
+/* ── 12-TET caveat — subdued informational ───────────────────────────────── */
+.drill-summary-caveat {
+  margin: 0;
   font-family: var(--family-ui);
   font-size: 11px;
-  font-weight: 500;
-  fill: var(--text2);
-}
-.drill-dir-flat {
-  text-anchor: end;
-}
-.drill-dir-sharp {
-  text-anchor: start;
+  line-height: var(--lh-normal);
+  color: var(--text3);
 }
 
-/* ── echo trail (ghost dots) ─────────────────────────────────────────────────
- * Prior cent positions, rendered as lower-opacity ghost dots. The component
- * sets inline opacity per slot (ECHO_OPACITIES); this class provides the CSS
- * fill/stroke base and the reduced-motion suppression hook.
- *
- * No label, no glow, no transition on position (they are data-stamped from
- * the buffer, not animated). */
-.drill-echo {
-  fill: var(--in-scale-fill);
-  stroke: var(--mint);
-  stroke-width: 1.5;
-  /* No position transition — echo dots are stamped, not animated. */
+/* ── post-run actions ────────────────────────────────────────────────────── */
+.drill-summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300); /* 12px — matches §4.2 component band */
+  width: 100%;
 }
 
-/* ── dot group ───────────────────────────────────────────────────────────────
- * The dot group's TRANSFORM (x-position) is written per-render in the component
- * and is deliberately NOT transitioned (§17.8 — position is data, not chrome). */
-
-/* glow ring (§12.2 root-glow): present in DOM always, shown only in tune.
- * Opacity fades on --glow-fade / --ease-standard (§7.1 / §17.8). */
-.drill-glow {
-  stroke: var(--root-glow);
-  stroke-width: 3;
-  opacity: 0;
-  transition: opacity var(--glow-fade) var(--ease-standard);
-}
-.drill-dot-g.is-in-tune .drill-glow {
-  opacity: 1;
-}
-
-/* dot — §12.2 states:
- *   seeking = in-scale dot ({mint} stroke 1.5, in-scale fill, r = SEEKING_RADIUS);
- *   in tune = root dot (solid {mint}, no stroke, r = IN_TUNE_RADIUS).
- * The `r` attribute is set geometrically in the component; it morphs on
- * --dot-radius / --ease-spring (§0 "dot RADIUS morph only", §17.8).
- * fill/stroke cross on --state-color (§7.1). */
-.drill-dot {
-  fill: var(--in-scale-fill);
-  stroke: var(--mint);
-  stroke-width: 1.5;
-  transition:
-    r var(--dot-radius) var(--ease-spring),
-    fill var(--state-color) var(--ease-standard),
-    stroke var(--state-color) var(--ease-standard),
-    stroke-width var(--state-color) var(--ease-standard);
-}
-.drill-dot-g.is-in-tune .drill-dot {
-  fill: var(--mint);
-  stroke: none;
-  stroke-width: 0;
-}
-
-/* in-dot label — the SOLE §3 "music = mono" exception for this component:
- * Inter (NOT Geist Mono) so it centres correctly in the fixed-diameter circle
- * at Inter's metrics (§17.2 / §12.2). Shown only in tune (the component emits
- * an empty string while seeking). {root-label} ink on the solid {mint} dot. */
-.drill-dot-lbl {
+/* Base button style shared by both actions */
+.drill-summary-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%; /* full-width on mobile per spec */
+  min-height: var(--touch-target-min); /* 44px — WCAG 2.5.5 */
+  padding: 0 var(--space-500); /* 20px */
+  border-radius: var(--radius-pill);
   font-family: var(--family-ui);
-  font-feature-settings: var(--features-ui); /* tnum */
-  font-size: 12px;
-  font-weight: 700;
-  fill: var(--root-label);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: var(--lh-flush);
+  cursor: pointer;
+  transition: background var(--color-shift) var(--ease-standard);
+}
+.drill-summary-action:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--canvas),
+    0 0 0 4px var(--mint);
 }
 
-/*
- * §17.8 / §7.4 Reduced-motion guard.
- *
- * Under `prefers-reduced-motion: reduce`:
- *   • the radius/glow MORPH collapses to instant (transition: none on the
- *     properties that animate the morph);
- *   • the echo trail (.drill-echo) is hidden — it communicates recency/direction
- *     via continuous position change which is motion; suppressing it is correct
- *     (§7.4);
- *   • the live dot's POSITION still updates (it is data written via the SVG
- *     transform attribute — there is no transition to suppress here, so the dot
- *     tracks regardless; suppressing position data would break the tool).
- */
-@media (prefers-reduced-motion: reduce) {
-  .drill-dot,
-  .drill-glow {
-    transition: none;
-  }
+/* Primary — "Run again": {mint}-outline pill (§17.6 / §2.4 "no second solid fill").
+ * Only the root dot is solid {mint}; the primary action is an outline, not filled. */
+.drill-summary-action--primary {
+  background: transparent;
+  border: 1px solid var(--mint);
+  color: var(--mint);
+}
+.drill-summary-action--primary:hover {
+  background: var(--pill-active-wash);
+}
 
-  .drill-echo {
-    /* Visibility:hidden keeps the DOM structure intact (tests can still count
-     * the nodes) but removes the visual motion. display:none would also work
-     * and is equally valid; visibility:hidden is consistent with the component
-     * using inline opacity so the elements remain in layout. */
-    visibility: hidden;
+/* Secondary — "New scale": ghost/neutral (§8.4 ghost button). */
+.drill-summary-action--secondary {
+  background: transparent;
+  border: 1px solid var(--hairline2);
+  color: var(--text);
+}
+.drill-summary-action--secondary:hover {
+  border-color: var(--hairline3);
+}
+
+/* ── press state (both actions, §8.4 ghost language) ────────────────────── */
+.drill-summary-action:active {
+  transform: translateY(1px) scale(0.97);
+  transition:
+    transform var(--press) var(--ease-standard),
+    background var(--color-shift) var(--ease-standard);
+}
+
+/* ── reduced motion guard (§7.4) ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .drill-summary-action {
+    transition: none;
   }
 }
