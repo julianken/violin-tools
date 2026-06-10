@@ -164,6 +164,22 @@ body {
   flex-direction: column;
   gap: 2px; /* inter-item gap (§4.2) — deliberate off-scale half-step */
 }
+/* .ni rendered as a <button> (the Tuner nav item, §17.1) — the §17.1 view seam
+ * swaps content, so it is a button, not a hash link. Reset the UA button chrome so
+ * it reads identically to the `<a>` nav items (same height/padding/typography from
+ * `.ni`); only `width:100%` + `text-align:left` + the cursor differ from a span.
+ * Order is load-bearing: this rule must precede `.ni` so the `font: inherit`
+ * shorthand (which expands to family/size/weight/line-height) loses the cascade
+ * to `.ni`'s typography at equal specificity, while still beating the UA button
+ * stylesheet. */
+.ni-button {
+  width: 100%;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
 .ni {
   display: flex;
   align-items: center;
@@ -177,18 +193,6 @@ body {
   line-height: var(--lh-flush);
   color: var(--text2);
   text-decoration: none;
-}
-/* .ni rendered as a <button> (the Tuner nav item, §17.1) — the §17.1 view seam
- * swaps content, so it is a button, not a hash link. Reset the UA button chrome so
- * it reads identically to the `<a>` nav items (same height/padding/typography from
- * `.ni`); only `width:100%` + `text-align:left` + the cursor differ from a span. */
-.ni-button {
-  width: 100%;
-  background: transparent;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
 }
 .ni .ic {
   display: inline-flex;
