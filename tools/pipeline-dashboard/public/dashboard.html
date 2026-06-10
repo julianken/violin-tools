@@ -595,10 +595,13 @@
     display: inline-block;
   }
   .agent-chip.running     { color: var(--amber); border-color: #4a3d12; background: #181408; }
-  .agent-chip.done        { color: var(--mint);  border-color: #224a37; background: #0d1813; }
-  .agent-chip.dispatched  { color: var(--grey);  border-color: #2a3530; background: #111815; }
+  .agent-chip.done,
+  .agent-chip.success     { color: var(--mint);  border-color: #224a37; background: #0d1813; }
+  .agent-chip.dispatched,
+  .agent-chip.skipped     { color: var(--grey);  border-color: #2a3530; background: #111815; }
   .agent-chip.error       { color: var(--amber); border-color: #4a3d12; background: #181408; }
-  .agent-chip.unknown     { color: var(--grey);  border-color: #2a3530; background: #111815; }
+  .agent-chip.unknown,
+  .agent-chip.warning     { color: var(--grey);  border-color: #2a3530; background: #111815; }
 
   .no-activity {
     color: var(--text-faint);
@@ -1289,13 +1292,18 @@ function openSse() {
           const existing = agMap2.get(event.agentId) || {
             label: event.label || null, status: "unknown", startTime: null, endTime: null,
           };
-          // Derive agent status: done/dispatched are legitimate terminals; anything else is error
+          // Derive agent status: map the documented envelope vocabulary without
+          // treating legitimate non-failure statuses as errors.
+          // Vocabulary: done|success → green; dispatched|skipped|warning → grey;
+          // error → amber error chip; unknown/anything else → grey unknown.
           const rawStatus = event.status || "";
           let agentStatus;
-          if (rawStatus === "done") agentStatus = "done";
-          else if (rawStatus === "dispatched") agentStatus = "dispatched";
+          if (rawStatus === "done" || rawStatus === "success") agentStatus = "done";
+          else if (rawStatus === "dispatched" || rawStatus === "skipped") agentStatus = "dispatched";
+          else if (rawStatus === "warning") agentStatus = "unknown"; // grey/neutral
+          else if (rawStatus === "error") agentStatus = "error";
           else if (rawStatus === "") agentStatus = "done"; // no status = implicit done
-          else agentStatus = "error"; // genuine failure value
+          else agentStatus = "unknown"; // unrecognised — grey, not amber
           agMap2.set(event.agentId, {
             ...existing,
             label: event.label || existing.label,
