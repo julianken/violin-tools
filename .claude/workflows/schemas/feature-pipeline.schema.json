@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "feature-pipeline args",
+  "description": "Invocation args for .claude/workflows/feature-pipeline.js",
+  "type": "object",
+  "required": ["featureSlug", "epicSpecPath", "childSpecPaths", "repoSlug", "brainstormBriefPath"],
+  "additionalProperties": false,
+  "properties": {
+    "featureSlug": {
+      "type": "string",
+      "description": "Short kebab-case identifier for the feature, e.g. 'pipeline-infra'"
+    },
+    "epicSpecPath": {
+      "type": "string",
+      "description": "Absolute path to the tmp/docs epic spec file (gitignored working draft)"
+    },
+    "childSpecPaths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Ordered list of absolute paths to child issue spec files (tmp/docs/); children are created first, epic last"
+    },
+    "repoSlug": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$",
+      "description": "GitHub owner/repo slug, e.g. 'julianken/violin-tools'"
+    },
+    "brainstormBriefPath": {
+      "type": "string",
+      "description": "Absolute path to the gitignored tmp/docs/<featureSlug>-brief.md produced by the front-door brainstorm. The engine VALIDATES this file (exists + parses + carries the greppable 'uiFeature:' marker) at phase 1 and never conducts the brainstorm. It is NOT a prompt-fill arg — the driving skill's front-door brainstorm is its sole producer."
+    },
+    "uiFeature": {
+      "type": "boolean",
+      "description": "Optional override. The engine DERIVES this at phase 1 from the brief's greppable 'uiFeature: yes|no' marker; the arg lets a caller force it. Drives the conditional Figma design+review phases (3 & 4) and the Figma-Design-Verdict gate before fan-out."
+    },
+    "model": {
+      "type": "string",
+      "description": "Override model tier. Defaults: opus for review gates, sonnet for mechanical stages. Accepts 'opus' | 'sonnet' | a full model id."
+    },
+    "runId": {
+      "type": "string",
+      "description": "P5-engine-internal: identifies the run for SSE emission to the P2 server. Declared optional here so additionalProperties:false does not reject the args the engine passes."
+    },
+    "dashboardBaseUrl": {
+      "type": "string",
+      "description": "P5-engine-internal: base URL of the P2 status server (default http://127.0.0.1:<P2 port>). Optional."
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "P6-documented: when true, logs each phase decision without mutating GitHub state. Optional, default false."
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "stages": [
+    {
+      "id": "phase-0-brainstorm",
+      "title": "Brainstorm (HIL front-door)",
+      "order": 0,
+      "description": "Human-in-the-loop front-door: the feature brief is produced here and consumed by all downstream phases; no engine leaf worker runs.",
+      "expectedAgents": [],
+      "links": [
+        { "label": "Feature brief", "href": "" }
+      ]
+    },
+    {
+      "id": "phase-1-validate",
+      "title": "Validate (brief + bootstrap)",
+      "order": 1,
+      "description": "Engine validates the brainstorm brief (exists, parses, carries uiFeature marker) and runs the project-bootstrap leaf to confirm the repo is ready for the feature.",
+      "expectedAgents": ["project-bootstrap"],
+      "links": []
+    },
+    {
+      "id": "phase-2-epic-authoring",
+      "title": "Epic authoring",
+      "order": 2,
+      "description": "Drafts the umbrella epic issue from the validated brief; child issues are created first so the epic can link their finalized numbers.",
+      "expectedAgents": ["epic-authoring"],
+      "links": []
+    },
+    {
+      "id": "phase-3-figma-design",
+      "title": "Figma design",
+      "order": 3,
+      "description": "Produces Figma design mocks on the designated WIP page; skipped (rendered as 'skipped (backend feature)') when uiFeature is false.",
+      "expectedAgents": ["figma-design"],
+      "links": []
+    },
+    {
+      "id": "phase-4-figma-review",
+      "title": "Figma design review",
+      "order": 4,
+      "description": "Inspects the Figma mocks against DESIGN.md tokens and motion values; skipped when uiFeature is false; gates on a Figma-Design-Verdict before fan-out.",
+      "expectedAgents": ["reviewing-figma-designs", "julianken-bot"],
+      "links": []
+    },
+    {
+      "id": "phase-5-issue-fan-out",
+      "title": "Issue fan-out",
+      "order": 5,
+      "description": "Creates all child implementation issues from the spec paths; the epic issue is created last to link the finalized child numbers.",
+      "expectedAgents": ["issue-authoring"],
+      "links": []
+    },
+    {
+      "id": "phase-6-plan-review",
+      "title": "Plan review",
+      "order": 6,
+      "description": "Posts a fresh-context plan review comment on each child issue via julianken-bot before implementation starts; no rubber-stamping.",
+      "expectedAgents": ["issue-plan-review", "julianken-bot"],
+      "links": []
+    },
+    {
+      "id": "phase-7-implement",
+      "title": "Implementation",
+      "order": 7,
+      "description": "Dispatches one scoped subagent per child issue, each in its own worktree; runs in parallel where children are independent.",
+      "expectedAgents": ["project-bootstrap"],
+      "links": []
+    },
+    {
+      "id": "phase-8-pr-creation",
+      "title": "PR creation",
+      "order": 8,
+      "description": "Each implementer opens a violin-tools PR and (where applicable) an agentic-seed mirror PR following the five-section PR body discipline.",
+      "expectedAgents": ["creating-prs"],
+      "links": []
+    },
+    {
+      "id": "phase-9-pr-review",
+      "title": "PR review",
+      "order": 9,
+      "description": "Fresh-context reviewer posts as julianken-bot; verifies CI gates, doc-currency, screenshot fidelity, and anti-slop criteria before approving.",
+      "expectedAgents": ["reviewing", "julianken-bot", "design-reviewer"],
+      "links": []
+    },
+    {
+      "id": "phase-10-merge",
+      "title": "Merge",
+      "order": 10,
+      "description": "Squash-merge via Mergify (@Mergifyio queue comment); requires a fresh bot approval per HEAD; no direct gh pr merge.",
+      "expectedAgents": [],
+      "links": []
+    },
+    {
+      "id": "phase-11-deploy",
+      "title": "Deploy",
+      "order": 11,
+      "description": "Post-merge: CI publishes static assets to GCS; Cloudflare edge propagates; soft-launch ritual in GAPS.md gates promotion to required checks.",
+      "expectedAgents": [],
+      "links": []
+    }
+  ]
+}
