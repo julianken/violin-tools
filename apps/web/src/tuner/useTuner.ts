@@ -55,6 +55,25 @@ import { createTunerSmoother, type Readout, type TunerSmoother } from './smoothi
  */
 export type TunerStatus = 'unsupported' | 'idle' | 'requesting' | 'listening' | 'denied';
 
+/**
+ * A single pre-smoothing pitch frame emitted by the `onRawFrame` seam.
+ *
+ * Emitted between `detectPitchDetailed` and `smoother.push` — so it carries the
+ * raw detector output BEFORE the median/EMA/hysteresis chain runs. Consumers may
+ * store the frame by reference; each emission is a fresh object literal (one
+ * ephemeral allocation per subscribed frame) so no consumer ever observes a
+ * mutated stale frame. Do NOT pool/reuse a single mutable frame object here — a
+ * consumer that holds a ref to the frame would receive silently-wrong data.
+ */
+export interface RawFrame {
+  /** The rAF `DOMHighResTimeStamp` for this frame (same epoch as `performance.now()`). */
+  timestampMs: number;
+  /** Detected fundamental in Hz, or the ph2 sentinel −1 when nothing was detected. */
+  hz: number;
+  /** NSDF clarity [0, 1]; frames below `CLARITY_THRESHOLD` are gated by the smoother. */
+  clarity: number;
+}
+
 /** The AnalyserNode window. 2048 holds ≥2 periods of G3 (196 Hz) at 48k; never < 1024. */
 const FFT_SIZE = 2048;
 
@@ -119,12 +138,37 @@ export interface TunerApi {
   a4: number;
   /** Set the A4 reference; flows into the ph1 conversions via the live smoother. */
   setA4: (a4: number) => void;
+  /**
+   * Register or clear a pre-smoothing frame subscriber at runtime. Passing
+   * `undefined` unregisters the current subscriber. The change takes effect on
+   * the next rAF frame — no loop teardown/rebuild occurs.
+   *
+   * Used by `useIntonationDrill` to wire the tracker subscriber only while a
+   * drill run is active. Equivalent to changing `options.onRawFrame` without
+   * needing to re-create the tuner.
+   */
+  setOnRawFrame: (subscriber: ((frame: RawFrame) => void) | undefined) => void;
 }
 
 /** Options for `useTuner`. `initialA4` seeds the calibration (default `A4_DEFAULT`). */
 export interface UseTunerOptions {
   /** Starting A4 reference in Hz; clamped to the §13 calibration range. */
   initialA4?: number;
+  /**
+   * Optional pre-smoothing frame subscriber.
+   *
+   * Called on every rAF tick at the exact point after `detectPitchDetailed`
+   * resolves and **before** `smoother.push` — so gated frames (clarity below
+   * threshold, or `hz ≤ 0`) reach the callback even though the displayed readout
+   * never changes. Held in a ref so a mid-session change does NOT re-create the
+   * rAF loop; passing `undefined` (or omitting the option) stops the callback.
+   *
+   * Contract: the callback MUST NOT throw — a throwing subscriber is caught,
+   * logged as a warning, and does not kill the rAF loop. Consumers that need
+   * to re-schedule work should enqueue via a ref, not call state setters
+   * directly (to avoid driving extra renders on every frame).
+   */
+  onRawFrame?: (frame: RawFrame) => void;
 }
 
 /**
@@ -212,6 +256,12 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
   // The live A4 the loop reads each frame (a ref so a mid-session calibration
   // change reaches the rebuilt smoother without re-arming the loop via deps).
   const a4Ref = useRef<number>(a4);
+  // The live onRawFrame subscriber (a ref so a mid-session change — or a first-
+  // time subscription — does NOT re-create the rAF loop). A useEffect below keeps
+  // the ref current on every render where options.onRawFrame has changed.
+  const onRawFrameRef = useRef<((frame: RawFrame) => void) | undefined>(
+    options.onRawFrame,
+  );
   // ── Lifecycle guards (synchronous — the `status` state lags behind two calls in
   //    the same tick, so the abort decisions below cannot rely on it). ───────────
   //  • `mountedRef` flips false in the unmount cleanup, so a start() whose
@@ -257,6 +307,23 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
 
     analyser.getFloatTimeDomainData(buffer);
     const { hz, clarity } = detectPitchDetailed(buffer, ctx.sampleRate);
+
+    // ── onRawFrame seam (pre-smoothing) ────────────────────────────────────────
+    // Emit BEFORE smoother.push so the subscriber receives every detector frame,
+    // including clarity-gated and hz≤0 frames the smoother gates out. Each call
+    // creates a fresh object literal (one ephemeral allocation per subscribed
+    // frame) — do NOT reuse a mutable frame object because a consumer may store
+    // the reference and would observe a silently mutated stale frame. The
+    // try/catch ensures a throwing subscriber never kills the rAF loop.
+    const rawSubscriber = onRawFrameRef.current;
+    if (rawSubscriber !== undefined) {
+      try {
+        rawSubscriber({ timestampMs: frameTimeMs, hz, clarity });
+      } catch (err: unknown) {
+        console.warn('useTuner: onRawFrame subscriber threw; ignoring to protect the rAF loop', err);
+      }
+    }
+
     const next = smoother.push({ hz, clarity });
     if (next !== null) {
       // An accepted frame: publish it and re-arm the hold window.
@@ -495,6 +562,15 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
     }
   }, []);
 
+  // ── onRawFrame ref sync ──────────────────────────────────────────────────────
+  // Keep the subscriber ref current on every render (without a dep-list this
+  // fires after every render — acceptable because it's a cheap assignment and the
+  // rAF loop never re-creates). Passing `undefined` clears the ref, which stops
+  // the callback from firing on the next frame (AC8 — clean unsubscribe).
+  useEffect(() => {
+    onRawFrameRef.current = options.onRawFrame;
+  });
+
   // ── Unmount cleanup (AC#5) ───────────────────────────────────────────────────
   // Release everything on unmount so a navigated-away Tuner never leaks a live
   // mic track or an open AudioContext. Flipping `mountedRef` first makes any
@@ -510,5 +586,12 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
     };
   }, [teardown]);
 
-  return { status, readout, paused, start, stop, a4, setA4 };
+  const setOnRawFrame = useCallback(
+    (subscriber: ((frame: RawFrame) => void) | undefined) => {
+      onRawFrameRef.current = subscriber;
+    },
+    [],
+  );
+
+  return { status, readout, paused, start, stop, a4, setA4, setOnRawFrame };
 }
