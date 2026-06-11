@@ -38,3 +38,6 @@ export {
   type Reading,
   type OpenStringFrequencies,
 } from './tuning.ts';
+// C2 (Intonation) Flesch 2-octave up-down drill-plan builder — pure sequence math,
+// no React/DOM/audio. Consumes SCALE_INTERVALS + tuning math from this package.
+export { drillPlan, type DrillTarget } from './drillPlan.ts';
