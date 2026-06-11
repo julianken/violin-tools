@@ -249,9 +249,28 @@ describe('drillWindow — resolveWindowAdvance', () => {
     expect(newStart).toBe(0);
   });
 
-  it('no jitter: same boundary not re-fired from same direction', () => {
-    // Already at windowStart 5, staying above boundary 5 — no re-frame.
+  it('no jitter: no re-frame when offset stays inside the current window', () => {
+    // Already at windowStart 5, moving within position 2 — no re-frame.
     expect(resolveWindowAdvance(6, 7, 5)).toBeNull();
+    expect(resolveWindowAdvance(7, 8, 5)).toBeNull();
+  });
+
+  it('no jitter: forward boundary not re-fired when already above it (prevOffset ≥ newBoundary)', () => {
+    // windowStart=5; offset was already at 9 before this step — the position-3
+    // boundary (9) is not freshly crossed, so no re-frame fires.
+    expect(resolveWindowAdvance(9, 10, 5)).toBeNull();
+  });
+
+  it('no jitter: oscillating across the same boundary re-frames each fresh crossing', () => {
+    // Sequence: start at windowStart=5, offset=8.
+    // Step 1 — cross boundary 9 forward → re-frame to windowStart=9.
+    expect(resolveWindowAdvance(8, 9, 5)).toBe(9);
+    // Step 2 — drop back below boundary 9 → retreat to windowStart=5.
+    expect(resolveWindowAdvance(9, 8, 9)).toBe(5);
+    // Step 3 — cross boundary 9 forward again (fresh crossing) → re-frame to 9.
+    expect(resolveWindowAdvance(8, 9, 5)).toBe(9);
+    // Step 4 — no movement within the window → no re-frame.
+    expect(resolveWindowAdvance(9, 9, 9)).toBeNull();
   });
 });
 

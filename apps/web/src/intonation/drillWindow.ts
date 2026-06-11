@@ -76,28 +76,51 @@ export function windowStartFor(activeOffset: number): number {
  * a window re-frame — and if so, return the new `windowStart`.
  *
  * Rules (matching the issue AC):
- *   - Crossing a boundary FORWARD: the window advances once the active offset
- *     reaches the boundary; the previous `windowStart` is below the boundary.
+ *   - Crossing a boundary FORWARD: the window advances only when `prevOffset`
+ *     was below the new boundary and `nextOffset` first meets or exceeds it.
+ *     This prevents re-firing the same forward boundary when the offset is
+ *     already above it — a fresh crossing from below is required each time.
  *   - Crossing a boundary BACKWARD: the window retreats only when the active
- *     offset drops below the boundary that last triggered an advance.
- *   - No jitter: the same boundary crossed in the same direction does not
- *     re-frame unless it was crossed the other way in between.
+ *     offset drops BELOW `currentWindowStart` (the boundary that last triggered
+ *     an advance). Hovering at or above `currentWindowStart` after a forward
+ *     advance does not fire a retreat.
+ *   - No jitter: without a direction reversal that crosses the triggering
+ *     boundary, the same re-frame cannot fire twice in the same direction.
  *
  * Returns `null` if no re-frame is needed; returns the new `windowStart` if
  * a re-frame should occur.
  *
- * @param prevOffset  - The active column offset before the step.
- * @param nextOffset  - The active column offset after the step.
+ * @param prevOffset         - The active column offset before the step.
+ * @param nextOffset         - The active column offset after the step.
  * @param currentWindowStart - The current window start offset.
  * @returns The new window start, or `null` if no re-frame.
  */
 export function resolveWindowAdvance(
-  _prevOffset: number,
+  prevOffset: number,
   nextOffset: number,
   currentWindowStart: number,
 ): number | null {
-  const newStart = windowStartFor(nextOffset);
-  if (newStart !== currentWindowStart) return newStart;
+  if (nextOffset > prevOffset) {
+    // Moving forward: re-frame only if a higher window boundary is freshly
+    // crossed this step — prevOffset was below the new window start and
+    // nextOffset is at or above it.
+    const newStart = windowStartFor(nextOffset);
+    if (newStart > currentWindowStart && prevOffset < newStart) {
+      return newStart;
+    }
+    return null;
+  }
+
+  if (nextOffset < prevOffset) {
+    // Moving backward: re-frame only when the offset drops below the boundary
+    // that produced the current window (i.e. below currentWindowStart).
+    if (nextOffset < currentWindowStart) {
+      return windowStartFor(nextOffset);
+    }
+    return null;
+  }
+
+  // Stationary: no boundary crossing possible.
   return null;
 }
 
