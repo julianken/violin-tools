@@ -1,7 +1,47 @@
 /*
- * intonation.css — styles for the drill-context cents meter (§17.2 / C7).
- * DESIGN.md §17.2 is the source of truth and wins on any conflict (AGENTS.md).
- * All values resolve to §0 tokens (tokens.css) by name — no raw hexes.
+ * intonation.css — styles for the Intonation epic (C7 DrillMeter + C8 DrillSummary).
+ * DESIGN.md is the source of truth and wins on any conflict (AGENTS.md). Every
+ * value resolves to a §0 token from tokens.css — NO raw hexes. No red anywhere
+ * (§2.6 / §17.7): {danger} / red-500 / #e5644e are never referenced in this file.
+ *
+ * C7 adds the DrillMeter surface (the live cents number-line meter):
+ *   .drill-meter       — SVG container
+ *   .drill-axis        — hairline baseline the dot rides
+ *   .drill-tick        — ±25¢ / ±50¢ reference ticks
+ *   .drill-tick-center — zero-cent anchor tick (taller)
+ *   .drill-zone        — ±5¢ in-tune mint zone rect
+ *   .drill-dir         — "flat ♭" / "sharp ♯" direction labels
+ *   .drill-echo        — ghost-dot echo trail
+ *   .drill-glow        — root-glow ring (fades in when in-tune)
+ *   .drill-dot         — the live pitch dot (morphs on --dot-radius / --ease-spring)
+ *   .drill-dot-lbl     — in-dot note label (shown only in-tune)
+ *
+ * C8 adds the DrillSummary surface:
+ *   .drill-summary            — outer region container
+ *   .drill-summary-header     — run label heading (h2)
+ *   .drill-summary-list       — ordered list of per-degree rows
+ *   .drill-summary-row        — one row: swatch + degree + cents
+ *   .drill-summary-swatch     — 4px left-border accent (ramp fill via inline style)
+ *   .drill-summary-degree     — note name / degree label
+ *   .drill-summary-cents      — signed cents value
+ *   .drill-summary-empty      — shown when no targets completed
+ *   .drill-summary-callout    — average + farthest block
+ *   .drill-summary-callout-line  — one callout line
+ *   .drill-summary-callout-value — the numeric value in a callout line
+ *   .drill-summary-tendency   — §13-voice tendency prose (italic / lighter)
+ *   .drill-summary-caveat     — 12-TET informational line (subdued)
+ *   .drill-summary-actions    — post-run button row
+ *   .drill-summary-action     — base button style (primary + secondary)
+ *   .drill-summary-action--primary   — "Run again" — {mint}-outline pill
+ *   .drill-summary-action--secondary — "New scale" — ghost/neutral pill
+ *
+ * Mobile-first layout: the drill summary is a single column, content stacks
+ * vertically. No horizontal overflow at 390 px viewport width (§10 / AC11).
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * C7 — DrillMeter styles (§17.2 / §17.8)
+ * ═══════════════════════════════════════════════════════════════════════════
  *
  * Pattern: mirrors tuner.css (.tuner-axis / .tuner-tick / .tuner-dot-g / etc.)
  * with .drill-* class names; design-token references are identical.
@@ -16,9 +56,6 @@
  *   • under prefers-reduced-motion: reduce (§7.4) the morph collapses to instant,
  *     and .drill-echo nodes are hidden — the live dot's position still updates
  *     (it is data, suppressing it would break the tool).
- *
- * No red anywhere (§17.7 / §2.6): the only two pitch colours are {mint} (in tune)
- * and neutral grey (seeking); {danger}/red is never referenced in this file.
  */
 
 /* ── meter SVG container ─────────────────────────────────────────────────── */
@@ -146,7 +183,7 @@
 }
 
 /*
- * §17.8 / §7.4 Reduced-motion guard.
+ * §17.8 / §7.4 Reduced-motion guard (C7 DrillMeter).
  *
  * Under `prefers-reduced-motion: reduce`:
  *   • the radius/glow MORPH collapses to instant (transition: none on the
@@ -170,5 +207,217 @@
      * and is equally valid; visibility:hidden is consistent with the component
      * using inline opacity so the elements remain in layout. */
     visibility: hidden;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * C8 — DrillSummary styles
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── outer region ────────────────────────────────────────────────────────── */
+.drill-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-500); /* 20px */
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding-block: var(--space-600); /* 24px */
+  padding-inline: var(--space-400); /* 16px */
+  box-sizing: border-box;
+}
+
+/* ── run label heading ───────────────────────────────────────────────────── */
+.drill-summary-header {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+
+/* ── per-degree list ─────────────────────────────────────────────────────── */
+.drill-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* rows are separated by hairline borders */
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.drill-summary-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-300); /* 12px */
+  padding: var(--space-200) 0; /* 8px */
+  border-bottom: 1px solid var(--hairline);
+  min-height: 36px;
+}
+
+/* Remove the redundant last-child border inside the bordered list */
+.drill-summary-row:last-child {
+  border-bottom: none;
+}
+
+/* ── swatch — 4px left-border accent filled by rampColor inline style ──── */
+.drill-summary-swatch {
+  flex: none;
+  width: 4px;
+  height: 20px;
+  border-radius: var(--radius-chip); /* 3px */
+  /* backgroundColor is set via inline style from rampColor() */
+  background-color: var(--mint); /* fallback to {mint} if inline style not applied */
+}
+
+/* ── degree label (Geist Mono, §12.2) ───────────────────────────────────── */
+.drill-summary-degree {
+  flex: 1; /* take remaining space */
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: var(--lh-flush);
+  color: var(--text);
+}
+
+/* ── cents value (Geist Mono, tabular, right-aligned, fixed-width col) ──── */
+.drill-summary-cents {
+  flex: none;
+  width: 56px; /* fits "+100 ¢" (the widest plausible value) */
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: var(--lh-flush);
+  color: var(--text2);
+  text-align: right;
+}
+
+/* ── empty state ─────────────────────────────────────────────────────────── */
+.drill-summary-empty {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 14px;
+  line-height: var(--lh-normal);
+  color: var(--text3);
+  text-align: center;
+  padding-block: var(--space-600);
+}
+
+/* ── callout — average + farthest ───────────────────────────────────────── */
+.drill-summary-callout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-100); /* 4px */
+  padding: var(--space-400); /* 16px */
+  background: var(--surface);
+  border-radius: var(--radius-card); /* 12px */
+  border: 1px solid var(--hairline);
+}
+
+.drill-summary-callout-line {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 13px;
+  line-height: var(--lh-normal);
+  color: var(--text2);
+}
+
+.drill-summary-callout-value {
+  font-family: var(--family-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ── tendency line — §13 prose (italic, visually distinct) ─────────────── */
+.drill-summary-tendency {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-style: italic;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: var(--lh-normal);
+  color: var(--text2);
+}
+
+/* ── 12-TET caveat — subdued informational ───────────────────────────────── */
+.drill-summary-caveat {
+  margin: 0;
+  font-family: var(--family-ui);
+  font-size: 11px;
+  line-height: var(--lh-normal);
+  color: var(--text3);
+}
+
+/* ── post-run actions ────────────────────────────────────────────────────── */
+.drill-summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-300); /* 12px — matches §4.2 component band */
+  width: 100%;
+}
+
+/* Base button style shared by both actions */
+.drill-summary-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%; /* full-width on mobile per spec */
+  min-height: var(--touch-target-min); /* 44px — WCAG 2.5.5 */
+  padding: 0 var(--space-500); /* 20px */
+  border-radius: var(--radius-pill);
+  font-family: var(--family-ui);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: var(--lh-flush);
+  cursor: pointer;
+  transition: background var(--color-shift) var(--ease-standard);
+}
+.drill-summary-action:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--canvas),
+    0 0 0 4px var(--mint);
+}
+
+/* Primary — "Run again": {mint}-outline pill (§17.6 / §2.4 "no second solid fill").
+ * Only the root dot is solid {mint}; the primary action is an outline, not filled. */
+.drill-summary-action--primary {
+  background: transparent;
+  border: 1px solid var(--mint);
+  color: var(--mint);
+}
+.drill-summary-action--primary:hover {
+  background: var(--pill-active-wash);
+}
+
+/* Secondary — "New scale": ghost/neutral (§8.4 ghost button). */
+.drill-summary-action--secondary {
+  background: transparent;
+  border: 1px solid var(--hairline2);
+  color: var(--text);
+}
+.drill-summary-action--secondary:hover {
+  border-color: var(--hairline3);
+}
+
+/* ── press state (both actions, §8.4 ghost language) ────────────────────── */
+.drill-summary-action:active {
+  transform: translateY(1px) scale(0.97);
+  transition:
+    transform var(--press) var(--ease-standard),
+    background var(--color-shift) var(--ease-standard);
+}
+
+/* ── reduced motion guard (§7.4) ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .drill-summary-action {
+    transition: none;
   }
 }
