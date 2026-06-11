@@ -145,7 +145,14 @@ export function AppShell() {
         {isTuner ? (
           <TunerView />
         ) : isIntonation ? (
-          <IntonationView scaleName={scaleName(controls.state)} />
+          <IntonationView
+            scaleName={scaleName(controls.state)}
+            controls={controls}
+            orientation={mapView.orientation}
+            handedness={mapView.handedness}
+            density={density}
+            setView={setView}
+          />
         ) : (
           <Content
             controls={controls}
