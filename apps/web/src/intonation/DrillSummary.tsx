@@ -31,29 +31,7 @@ import {
   meanAbsCents,
 } from './drillSummary.utils.ts';
 import { type DrillTarget, type NoteResult } from './intonation.types.ts';
-
-// TODO: replace with rampColor import from C4/#134 once merged.
-// This stub is a transparent placeholder: it accepts the signed medianCents
-// (rampColor owns Math.abs per the C4 spec), and maps |cents| linearly from
-// mint-500 (#00d4a4) at 0¢ toward amber-400 (#caa45f) at ≥ 30¢. No red.
-function rampColorStub(medianCents: number): string {
-  const MINT_R = 0;
-  const MINT_G = 212;
-  const MINT_B = 164;
-  const AMBER_R = 202;
-  const AMBER_G = 164;
-  const AMBER_B = 95;
-  const CLAMP = 30;
-  const t = Math.min(Math.abs(medianCents) / CLAMP, 1);
-  const r = Math.round(MINT_R + t * (AMBER_R - MINT_R));
-  const g = Math.round(MINT_G + t * (AMBER_G - MINT_G));
-  const b = Math.round(MINT_B + t * (AMBER_B - MINT_B));
-  return `rgb(${String(r)}, ${String(g)}, ${String(b)})`;
-}
-
-// Use the real rampColor when available (integration); fall back to the stub
-// until C4 merges. The import will be replaced at integration time.
-const rampColor: (medianCents: number) => string = rampColorStub;
+import { rampColor } from './rampColor.ts';
 
 export interface DrillSummaryProps {
   /**

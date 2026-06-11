@@ -1,11 +1,20 @@
 /*
- * intonation.css — styles for the Intonation epic (C7+/C8). DESIGN.md is the
- * source of truth and wins on any conflict (AGENTS.md). Every value resolves to
- * a §0 token from tokens.css — NO raw hexes. No red anywhere (§2.6 / §17.7):
- * {danger} / red-500 / #e5644e are never referenced in this file.
+ * intonation.css — styles for the Intonation epic (C7 DrillMeter + C8 DrillSummary).
+ * DESIGN.md is the source of truth and wins on any conflict (AGENTS.md). Every
+ * value resolves to a §0 token from tokens.css — NO raw hexes. No red anywhere
+ * (§2.6 / §17.7): {danger} / red-500 / #e5644e are never referenced in this file.
  *
- * Mobile-first layout: the drill summary is a single column, content stacks
- * vertically. No horizontal overflow at 390 px viewport width (§10 / AC11).
+ * C7 adds the DrillMeter surface (the live cents number-line meter):
+ *   .drill-meter       — SVG container
+ *   .drill-axis        — hairline baseline the dot rides
+ *   .drill-tick        — ±25¢ / ±50¢ reference ticks
+ *   .drill-tick-center — zero-cent anchor tick (taller)
+ *   .drill-zone        — ±5¢ in-tune mint zone rect
+ *   .drill-dir         — "flat ♭" / "sharp ♯" direction labels
+ *   .drill-echo        — ghost-dot echo trail
+ *   .drill-glow        — root-glow ring (fades in when in-tune)
+ *   .drill-dot         — the live pitch dot (morphs on --dot-radius / --ease-spring)
+ *   .drill-dot-lbl     — in-dot note label (shown only in-tune)
  *
  * C8 adds the DrillSummary surface:
  *   .drill-summary            — outer region container
@@ -25,7 +34,185 @@
  *   .drill-summary-action     — base button style (primary + secondary)
  *   .drill-summary-action--primary   — "Run again" — {mint}-outline pill
  *   .drill-summary-action--secondary — "New scale" — ghost/neutral pill
+ *
+ * Mobile-first layout: the drill summary is a single column, content stacks
+ * vertically. No horizontal overflow at 390 px viewport width (§10 / AC11).
  */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * C7 — DrillMeter styles (§17.2 / §17.8)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Pattern: mirrors tuner.css (.tuner-axis / .tuner-tick / .tuner-dot-g / etc.)
+ * with .drill-* class names; design-token references are identical.
+ *
+ * Motion (§17.8, no motion library — the transitions-dev NAMED-CUSTOM-PROPERTY
+ * pattern, values from §7):
+ *   • the dot's X is written DIRECTLY each frame via the SVG `transform` attribute
+ *     in DrillMeter.tsx — it is data, NOT a CSS transition (§17.8);
+ *   • only the discrete seeking→in-tune morph is transitioned on --dot-radius /
+ *     --ease-spring (radius) and --glow-fade / --ease-standard (glow opacity) —
+ *     exactly the §12.2 in-scale↔root transitions, reused;
+ *   • under prefers-reduced-motion: reduce (§7.4) the morph collapses to instant,
+ *     and .drill-echo nodes are hidden — the live dot's position still updates
+ *     (it is data, suppressing it would break the tool).
+ */
+
+/* ── meter SVG container ─────────────────────────────────────────────────── */
+.drill-meter {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  overflow: visible;
+}
+
+/* ── axis baseline ──────────────────────────────────────────────────────────
+ * A hairline rule the dot rides (§17.2). */
+.drill-axis {
+  stroke: var(--hairline2);
+  stroke-width: 1;
+}
+
+/* ── ticks ───────────────────────────────────────────────────────────────────
+ * Faint {mint} hairlines at ±25¢ / ±50¢ reference positions.
+ * Never filled; they are line strokes only (§2.4). */
+.drill-tick {
+  stroke: var(--mint);
+  stroke-width: 1;
+  opacity: 0.40;
+}
+
+/* The center (zero) tick is TALLER than the §17.2 version to foreground the
+ * "on target" anchor for the drill context. Still a hairline stroke, never a
+ * filled element (§2.4 — no second solid fill except the root dot). */
+.drill-tick-center {
+  stroke: var(--mint);
+  stroke-width: 1;
+  opacity: 0.70;
+}
+
+/* ── ±5-cent in-tune zone ────────────────────────────────────────────────────
+ * Low-opacity mint rect spanning centsToX(-5) → centsToX(5). Signals the in-tune
+ * window without inventing a new color token (mint at reduced opacity is not a
+ * second accent, §2.4). Opacity ≤0.15 so it never challenges the zero tick or
+ * dot as the primary visual. */
+.drill-zone {
+  fill: var(--mint);
+  opacity: 0.10;
+}
+
+/* ── direction labels ────────────────────────────────────────────────────────
+ * `flat ♭` (left) / `sharp ♯` (right). Language backs the direction signal —
+ * never colour alone (§17.7 / §11.1). Inter (NOT Geist Mono — these are words,
+ * not note tokens), neutral grey, never red. {text2} ≥4.5:1 (§2.5). */
+.drill-dir {
+  font-family: var(--family-ui);
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--text2);
+}
+.drill-dir-flat {
+  text-anchor: end;
+}
+.drill-dir-sharp {
+  text-anchor: start;
+}
+
+/* ── echo trail (ghost dots) ─────────────────────────────────────────────────
+ * Prior cent positions, rendered as lower-opacity ghost dots. The component
+ * sets inline opacity per slot (ECHO_OPACITIES); this class provides the CSS
+ * fill/stroke base and the reduced-motion suppression hook.
+ *
+ * No label, no glow, no transition on position (they are data-stamped from
+ * the buffer, not animated). */
+.drill-echo {
+  fill: var(--in-scale-fill);
+  stroke: var(--mint);
+  stroke-width: 1.5;
+  /* No position transition — echo dots are stamped, not animated. */
+}
+
+/* ── dot group ───────────────────────────────────────────────────────────────
+ * The dot group's TRANSFORM (x-position) is written per-render in the component
+ * and is deliberately NOT transitioned (§17.8 — position is data, not chrome). */
+
+/* glow ring (§12.2 root-glow): present in DOM always, shown only in tune.
+ * Opacity fades on --glow-fade / --ease-standard (§7.1 / §17.8). */
+.drill-glow {
+  stroke: var(--root-glow);
+  stroke-width: 3;
+  opacity: 0;
+  transition: opacity var(--glow-fade) var(--ease-standard);
+}
+.drill-dot-g.is-in-tune .drill-glow {
+  opacity: 1;
+}
+
+/* dot — §12.2 states:
+ *   seeking = in-scale dot ({mint} stroke 1.5, in-scale fill, r = SEEKING_RADIUS);
+ *   in tune = root dot (solid {mint}, no stroke, r = IN_TUNE_RADIUS).
+ * The `r` attribute is set geometrically in the component; it morphs on
+ * --dot-radius / --ease-spring (§0 "dot RADIUS morph only", §17.8).
+ * fill/stroke cross on --state-color (§7.1). */
+.drill-dot {
+  fill: var(--in-scale-fill);
+  stroke: var(--mint);
+  stroke-width: 1.5;
+  transition:
+    r var(--dot-radius) var(--ease-spring),
+    fill var(--state-color) var(--ease-standard),
+    stroke var(--state-color) var(--ease-standard),
+    stroke-width var(--state-color) var(--ease-standard);
+}
+.drill-dot-g.is-in-tune .drill-dot {
+  fill: var(--mint);
+  stroke: none;
+  stroke-width: 0;
+}
+
+/* in-dot label — the SOLE §3 "music = mono" exception for this component:
+ * Inter (NOT Geist Mono) so it centres correctly in the fixed-diameter circle
+ * at Inter's metrics (§17.2 / §12.2). Shown only in tune (the component emits
+ * an empty string while seeking). {root-label} ink on the solid {mint} dot. */
+.drill-dot-lbl {
+  font-family: var(--family-ui);
+  font-feature-settings: var(--features-ui); /* tnum */
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--root-label);
+}
+
+/*
+ * §17.8 / §7.4 Reduced-motion guard (C7 DrillMeter).
+ *
+ * Under `prefers-reduced-motion: reduce`:
+ *   • the radius/glow MORPH collapses to instant (transition: none on the
+ *     properties that animate the morph);
+ *   • the echo trail (.drill-echo) is hidden — it communicates recency/direction
+ *     via continuous position change which is motion; suppressing it is correct
+ *     (§7.4);
+ *   • the live dot's POSITION still updates (it is data written via the SVG
+ *     transform attribute — there is no transition to suppress here, so the dot
+ *     tracks regardless; suppressing position data would break the tool).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .drill-dot,
+  .drill-glow {
+    transition: none;
+  }
+
+  .drill-echo {
+    /* Visibility:hidden keeps the DOM structure intact (tests can still count
+     * the nodes) but removes the visual motion. display:none would also work
+     * and is equally valid; visibility:hidden is consistent with the component
+     * using inline opacity so the elements remain in layout. */
+    visibility: hidden;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * C8 — DrillSummary styles
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── outer region ────────────────────────────────────────────────────────── */
 .drill-summary {
