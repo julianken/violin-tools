@@ -138,6 +138,16 @@ export interface TunerApi {
   a4: number;
   /** Set the A4 reference; flows into the ph1 conversions via the live smoother. */
   setA4: (a4: number) => void;
+  /**
+   * Register or clear a pre-smoothing frame subscriber at runtime. Passing
+   * `undefined` unregisters the current subscriber. The change takes effect on
+   * the next rAF frame — no loop teardown/rebuild occurs.
+   *
+   * Used by `useIntonationDrill` to wire the tracker subscriber only while a
+   * drill run is active. Equivalent to changing `options.onRawFrame` without
+   * needing to re-create the tuner.
+   */
+  setOnRawFrame: (subscriber: ((frame: RawFrame) => void) | undefined) => void;
 }
 
 /** Options for `useTuner`. `initialA4` seeds the calibration (default `A4_DEFAULT`). */
@@ -576,5 +586,12 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
     };
   }, [teardown]);
 
-  return { status, readout, paused, start, stop, a4, setA4 };
+  const setOnRawFrame = useCallback(
+    (subscriber: ((frame: RawFrame) => void) | undefined) => {
+      onRawFrameRef.current = subscriber;
+    },
+    [],
+  );
+
+  return { status, readout, paused, start, stop, a4, setA4, setOnRawFrame };
 }
