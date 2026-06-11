@@ -563,13 +563,16 @@ export function useTuner(options: UseTunerOptions = {}): TunerApi {
   }, []);
 
   // ── onRawFrame ref sync ──────────────────────────────────────────────────────
-  // Keep the subscriber ref current on every render (without a dep-list this
-  // fires after every render — acceptable because it's a cheap assignment and the
-  // rAF loop never re-creates). Passing `undefined` clears the ref, which stops
-  // the callback from firing on the next frame (AC8 — clean unsubscribe).
+  // Precedence between the two subscriber-registration modes: the `options.onRawFrame`
+  // constructor seam writes the ref ONLY when its value actually changes (the dep
+  // list), so an imperative `setOnRawFrame(subscriber)` registration survives an
+  // unrelated host re-render instead of being clobbered back to `options.onRawFrame`
+  // (which is `undefined` for callers that don't use the option) on the very next
+  // render. A caller using the option still gets live updates whenever it changes;
+  // passing `undefined` via the option clears the ref (AC8 — clean unsubscribe).
   useEffect(() => {
     onRawFrameRef.current = options.onRawFrame;
-  });
+  }, [options.onRawFrame]);
 
   // ── Unmount cleanup (AC#5) ───────────────────────────────────────────────────
   // Release everything on unmount so a navigated-away Tuner never leaks a live
