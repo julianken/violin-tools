@@ -1187,7 +1187,7 @@ The chrome counterpart to §15.1: one selected row in the command palette's resu
 - The **theme toggle's toggled/active behavior** is unspecified (§8.8): its resting + hover visuals are defined, but with no light mode there is no switch behavior, checked state, or theme swap yet. The non-functional theme toggle is present in chrome with no defined behavior. _(The "Share scale" button is **no longer inert** — #88 wired it to the adaptive Web Share + `?r=&s=` deep-link action; see the shipped list above.)_
 - The transport bar's own component spec is the **deferred §8.9 header** — present so references resolve, but unspecified until the bar is built (the audio surface itself is in the deferred list above).
 - **`radius` has no component tier (by design, flagged here so it is not silent).** The three-tier alias model (§0) is a *color*-system rule. `radius` — like `space`, `motion`, `elevation`, `layout` — is a primitive scale used by name directly (`card`, `pill`, `chip` …) with no per-component aliases; there is intentionally no `controls-card-radius` → `card` indirection. This is a deliberate scope boundary, not an omission: a future component-radius tier would be a spec change, not a tweak.
-- The "soon" tool **Vibrato** (`∿`) is a nav stub only; its surface is unspecified. **Intonation (`◴`) is no longer in this set — it became a live view in C9 (intonation epic)**; its frame and run-header ship here, and its drill surfaces (note-map drill display, cents meter, summary panel) complete in C6–C8. **The Tuner (`◎`) is no longer in this set either — its surface is specified in §17** (S18 ph5); only its UI build (S18 ph6) remains.
+- The "soon" tool **Vibrato** (`∿`) is a nav stub only; its surface is unspecified. **Intonation (`◴`) is no longer in this set — it became a live view in C9 (intonation epic)**; its frame and run-header ship here, and its drill surfaces (note-map drill display, cents meter, summary panel) complete in C6–C8; its full surface spec is §18. **The Tuner (`◎`) is no longer in this set either — its surface is specified in §17** (S18 ph5); only its UI build (S18 ph6) remains.
 **Resolved during v1 (kept for traceability — these are in the "shipped" list above):**
 - ~~**URL-encoded deep-linking — no shareable per-scale URL; the "Share scale" button is present chrome with no defined behavior.**~~ **RESOLVED (#88 — first post-v1 feature):** the ghost button is wired to an adaptive Web Share + copy-link action backed by a query `?r=&s=` deep link (`apps/web/src/state/controls.ts` codec + `apps/web/src/shell/useShareLink.ts` + the `replaceState` sync in `apps/web/src/shell/AppShell.tsx`). See the shipped entry above. The Cloudflare Worker's SPA fallback **stays forward-prep** — the query scheme resolves at `/`, so it never exercises the fallback (that remains reserved for a future *path* scheme).
 - ~~**Reference overlays are horizontal-only; on the vertical map they are disabled, not broken (S16 ph2 — "U3b").**~~ **RESOLVED (S17 ph B, #84 — subsumes #80):** the §12.3 reference overlays (tape bands, the `low 2` slide, the heel/octave landmark bands, position labels) now **project through `axisOf`** — they are axis-correct in **both** orientations (§12.3 "Vertical projection"). The S16 Phase-2 AC bullet "ref bands/heel/`low 2` are axis-correct in both orientations" is **met by shipped behaviour**. The interim guards are removed: `RefsRow` (`apps/web/src/controls/RefsRow.tsx`) no longer disables the Refs pills on vertical, and `NoteMap` (`apps/web/src/notemap/NoteMap.tsx`) renders `<RefLayers>` in both orientations. On the vertical map the bands span the cross axis centered on the neck column, the heel dash is a neck-aligned segment at the cross-end, and the labels move to the cross gutters (tape numbers + heel/octave names left, position ordinals right, "½ string" omitted) — §12.3.
@@ -1263,6 +1263,96 @@ Technique via the transitions-dev patterns (recipe hooks, the reduced-motion gua
 - **The live readout is a WCAG 4.1.3 status message.** A **visually-hidden** `role="status" aria-live="polite" aria-atomic="true"` region (§11.3 — live regions are `polite`, never `assertive`) carries it. The region **exists empty at load** (so the first announcement is heard) and is **decoupled from the per-frame meter** — it does **not** speak every frame. It announces on **note-change** and on **first in-tune**, **debounced ~1.5–2s**, so rapid pitch movement does not flood the screen reader (the same polite-and-throttled discipline the §11.3 playback region uses, for the same reason).
 - **Color is never the only signal (§11.1).** In tune is conveyed by `{mint}` **and** the `in tune ✓` word **and** the dot's size/glow (root-dot `r = 15` + `root-glow`); seeking by the `♯` / `♭` direction word **and** the dot's off-center position. Hue is always redundant.
 - **Keyboard + targets.** The **A4 −/+ steppers** and the **Start** control are keyboard-operable with a visible `{mint}` `:focus-visible` ring (§8) and ≥`touch-target-min` (44px, §0 / WCAG 2.5.5) hit targets (the §10/§8 transparent hit-padding idiom).
+
+---
+
+## 18. The Intonation drill
+
+The Intonation drill is a hands-free **scale-intonation tool** — mic → raw pitch frames → per-degree accuracy painted back onto the note map as a graded ramp — and it is the third nav surface in the product (after Scales and Tuner). It follows the player through a 2-octave Flesch-shape run without gating on accuracy: **advance is always driven by detection, never by score**. All values resolve to §0 tokens; this section is the committed surface spec the C6–C9 UI build is verified against.
+
+### 18.1 The view (third nav surface)
+
+The Intonation drill occupies `'intonation'` on the view seam (`useView`), the same one that hosts `'scale-map'` and `'tuner'`. Selecting **Intonation** (the `◴` sidebar nav item or the **Intonation** command-palette row) swaps the `.main` content to the Intonation surface; the note map and the Tuner are not rival panes. The drill inherits the same shell, topbar, sidebar, and `{canvas}` page body as every other view (§9); only the main panel content changes.
+
+**Topbar** (view-aware): the breadcrumb reads "Intonation" only — the `Scales /` segment is dropped (same posture as the Tuner, §17.1). The Share-scale cluster is suppressed (it is a Scales-only action, §17.1). The mobile search trigger and the §9 shell/sidebar are unchanged.
+
+**Three states:** idle/start · running · end-of-run summary. The note map is the drill display surface in the running state; it is replaced by the summary panel at run end.
+
+### 18.2 The note-map drill display (running state)
+
+The existing §12 note-map SVG is the primary drill display. It reuses the §12.2 dot vocabulary — no new shape is introduced. Drill-specific additions:
+
+- **Letters inside drill dots.** Each scale-degree dot carries its note name inside it (Inter 12px, the §12.2 root-dot label face — §3's lone Inter-in-SVG exception). The letter is the §13 spelled name of the target degree; it uses `root-label` text on the dot fill at the §2.5 9.86:1 pairing.
+- **Graded mint→amber ramp.** Played dots are painted by `|median cents|` against a ramp clamped at ~30¢ (see §18.7 below). The ramp runs from `{mint}` (0¢ deviation) to `{amber-400}` (~30¢+), blending through intermediate tokens in the `{mint}`→`{amber}` warm-neutral arc. **No red at any point on the ramp** (§18.7 / §2.6 — `{danger}` is the reserved-but-unapplied error candidate; deviation is a description, not a failure).
+- **Active-target pulse.** The currently targeted degree has a CSS keyframe pulse (`animation`) that marks it as the live destination. Under `prefers-reduced-motion: reduce` the animation is `none` (§18.8).
+- **Discrete fingerboard-window re-frame.** As the drill advances up the neck, the visible fingerboard window shifts once per position jump (a discrete re-frame, not a continuous scroll). The re-frame fires **one §7 transition** (the shortest sanctioned discrete transition, §7.1 "discrete") on the window's position — instant under `reduce` (the §7.4 `transition: none` guard).
+
+### 18.3 The cents number-line meter (running state)
+
+A horizontal open-axis meter — **−50 … 0 … +50** — docked below the drill map. It reuses §17.2 dot-echo geometry and §7 values; it introduces nothing new.
+
+- **Axis:** a faint `{hairline}` line (1px); a taller `{mint}` center tick at 0 (the in-tune anchor); `flat ♭` labels the left half, `sharp ♯` labels the right (§13 direction words, never color alone — §11.1). A `{mint}` in-tune zone band marks ±5¢.
+- **Detected-pitch dot:** the §12.2 in-scale dot (seeking) or root dot (in-tune, `|cents| ≤ 5`), with its x set to the live cents; an **echo trail** of two fading copies behind it (§17.2 geometry, §7 values). At the right/left edge a signed-cents readout shows the numeric value (`+12¢`); the `{mint}` snap + glow fires inside ±5¢ (§12.2 in-tune morph). The dot's position is set per-frame (data, not animated chrome — §17.8 precedent); the in-tune morph is the §7.1 radius + glow transition. Under `reduce`: the dot moves instantly (no `transition` on `transform`/`left`), the echo trail is absent (no opacity or position tween — §18.8).
+- **Meter meta:** above the axis, a compact status line (`"B · in scale · settling…"`) derived from the drill state.
+
+### 18.4 The run header (running state)
+
+A band in the topbar-adjacent zone — not inside the note-map panelcard — carrying:
+
+- The scale name (§13 spelled, e.g. "A Major").
+- Run meta: "2 octaves · ascending" (the configured shape).
+- Live progress counter: `"target n/29"` (the §13 plain voice: factual, no encouragement — §13.1).
+
+The live progress counter is a §11.3-redundant signal (backed by the number and by the note-map drill state, never color alone — §11.1).
+
+### 18.5 The end-of-run summary panel
+
+Replaces the note-map drill display after the run completes. Contains:
+
+- **Run header:** run-complete kicker + scale + meta (unchanged, §18.4 format).
+- **Average and worst stats:** aggregate signed cents + worst-degree note label (Geist Mono numerals, §3).
+- **Per-degree table:** for each degree, the §13 spelled note name and the median signed cents of all occurrences in the run. The dots carry the same mint→amber ramp as the drill display (§18.2).
+- **Tendency line:** one short, factual §13-voice sentence describing the predominant lean, e.g. "You ran slightly sharp ascending on the E string. Your octaves landed clean." **Never** judgemental (§13.1). Tied to recorded data, never fabricated.
+- **Actions:** "Run again" and "New scale" (§8.1 pills, `{mint}`-outline primary / neutral secondary).
+- **12-TET caveat** (load-bearing if the run uses 12-TET targets, §18.7): a short note below the tendency line, e.g. "Targets are 12-TET against A = 440 Hz. A deviation may be an expressive choice, not a mistake."
+- **Per-run in-memory only.** No persistence, no cross-run analytics — the summary is gone when the player starts a new run or leaves the view.
+
+### 18.6 Auto-follow FSM (high-level contract)
+
+- **Advance is never gated on accuracy.** The drill advances when the engine detects a settled pitch that corresponds to the current target (or the next one, for anticipation). A player who lands 50¢ off still advances; the ramp records the deviation without blocking.
+- **Signal-loss hold.** A 1.5 s bounded hold (mirroring §17.6's `READOUT_HOLD_MS = 1500`) prevents a momentary drop-out from advancing the drill. If the signal does not return within the hold window, the drill stays on the current target.
+- **Page-Visibility pause.** When `document.visibilityState === 'hidden'` the drill pauses (stops advancing and stops writing to the live region) and resumes on visibility restore — the same pattern as the Tuner's Page-Visibility pause (§17.8 precedent).
+
+### 18.7 No red (load-bearing)
+
+`{danger}` / red is **unbound in v1** (§2.6). **Deviation from a target is never red.** The graded ramp is `{mint}` → `{amber-400}` only: a warm-neutral arc that reads as "in tune" → "off" without invoking failure. The color ramp is always redundant: the signed-cents readout (§18.3) and the per-degree table (§18.5) carry the same information in text.
+
+**State it as a rule: the Intonation view emits no red; the only two polar states are `{mint}` (in tune / near target) and `{amber-400}` (furthest from target), and deviation is always backed by the signed-cents number and the degree label.**
+
+*(If the codebase adopts a non-12-TET reference in a future child issue, the 12-TET caveat in §18.5 and §18.9 are updated to match — the no-red rule is unchanged.)*
+
+### 18.8 Motion (maps to §7, no motion library)
+
+Technique via the transitions-dev patterns; values from §7; **no motion library** (the binding rule, AGENTS.md).
+
+- **The cents meter dot's axis position is set directly each frame** — data, not animation, for the same reason as §17.8 (a transition would lag the player). Under `reduce`, the dot moves instantly (no `transition` on `transform` or `left`). Guard: `@media (prefers-reduced-motion: reduce) { .meter-dot { transition: none; } }`.
+- **The echo trail** (two fading copies behind the live dot) uses §7 opacity values and §7 timing for the fade. Under `reduce`, the echo dots are absent (no opacity or position tween). Guard: `@media (prefers-reduced-motion: reduce) { .meter-echo { opacity: 0; transition: none; } }`.
+- **The discrete fingerboard-window re-frame** fires one §7 transition per position jump (the `transition` on the window's scroll/transform). Under `reduce`, the re-frame snaps — no `transition` on the window's position. Guard: `.board[data-motion] .fingerboard-window { transition: none }` under `reduce` (§7.4 pattern).
+- **The active-target pulse** is a CSS keyframe `animation`. Under `reduce`, it is `none`. Guard: `@media (prefers-reduced-motion: reduce) { .drill-active-pulse { animation: none; } }`.
+- **Ramp-color transitions** (the dot fill shifting along the mint→amber arc as new median data arrives) use a short §7 transition (`150ms`, `--ease-out`) — so a freshly-scored degree eases to its new ramp fill rather than snapping. Under `reduce`, this transition is `none`.
+
+All five animated surfaces must have explicit `reduce` guards in the shipped CSS; the implementation PR must state pass/fail for each guard in its description (a surface without a verified guard is a finding).
+
+### 18.9 Accessibility (§11)
+
+- **The `aria-live` announcer (§11.3 / §17.9 pattern).** A visually-hidden `role="status" aria-live="polite" aria-atomic="true" data-live="intonation"` region is **conditionally rendered** — present only when the Intonation view is active, so the global `aria-live="polite"` count stays verifiable. The region **exists empty at mount** (so the first announcement is heard — §11.3 / §17.9). A debounced effect (~1.5–2 s, mirroring `ANNOUNCE_DEBOUNCE_MS = 1800` from §17.9) watches `drillState.currentTargetIndex` and `drillState.lastSettledCents`. It speaks on:
+  - **target-change:** `"Target 3 of 29 — E5"` (note name from the drill plan).
+  - **note-settle:** `"+12 cents — slightly sharp"` (factual §13-voice; never "wrong", never "missed").
+  - **Never** per-frame — raw frame updates must not touch the live region.
+  No `aria-live="assertive"` region exists in the Intonation view.
+- **Color is never the only signal (§11.1).** The graded ramp is backed by the signed-cents numeric readout (§18.3) and the per-degree table (§18.5); the active-target pulse is backed by the `"target n/29"` counter (§18.4). Hue is always redundant.
+- **Keyboard + targets.** The "Start drill", "Run again", and "New scale" controls are keyboard-operable with a visible `{mint}` `:focus-visible` ring (§8) and ≥`touch-target-min` (44px, §0 / WCAG 2.5.5) hit targets.
+- **Reduced motion (§7.4 / §11.4 / §18.8).** All five animated surfaces (re-frame, active-target pulse, echo trail, meter dot, ramp-color transition) honor `prefers-reduced-motion: reduce` by snapping or disappearing — the drill stays fully functional with motion off, and §11.4 is satisfied.
 
 ---
 
