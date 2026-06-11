@@ -67,11 +67,19 @@ jobs:
       # assets/** (filename changes on every content change, so caching forever
       # is safe). --delete-unmatched-destination-objects removes anything in the
       # bucket no longer in the build.
+      #
+      # --exclude='^flags\.json$' keeps the runtime feature-flag object (#176)
+      # alive across deploys. `flags.json` is RUNTIME-managed (written by
+      # scripts/flag.sh, not part of the build), so without this exclusion the
+      # prune above would delete it on every deploy and silently re-hide a
+      # flagged-on surface. The pattern is a Python regex matched against the
+      # object path (gcloud storage rsync semantics).
       - name: Publish build to GCS (immutable default + prune)
         run: |
           gcloud storage rsync apps/web/dist "gs://${{ vars.GCS_WEBSITE_BUCKET }}" \
             --recursive \
             --delete-unmatched-destination-objects \
+            --exclude='^flags\.json$' \
             --cache-control="public,max-age=31536000,immutable"
 
       # Pass 2 — overwrite the cache header on the un-hashed entry files so a new

@@ -13,6 +13,7 @@ import {
   SCALE_DISPLAY_NAME,
 } from '../state/controls';
 import { useControls } from '../state/useControls';
+import { useFlags } from '../state/useFlags';
 import { useView } from '../state/useView';
 import { TunerView } from '../tuner/TunerView';
 
@@ -71,8 +72,17 @@ export function AppShell() {
   // Tuner / Intonation (the sidebar nav item or the palette row) sets the view;
   // the `.main` content, the topbar title, and the skip-link target all branch on it.
   const { view, setView } = useView();
+  // #176 — feature flags, constructed once here and threaded down to the gated
+  // surfaces (the Sidebar nav item, the palette catalogue). Defaults are
+  // synchronous (dev ON / prod OFF); the remote `/flags.json` may flip a flag on
+  // ~100ms after first paint (no loading state — DESIGN.md §18.1, #176).
+  const flags = useFlags();
   const isTuner = view === 'tuner';
-  const isIntonation = view === 'intonation';
+  // The Intonation view renders only when the flag is on; with it off, a
+  // persisted/stale `'intonation'` view (or a remote flip-to-off mid-session)
+  // falls back to the scale-map below (#176, AC2). So `isIntonation` is the view
+  // seam value GATED by the flag — both the `.main` branch and the topbar read it.
+  const isIntonation = view === 'intonation' && flags.intonation;
 
   // §11.3 polite live regions: one announces the current sounding note name
   // (Enter/Space over a map marker), one carries the string-by-string map text
@@ -124,7 +134,12 @@ export function AppShell() {
       <a className="skip-link" href={isTuner || isIntonation ? '#main' : '#board'}>
         {isTuner ? 'Skip to tuner' : isIntonation ? 'Skip to intonation' : 'Skip to note map'}
       </a>
-      <Sidebar onOpenPalette={palette.open} view={view} onSelectView={setView} />
+      <Sidebar
+        onOpenPalette={palette.open}
+        view={view}
+        onSelectView={setView}
+        flags={flags}
+      />
       <div className="main">
         {/* The breadcrumb's active segment is the §13 spelled selection (note-map
             view) or the tool name (Tuner view), shared with the H1 via the same
@@ -207,6 +222,9 @@ export function AppShell() {
             else if (toolId === 'tool:intonation') setView('intonation');
             else if (toolId === 'tool:scale-map') setView('scale-map');
           }}
+          // #176 — the active flags gate the Intonation Tools row out of the
+          // catalogue when off (absent, not `soon`); the row can't be reached.
+          flags={flags}
         />
       )}
     </div>
