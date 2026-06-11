@@ -364,13 +364,14 @@ describe('§12.2 column-0 name slot — box-aware overlap guard (issue #180)', (
   const intersects = (a: Box, b: Box): boolean =>
     a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 
-  const CONFIGS = [
-    { orientation: 'horizontal', handedness: 'right', density: 'fit' },
-    { orientation: 'horizontal', handedness: 'right', density: 'comfort' },
-    { orientation: 'vertical', handedness: 'right', density: 'comfort' },
-    { orientation: 'vertical', handedness: 'right', density: 'fit' },
-    { orientation: 'vertical', handedness: 'left', density: 'comfort' },
-  ] as const;
+  // The FULL orientation × handedness × density cross product (8 configs) — an
+  // unguarded quadrant is exactly how the original overlap shipped (review
+  // finding on PR #181: horizontal+left was missing from a hand-picked list).
+  const CONFIGS = (['horizontal', 'vertical'] as const).flatMap((orientation) =>
+    (['right', 'left'] as const).flatMap((handedness) =>
+      (['fit', 'comfort'] as const).map((density) => ({ orientation, handedness, density })),
+    ),
+  );
 
   for (const config of CONFIGS) {
     const label = `${config.orientation}+${config.handedness}+${config.density}`;
