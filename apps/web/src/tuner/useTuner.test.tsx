@@ -904,6 +904,55 @@ describe('useTuner — onRawFrame seam (C1, issue #130)', () => {
     // Each frame is a fresh object literal — references are NOT the same.
     expect(collected[0]).not.toBe(collected[1]);
   });
+
+  // C12 (#174) regression: a subscriber registered IMPERATIVELY via `setOnRawFrame`
+  // must survive an unrelated host re-render. The live drift was that the ref-sync
+  // effect had NO dep list, so it re-ran after EVERY render and clobbered the
+  // imperative subscriber back to `options.onRawFrame` (undefined for IntonationView,
+  // which calls useTuner() with no options). The exact prod ordering is: startDrill()
+  // calls setOnRawFrame(subscriber), THEN setPhase('running') re-renders the host —
+  // and one render later the dep-less effect wiped the subscriber, so liveCents
+  // stayed null and the meter read "no signal" forever. This test pins that ordering
+  // (register first, re-render after) and asserts the subscriber still receives
+  // frames; it FAILS on main (dep-less effect) and passes with `[options.onRawFrame]`.
+  // A test that re-renders BEFORE subscribing is green on main and proves nothing.
+  it('a setOnRawFrame subscriber survives an unrelated host re-render (no options.onRawFrame)', async () => {
+    const { stream } = makeStream();
+    const getUserMedia = vi.fn(() => Promise.resolve(stream));
+    installSupported(getUserMedia);
+
+    // IntonationView calls useTuner() with NO options — `options.onRawFrame` is
+    // always undefined. Drive an unrelated host re-render via a counter prop.
+    const { result, rerender } = renderHook((_props: { tick: number }) => useTuner(), {
+      initialProps: { tick: 0 },
+    });
+    await act(async () => {
+      await result.current.start();
+    });
+
+    // Register the subscriber imperatively (the useIntonationDrill.startDrill path).
+    const collected: RawFrame[] = [];
+    act(() => {
+      result.current.setOnRawFrame((frame) => {
+        collected.push(frame);
+      });
+    });
+
+    // …THEN re-render the host AFTER registration (the setPhase('running') step).
+    act(() => {
+      rerender({ tick: 1 });
+    });
+
+    // Pump frames after the re-render. On main the dep-less sync effect has just
+    // clobbered the ref to undefined, so nothing is collected. With the fix the
+    // imperative subscriber survives and still receives frames.
+    FakeAudioContext.lastInstance!.analyser.fillBuffer = (buf) => buf.fill(0);
+    act(() => {
+      pumpFrames(5);
+    });
+
+    expect(collected.length).toBeGreaterThan(0);
+  });
 });
 
 describe('useTuner — A4 calibration', () => {
