@@ -28,7 +28,11 @@ export interface RunHeaderProps {
  */
 export function RunHeader({ scaleName, targetIndex, targetCount }: RunHeaderProps) {
   // Display as 1-based ("target 1/29", not "target 0/29") so it reads naturally.
-  const displayIndex = targetIndex + 1;
+  // Clamp to targetCount so a terminal index (targetIndex === targetCount) can never
+  // render an out-of-range ordinal — defense-in-depth for the same off-by-one #177
+  // fixes in IntonationView's runLabel (this header renders only in the running
+  // branch today, so the overflow is latent here, not live).
+  const displayIndex = Math.min(targetIndex + 1, targetCount);
 
   return (
     <div className="run-header">

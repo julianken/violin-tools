@@ -125,7 +125,11 @@ export function IntonationView({
   const dots = buildDrillDots(plan, results, currentTargetIndex, root, scale);
 
   // ── runLabel for DrillSummary ─────────────────────────────────────────────
-  const runLabel = `${scaleName} · 2 octaves · target ${String(currentTargetIndex + 1)}/${String(plan.length)}`;
+  // Clamp the 1-based ordinal to plan.length: at completion the tracker's terminal
+  // state is currentTargetIndex === plan.length, which would otherwise render an
+  // out-of-range "target 30/29" in DrillSummary's header (#177). The tracker's
+  // terminal index is legitimate; this is a display-layer clamp.
+  const runLabel = `${scaleName} · 2 octaves · target ${String(Math.min(currentTargetIndex + 1, plan.length))}/${String(plan.length)}`;
 
   return (
     <main id="main" className="content">
