@@ -1301,7 +1301,7 @@ A band in the topbar-adjacent zone — not inside the note-map panelcard — car
 
 - The scale name (§13 spelled, e.g. "A Major").
 - Run meta: "2 octaves · ascending" (the configured shape).
-- Live progress counter: `"target n/29"` (the §13 plain voice: factual, no encouragement — §13.1).
+- Live progress counter: `"target n/29"` (the §13 plain voice: factual, no encouragement — §13).
 
 The live progress counter is a §11.3-redundant signal (backed by the number and by the note-map drill state, never color alone — §11.1).
 
@@ -1312,7 +1312,7 @@ Replaces the note-map drill display after the run completes. Contains:
 - **Run header:** run-complete kicker + scale + meta (unchanged, §18.4 format).
 - **Average and worst stats:** aggregate signed cents + worst-degree note label (Geist Mono numerals, §3).
 - **Per-degree table:** for each degree, the §13 spelled note name and the median signed cents of all occurrences in the run. The dots carry the same mint→amber ramp as the drill display (§18.2).
-- **Tendency line:** one short, factual §13-voice sentence describing the predominant lean, e.g. "You ran slightly sharp ascending on the E string. Your octaves landed clean." **Never** judgemental (§13.1). Tied to recorded data, never fabricated.
+- **Tendency line:** one short, factual §13-voice sentence describing the predominant lean, e.g. "You ran slightly sharp ascending on the E string. Your octaves landed clean." **Never** judgemental (§13). Tied to recorded data, never fabricated.
 - **Actions:** "Run again" and "New scale" (§8.1 pills, `{mint}`-outline primary / neutral secondary).
 - **12-TET caveat** (load-bearing if the run uses 12-TET targets, §18.7): a short note below the tendency line, e.g. "Targets are 12-TET against A = 440 Hz. A deviation may be an expressive choice, not a mistake."
 - **Per-run in-memory only.** No persistence, no cross-run analytics — the summary is gone when the player starts a new run or leaves the view.
