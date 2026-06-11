@@ -20,6 +20,30 @@ The four CI gates are `pnpm typecheck` / `pnpm lint` / `pnpm test:coverage` (the
 
 **Hosting (lean, ~$0/mo):** it's a client-side static web app — no backend, no accounts, no personal data, no analytics. The built bundle is published to a public-read Google Cloud Storage bucket; a free **Cloudflare Worker** fronts it at the edge (TLS + CDN + the force-HTTPS and `www`→apex 301s). There is **no GCP load balancer or Cloud CDN** — those were deferred for cost and can be added in front of the same bucket if traffic or latency metrics ever justify it. Deploys are keyless: a GitHub Actions workflow ([`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml)) authenticates to GCP via Workload Identity Federation (no service-account JSON key) and syncs the bundle on every push to `main`. The hosting IaC lives in [`infra/`](./infra/) — see [`infra/README.md`](./infra/README.md).
 
+## Feature flags
+
+Some surfaces ship behind a **runtime feature flag** so a not-yet-public tool can be merged and deployed while it gets polish, without being visible to the public — and flipped on live without a redeploy. Today the only flag is `intonation` (the Intonation drill).
+
+**Mechanism.** Flags resolve from three layers, lowest precedence to highest:
+
+1. **Built-in defaults** — compiled into the bundle (`intonation` defaults **on in a dev build, off in a prod build**). Synchronous, so first paint never waits on the network.
+2. **Remote `flags.json`** — a small JSON object at the bucket root (e.g. `{ "intonation": true }`), fetched once at boot from the same origin (Cloudflare → the GCS bucket). It merges over the defaults; on a 404 or network failure the defaults win (fail-closed for unreleased features). It is served `no-cache`, so a flip is visible on the next load with no deploy.
+3. **`?ff=` URL override** — per-device, persisted to `localStorage`: `?ff=intonation` turns a flag on for this device, `?ff=-intonation` clears it. Highest precedence — lets the maintainer reach a flag-off surface on prod regardless of the public default.
+
+When a flag is off, its surface is **absent** (the nav item and command-palette row don't render), not disabled-and-badged.
+
+**Flipping a flag live** (the bucket object, affects everyone):
+
+```sh
+scripts/flag.sh intonation status   # print the current value
+scripts/flag.sh intonation on       # reveal it to the public
+scripts/flag.sh intonation off      # hide it again
+```
+
+`flag.sh` read-modify-writes `flags.json` in place, preserving every other key, and uploads it with `Cache-Control: no-cache` and `Content-Type: application/json`. The bucket comes from `$GCS_WEBSITE_BUCKET` (or the `GCS_WEBSITE_BUCKET` repo Actions variable via `gh`); it needs an authenticated `gcloud`.
+
+**Why `flags.json` isn't in `infra/` or the build.** It's a *runtime-managed* object: Terraform manages the bucket, not its mutable contents, and the deploy (`deploy.yml`) explicitly **excludes** `flags.json` from its prune so a deploy never deletes a live flag. The flag value is operational state, flipped out-of-band — not source or build output.
+
 ## Where things live
 
 - **[`DESIGN.md`](./DESIGN.md)** — the design source of truth. It wins on any design conflict, and it also defines the note-map's pitch model. Read it before any UI work.

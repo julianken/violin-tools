@@ -14,6 +14,7 @@
 import { type Root, type ScaleType } from '@violin-tools/theory';
 
 import { ROOT_PILLS } from '../../state/controls.ts';
+import { FLAG_DEFAULTS, type Flags } from '../../state/flags.ts';
 
 /** The kind of meta chip a row carries (§8.5): `↵`, `open`, or `soon`. */
 export type RowMeta = 'enter' | 'open' | 'soon';
@@ -126,18 +127,43 @@ const SCALES_HEADING = 'Scales';
 const TOOLS_HEADING = 'Tools';
 
 /**
- * Filter the catalogue by `query` and return the visible groups in §9 order.
- * Matching is case-insensitive substring on the label; an empty query returns
- * everything. A group with no surviving rows is dropped entirely so its header
- * is suppressed (§8.5). A `soon` row is still listed (it is non-actionable, not
- * hidden) so a violinist can see the future tool exists.
+ * Tools whose visibility is gated by a feature flag (#176): the row is absent
+ * from the catalogue when its flag is off. Today only the Intonation row, gated
+ * by `flags.intonation` (post-launch flag while the drill gets polish). A tool id
+ * NOT in this map is always visible (Scale Map, Tuner).
  */
-export function filterGroups(query: string): readonly PaletteGroup[] {
+const TOOL_FLAG_GATE: Readonly<Record<string, keyof Flags>> = {
+  'tool:intonation': 'intonation',
+};
+
+/** Whether a tool row is enabled under `flags` — ungated rows are always on. */
+function toolEnabled(tool: ToolTarget, flags: Flags): boolean {
+  const gate = TOOL_FLAG_GATE[tool.id];
+  return gate === undefined || flags[gate];
+}
+
+/**
+ * Filter the catalogue by `query` and the active feature `flags`, returning the
+ * visible groups in §9 order. Matching is case-insensitive substring on the
+ * label; an empty query returns everything (subject to flag gating). A group with
+ * no surviving rows is dropped entirely so its header is suppressed (§8.5). A
+ * `soon` row is still listed (it is non-actionable, not hidden) so a violinist
+ * can see the future tool exists.
+ *
+ * `flags` gates a Tools row OUT entirely when its flag is off (#176): a
+ * flag-gated tool (today Intonation) is absent — not `soon`-badged — so the
+ * public never sees it. Defaults to `FLAG_DEFAULTS` so a caller that doesn't pass
+ * flags (e.g. a unit test of the base catalogue) gets the dev baseline.
+ */
+export function filterGroups(
+  query: string,
+  flags: Flags = FLAG_DEFAULTS,
+): readonly PaletteGroup[] {
   const q = query.trim().toLowerCase();
   const match = (t: PaletteTarget): boolean => q === '' || t.label.toLowerCase().includes(q);
 
   const scales = SCALE_TARGETS.filter(match);
-  const tools = TOOL_TARGETS.filter(match);
+  const tools = TOOL_TARGETS.filter((t) => toolEnabled(t, flags) && match(t));
 
   const groups: PaletteGroup[] = [];
   if (scales.length > 0) groups.push({ heading: SCALES_HEADING, items: scales });

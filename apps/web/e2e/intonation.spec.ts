@@ -25,7 +25,12 @@ test.describe('§18 Intonation drill — fake-media smoke (drill is live, not "n
     context,
   }) => {
     await context.grantPermissions(['microphone']);
-    await page.goto('/');
+    // #176 — the Intonation surface is flag-gated and OFF in the prod-shaped
+    // Playwright bundle (`vite build` → `import.meta.env.DEV === false`). Enter via
+    // the `?ff=intonation` per-device override, which ALSO exercises the override
+    // path on the prod bundle (a feature, not a workaround — the override is how
+    // the owner reaches a flag-off surface on prod).
+    await page.goto('/?ff=intonation');
     // The app starts on the note map (the §17.1 default view).
     await expect(page.locator('svg#board')).toBeVisible();
 

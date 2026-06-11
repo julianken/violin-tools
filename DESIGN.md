@@ -1278,6 +1278,8 @@ The Intonation drill occupies `'intonation'` on the view seam (`useView`), the s
 
 **Three states:** idle/start · running · end-of-run summary. The note map is the drill display surface in the running state; it is replaced by the summary panel at run end.
 
+**Flag-gated surface (#176):** the Intonation surface ships behind a runtime feature flag. When the flag is off (the public prod default), the `◴` nav item and the **Intonation** command-palette row are **absent** — not `soon`-badged — and a stale `'intonation'` view falls back to the scale map; nothing about the surface is visible. The flag defaults on in dev and is flipped live (no deploy) via the bucket's `flags.json` or a per-device `?ff=intonation` override (mechanism in the README "Feature flags" section).
+
 ### 18.2 The note-map drill display (running state)
 
 The existing §12 note-map SVG is the primary drill display. It reuses the §12.2 dot vocabulary — no new shape is introduced. Drill-specific additions:

@@ -1,3 +1,4 @@
+import { type Flags } from '../state/flags';
 import { type View } from '../state/useView';
 
 import { IcScales, IcSearch } from './icons';
@@ -17,6 +18,11 @@ import { IcScales, IcSearch } from './icons';
 // stubs and renders like Tuner (§8.2 active treatment). Clicking it sets the view
 // seam to `'intonation'`, swapping `.main` to `<IntonationView />`.
 //
+// #176 (feature flags): the Intonation nav item is **flag-gated** — rendered only
+// when `flags.intonation` is on (default on in DEV, off in a prod build until the
+// remote `/flags.json` or a `?ff=intonation` override turns it on). When off the
+// item is ABSENT (not `soon`-badged) — the public never sees it (DESIGN.md §18.1).
+//
 // S16 Phase 3 (U7) drops the mobile off-canvas drawer: this element is now the
 // desktop rail only (no off-canvas drawer chrome). Below the §10 breakpoint the
 // rail is hidden (shell.css) and the mobile surfaces — the top-bar search trigger
@@ -35,9 +41,11 @@ interface SidebarProps {
   view: View;
   /** Switch the §17.1 view seam — the Scales / Tuner nav items call this. */
   onSelectView: (view: View) => void;
+  /** Active feature flags (#176) — the Intonation nav item renders only when on. */
+  flags: Flags;
 }
 
-export function Sidebar({ onOpenPalette, view, onSelectView }: SidebarProps) {
+export function Sidebar({ onOpenPalette, view, onSelectView, flags }: SidebarProps) {
   const scalesActive = view === 'scale-map';
   const tunerActive = view === 'tuner';
   const intonationActive = view === 'intonation';
@@ -93,22 +101,26 @@ export function Sidebar({ onOpenPalette, view, onSelectView }: SidebarProps) {
           <span className="ni-label">Tuner</span>
         </button>
 
-        {/* Intonation — the live C9 view. A button (it swaps content, it is not a
-            hash target) styled like the active nav item, mint dot + label when
-            selected (§8.2). Glyph ◴ per DESIGN.md §0 `nav-intonation`. */}
-        <button
-          type="button"
-          className={`ni ni-button${intonationActive ? ' active' : ''}`}
-          aria-current={intonationActive ? 'page' : undefined}
-          onClick={() => {
-            onSelectView('intonation');
-          }}
-        >
-          <span className="ic" aria-hidden="true">
-            ◴
-          </span>
-          <span className="ni-label">Intonation</span>
-        </button>
+        {/* Intonation — the live C9 view, flag-gated (#176). A button (it swaps
+            content, it is not a hash target) styled like the active nav item, mint
+            dot + label when selected (§8.2). Glyph ◴ per DESIGN.md §0
+            `nav-intonation`. Rendered ONLY when `flags.intonation` is on; otherwise
+            absent (not `soon`-badged) so the public never sees it (§18.1). */}
+        {flags.intonation && (
+          <button
+            type="button"
+            className={`ni ni-button${intonationActive ? ' active' : ''}`}
+            aria-current={intonationActive ? 'page' : undefined}
+            onClick={() => {
+              onSelectView('intonation');
+            }}
+          >
+            <span className="ic" aria-hidden="true">
+              ◴
+            </span>
+            <span className="ni-label">Intonation</span>
+          </button>
+        )}
 
         {SOON_TOOLS.map(({ label, glyph }) => (
           <span

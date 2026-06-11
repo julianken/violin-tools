@@ -1,25 +1,33 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { type Flags } from '../state/flags.ts';
+
 import { Sidebar } from './Sidebar.tsx';
 
 // Sidebar nav tests — proves the §8.2 active treatment wiring for both live
 // nav items (Tuner and Intonation) after S18 ph6 and C9. The Vibrato item is the
-// sole remaining `soon` stub.
+// sole remaining `soon` stub. The Intonation item is flag-gated (#176) — these
+// default it ON (the DEV baseline) except the explicit flag-off case below.
 //
 // jsdom applies no CSS (so `.soon` styling is invisible here), but the structural
 // ARIA attributes (`aria-current`, `aria-disabled`, element type) are fully
 // testable and are the contract this suite pins.
 
+const FLAGS_ON: Flags = { intonation: true };
+const FLAGS_OFF: Flags = { intonation: false };
+
 function renderSidebar(
   view: 'scale-map' | 'tuner' | 'intonation',
   onSelectView = vi.fn(),
+  flags: Flags = FLAGS_ON,
 ) {
   return render(
     <Sidebar
       onOpenPalette={() => undefined}
       view={view}
       onSelectView={onSelectView}
+      flags={flags}
     />,
   );
 }
@@ -87,6 +95,21 @@ describe('Sidebar — Vibrato remains the sole soon stub', () => {
     expect(vibrato).not.toBeNull();
     expect(vibrato?.textContent).toContain('Vibrato');
     expect(vibrato?.getAttribute('aria-disabled')).toBe('true');
+  });
+});
+
+describe('Sidebar — Intonation is flag-gated (#176)', () => {
+  it('renders the Intonation item when flags.intonation is on', () => {
+    renderSidebar('scale-map', vi.fn(), FLAGS_ON);
+    expect(screen.getByRole('button', { name: 'Intonation' })).toBeInTheDocument();
+  });
+
+  it('is ABSENT (not soon-badged) when flags.intonation is off', () => {
+    const { container } = renderSidebar('scale-map', vi.fn(), FLAGS_OFF);
+    // No Intonation button at all — invisible to the public (§18.1).
+    expect(screen.queryByRole('button', { name: 'Intonation' })).toBeNull();
+    // And NOT downgraded to a `soon` stub — no node carries the Intonation label.
+    expect(container.textContent).not.toContain('Intonation');
   });
 });
 

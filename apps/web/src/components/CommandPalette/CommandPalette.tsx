@@ -17,6 +17,7 @@ import { type Root, type ScaleType } from '@violin-tools/theory';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 
 import { IcSearch } from '../../shell/icons.tsx';
+import { type Flags } from '../../state/flags.ts';
 
 import './palette.css';
 import { filterGroups, metaGlyph, selectableRows, type PaletteTarget } from './palette-data.ts';
@@ -36,6 +37,11 @@ interface CommandPaletteProps {
    * returns to the note map (S18 ph6). Receives the row's stable id.
    */
   onSelectTool: (toolId: string) => void;
+  /**
+   * The active feature flags (#176) — gate flag-controlled Tools rows out of the
+   * catalogue (today the Intonation row, absent when `flags.intonation` is off).
+   */
+  flags: Flags;
 }
 
 /**
@@ -48,14 +54,16 @@ export function CommandPalette({
   onClose,
   onSelectScale,
   onSelectTool,
+  flags,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const selectedRowRef = useRef<HTMLLIElement | null>(null);
 
   // The visible groups + the flat selectable list (Scales then live tools,
-  // `soon` stubs skipped) — recomputed only when the query changes (§8.5).
-  const groups = useMemo(() => filterGroups(query), [query]);
+  // `soon` stubs skipped) — recomputed when the query OR the active flags change
+  // (a flag-gated Tools row is dropped entirely when its flag is off, #176).
+  const groups = useMemo(() => filterGroups(query, flags), [query, flags]);
   const rows = useMemo(() => selectableRows(groups), [groups]);
   const hasResults = rows.length > 0 || groups.length > 0;
 

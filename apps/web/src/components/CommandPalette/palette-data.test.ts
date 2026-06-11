@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { type Flags } from '../../state/flags.ts';
+
 import {
   filterGroups,
   metaGlyph,
@@ -7,6 +9,9 @@ import {
   type ScaleTarget,
   type ToolTarget,
 } from './palette-data.ts';
+
+const FLAGS_ON: Flags = { intonation: true };
+const FLAGS_OFF: Flags = { intonation: false };
 
 // palette-data unit tests (§8.5 / §9 / §15.2). Pure data — no React/DOM — so the
 // catalogue shape, grouping, glyph/meta assignment, filtering, header
@@ -97,5 +102,40 @@ describe('selectableRows skips soon (§8.5 / §11.3)', () => {
     expect(labels).toContain('Intonation'); // C9 — Intonation is now a live, selectable view
     // No selectable row is a soon row.
     expect(rows.every((r) => r.meta !== 'soon')).toBe(true);
+  });
+});
+
+describe('flag-gating the Intonation Tools row (#176)', () => {
+  it('with intonation ON, the Tools group lists Scale Map · Intonation · Tuner', () => {
+    const tools = filterGroups('', FLAGS_ON).find((g) => g.heading === 'Tools');
+    expect((tools?.items ?? []).map((i) => i.label)).toEqual([
+      'Scale Map',
+      'Intonation',
+      'Tuner',
+    ]);
+  });
+
+  it('with intonation OFF, the Intonation row is ABSENT (not soon-badged)', () => {
+    const tools = filterGroups('', FLAGS_OFF).find((g) => g.heading === 'Tools');
+    const labels = (tools?.items ?? []).map((i) => i.label);
+    expect(labels).toEqual(['Scale Map', 'Tuner']);
+    expect(labels).not.toContain('Intonation');
+  });
+
+  it('the gated row is unreachable — absent from the selectable list when OFF', () => {
+    const rows = selectableRows(filterGroups('', FLAGS_OFF));
+    expect(rows.map((r) => r.label)).not.toContain('Intonation');
+    // 84 Scales + Scale Map + Tuner = 86 (one fewer than the 87 with it on).
+    expect(rows).toHaveLength(86);
+  });
+
+  it('a query that matches only the gated row yields no Tools group when OFF', () => {
+    // "intonation" matches the Scales group (none) and the gated Tools row only;
+    // with the flag off both groups are empty → no groups at all (empty state).
+    expect(filterGroups('intonation', FLAGS_OFF)).toEqual([]);
+    // With it on, the Tools group survives with just the Intonation row.
+    const onGroups = filterGroups('intonation', FLAGS_ON);
+    expect(onGroups.map((g) => g.heading)).toEqual(['Tools']);
+    expect(onGroups[0]?.items.map((i) => i.label)).toEqual(['Intonation']);
   });
 });
