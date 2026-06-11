@@ -261,13 +261,15 @@ describe('running state (AC5 / AC6 / AC7)', () => {
 
   it('AC7: RunHeader receives real targetIndex and targetCount', () => {
     const state = makeRunningDrillState();
-    state.currentTargetIndex = 3;
-    // plan.length = 2, so targetCount = 2; display is 1-based so "4/2"
+    state.currentTargetIndex = 1;
+    // plan.length = 2, so targetCount = 2; display is 1-based so "2/2".
+    // (In-range index — the #177 clamp now caps the ordinal at targetCount, so a
+    // contrived out-of-range index would correctly clamp rather than overflow.)
     mockUseIntonationDrill.mockReturnValue(state);
     render(<IntonationView {...makeProps()} />);
 
     // RunHeader renders "target n/total" (1-based)
-    expect(screen.getByText(/target 4\/2/i)).toBeInTheDocument();
+    expect(screen.getByText(/target 2\/2/i)).toBeInTheDocument();
   });
 
   it('AC7: RunHeader does NOT use stub constants (0/29)', () => {
@@ -297,6 +299,37 @@ describe('complete state (AC8 / AC9 / AC10)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /run again/i }));
     expect(state.resetDrill).toHaveBeenCalledOnce();
+  });
+
+  // #177 regression: at completion the tracker's terminal state is
+  // currentTargetIndex === plan.length (noteTracker terminal index), so the
+  // unclamped `${currentTargetIndex + 1}` rendered an out-of-range "target 30/29"
+  // in DrillSummary's header. The runLabel ordinal is now clamped to plan.length.
+  it('#177: completed state (currentTargetIndex === plan.length) reads "target 29/29", not 30/29', () => {
+    // 29-entry plan; terminal index == plan.length == 29 (the off-by-one trigger).
+    const plan = Array.from({ length: 29 }, (_, i) => ({
+      index: i,
+      midiNote: 69 + i,
+      hz: 440,
+      degreeLabel: String(i + 1),
+    }));
+    mockUseIntonationDrill.mockReturnValue({
+      phase: 'complete' as const,
+      tunerStatus: 'listening',
+      paused: false,
+      plan,
+      currentTargetIndex: plan.length, // terminal: 29, not 28
+      results: [],
+      liveCents: null,
+      startDrill: vi.fn().mockResolvedValue(undefined),
+      stopDrill: vi.fn(),
+      resetDrill: vi.fn(),
+    });
+    render(<IntonationView {...makeProps()} />);
+
+    const header = screen.getByRole('heading', { level: 2 });
+    expect(header.textContent).toContain('target 29/29');
+    expect(header.textContent).not.toContain('30/29');
   });
 
   it('AC10: "New scale" calls setView("scale-map")', () => {

@@ -34,6 +34,19 @@ describe('RunHeader — copy contract (§13)', () => {
     expect(screen.getByText('target 3/15')).toBeInTheDocument();
   });
 
+  // #177 defense-in-depth: the displayed ordinal is clamped to targetCount so a
+  // terminal index (targetIndex === targetCount) can never overflow the total.
+  it('clamps a terminal targetIndex (=== targetCount) to "target 29/29", not 30/29', () => {
+    render(<RunHeader scaleName="A Major" targetIndex={29} targetCount={29} />);
+    expect(screen.getByText('target 29/29')).toBeInTheDocument();
+    expect(screen.queryByText('target 30/29')).not.toBeInTheDocument();
+  });
+
+  it('clamps an above-terminal targetIndex to targetCount', () => {
+    render(<RunHeader scaleName="A Major" targetIndex={99} targetCount={29} />);
+    expect(screen.getByText('target 29/29')).toBeInTheDocument();
+  });
+
   it('updates when props change', () => {
     const { rerender } = render(
       <RunHeader scaleName="A Major" targetIndex={0} targetCount={29} />,
