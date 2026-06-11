@@ -171,7 +171,7 @@ export function useIntonationDrill(
   // without a stale closure. State setters are safe to call from rAF callbacks.
   const phaseRef = useRef<DrillRunPhase>('idle');
   const trackerRef = useRef(
-    createNoteTracker(plan, { clarityThreshold, dwellMs, windowCents }),
+    createNoteTracker(plan, { clarityThreshold, dwellMs, halfWidthCents: windowCents, a4 }),
   );
   // A ref to the tuner object so the subscriber can read `tuner.paused` at
   // call time (not at subscribe time). This is important because `paused` is a
@@ -198,7 +198,7 @@ export function useIntonationDrill(
   // already-scored results are invalid.
   useEffect(() => {
     // Re-create the tracker against the new plan.
-    trackerRef.current = createNoteTracker(plan, { clarityThreshold, dwellMs, windowCents });
+    trackerRef.current = createNoteTracker(plan, { clarityThreshold, dwellMs, halfWidthCents: windowCents, a4 });
 
     if (phaseRef.current === 'running') {
       // Root/scale/a4 changed mid-run → reset to idle.

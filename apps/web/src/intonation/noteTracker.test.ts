@@ -697,3 +697,49 @@ describe('edge cases', () => {
     expect(mc).toBeLessThan(4.5);
   });
 });
+
+// ── A4 calibration guard ────────────────────────────────────────────────────
+//
+// Regression: noteFromFrequency must use the same A4 reference as the plan.
+// At baroque pitch (A4=415 Hz), an A4=440 grid shifts the MIDI rounding by
+// ~100 ¢, so a perfectly in-tune note was classified as the wrong MIDI note
+// and the octave guard permanently rejected it (drill froze).
+
+describe('noteTracker — A4 calibration (baroque pitch A4=415)', () => {
+  const A4_BAROQUE = 415;
+  // MIDI 69 = A4, but at baroque pitch its Hz is 415 (not 440).
+  const baroqueA4Hz = frequencyOfMidi(69, A4_BAROQUE);
+  const baroqueOptions: TrackerOptions = {
+    ...STANDARD_OPTIONS,
+    a4: A4_BAROQUE,
+  };
+
+  it('advances the first target when frames are perfectly in-tune at A4=415', () => {
+    // A minimal 2-target plan: A4 then A5, both at baroque pitch.
+    const t0: DrillTarget = { index: 0, midiNote: 69, hz: baroqueA4Hz, degreeLabel: '1' };
+    const t1: DrillTarget = { index: 1, midiNote: 81, hz: frequencyOfMidi(81, A4_BAROQUE), degreeLabel: '2' };
+    const plan: readonly DrillTarget[] = [t0, t1];
+    const tracker = createNoteTracker(plan, baroqueOptions);
+
+    // settleScript drives frames at target.hz (415 Hz for A4 baroque) and fires advance.
+    const result = runSettleScript(tracker, t0.hz, 0, 15, 16);
+    expect(result).not.toBeNull();
+    expect(tracker.getState().currentTargetIndex).toBe(1);
+  });
+
+  it('still rejects an octave-up frame at A4=415 (octave guard works at baroque pitch)', () => {
+    const t0: DrillTarget = { index: 0, midiNote: 69, hz: baroqueA4Hz, degreeLabel: '1' };
+    const plan: readonly DrillTarget[] = [t0];
+    const tracker = createNoteTracker(plan, baroqueOptions);
+
+    // One octave above: same pitch class but MIDI 81, not 69 — guard must reject.
+    const octaveHz = baroqueA4Hz * 2;
+    for (let i = 0; i < 25; i++) {
+      tracker.pushFrame(goodFrame(i * 16, octaveHz));
+    }
+    // Exit frame (out of window) — should not advance since guard blocked settling.
+    const exitResult = tracker.pushFrame(goodFrame(26 * 16, 200)); // 200 Hz is far off
+    expect(exitResult).toBeNull();
+    expect(tracker.getState().currentTargetIndex).toBe(0);
+  });
+});
