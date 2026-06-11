@@ -54,12 +54,16 @@
  * ════════════════════════════════════════════════════════════════════════════ */
 .board[data-motion='stateful'] .note .dot {
   /* r 230ms ease-spring (the dot-radius row — NOT tape-slide's separate 230);
-   * fill/stroke/stroke-width 200ms (state-color) ease (§7.1). */
+   * fill/stroke/stroke-width 200ms (state-color) ease (§7.1); opacity 160ms
+   * (label-fade) ease — the §12.2 column-0 dot↔name crossfade: the off-open
+   * dot fades out (opacity, NOT an r collapse, which would pop on ease-spring)
+   * while the lbl's existing opacity tween fades the string name in (§7.1). */
   transition:
     r var(--dot-radius) var(--ease-spring),
     fill var(--state-color) var(--ease-standard),
     stroke var(--state-color) var(--ease-standard),
-    stroke-width var(--state-color) var(--ease-standard);
+    stroke-width var(--state-color) var(--ease-standard),
+    opacity var(--label-fade) var(--ease-standard);
   transition-delay: calc(var(--col) * var(--stagger-per-column));
 }
 .board[data-motion='stateful'] .note .glow {

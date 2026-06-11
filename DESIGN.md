@@ -501,7 +501,7 @@ The active breadcrumb segment is **`{text2}`** — note the split row above. Do 
 
 | SVG label | Family | Size | Weight | Color | Baseline / position | Notes |
 |---|---|---|---|---|---|---|
-| String name | Inter | 11px | 600 | `string-name` | `x=24`, `y = S.y + 4` | no `dominant-baseline` |
+| String name | Inter | 11px | 600 | `string-name` | column-0 open slot: `dotCenter(i, 0)`, `y = cy + 4` | no `dominant-baseline`; renders only when the open note is **off** (§12.2 column-0 rule) |
 | In-scale dot label | Inter | 12px | 500 | `scale-label` (`#ffffff`) | `cy + 4` | **tnum** (`features-ui`) |
 | Root dot label | Inter | 12px | 700 | `root-label` (`#08130f`) | `cy + 4` | **tnum**; color invariant (§11.2) |
 | "open" label | Inter | 10px | 400 | `open-label` | `(42, 252)` | |
@@ -603,6 +603,7 @@ Each persistent note node carries CSS transitions; a scale change only swaps the
 |---|---|---|---|
 | `.note .dot` | `r` | `230ms` | `ease-spring` |
 | `.note .dot` | `fill`, `stroke`, `stroke-width` | `200ms` (`state-color`) | `ease` |
+| `.note .dot` | `opacity` (the §12.2 column-0 dot↔name crossfade) | `160ms` (`label-fade`) | `ease` |
 | `.note .glow` | `opacity` | `200ms` (`glow-fade`) | `ease` |
 | `.note .lbl` | `opacity` | `160ms` (`label-fade`) | `ease` |
 | `.note .lbl` | `fill` | `190ms` (`lbl-fill`) | `ease` |
@@ -611,6 +612,8 @@ Each persistent note node carries CSS transitions; a scale change only swaps the
 | `.land` | `opacity` (show/hide) | `200ms` (`state-color`) | `ease` |
 
 The `.lbl` **fill** row is load-bearing: on a root-state change the label color crosses from `scale-label` (`#ffffff`) to `root-label` (`#08130f`). Without the 190ms fill tween it would snap, flashing on every root transition — tween it.
+
+The `.dot` **opacity** row is the §12.2 column-0 dot↔name crossfade: when an open string leaves the scale, its r=6 dot fades out by **opacity** (never an `r` collapse, which would pop on `ease-spring`) while the lbl's existing opacity tween fades the string name in — and the reverse on re-entry. Column 0's stagger delay is `0ms` by the formula.
 
 **State is class-driven.** The `glow` ring is `opacity:0` by default (`.note .glow { opacity:0 }`) and is promoted to visible **only** in the root state by `.note.is-root .glow { opacity:1 }` — the 200ms `glow-fade` transition then carries it in and out. The dot/label states are driven the same way: `.note.is-off`, `.note.is-scale`, `.note.is-root` swap radius/fill/label, and `.note .glow` stays `opacity:0` for both off and in-scale. There is no data-attribute or inline-style path; the `is-root` class on the wrapper `<g>` is the sole trigger for the glow. **The reference layers toggle the same way:** the `.tape` and `.land` groups carry a **`.hide`** class (`tapeG`/`landG` `.classList.toggle('hide', …)`) whose opacity transition is what the §7.1/§7.5 `.tape`/`.land` opacity rows describe — visibility is the `.hide` class, not a raw inline opacity write.
 
@@ -655,7 +658,7 @@ The contract for every surface that animates on/off or between states. "Update" 
 
 | Element | Enter | Update (in-place) | Exit |
 |---|---|---|---|
-| Note dot (stateful) | mounts once with the map (no enter animation) | `r` 230ms `ease-spring`; `fill`/`stroke`/`stroke-width` 200ms `ease`; stagger `columnIndex × 6ms` | never exits — re-classed in place, persists for the page's life |
+| Note dot (stateful) | mounts once with the map (no enter animation) | `r` 230ms `ease-spring`; `fill`/`stroke`/`stroke-width` 200ms `ease`; `opacity` 160ms `ease` (`label-fade` — the §12.2 column-0 dot↔name crossfade); stagger `columnIndex × 6ms` | never exits — re-classed in place, persists for the page's life |
 | Note dot (snappy) | `dotPop` 150ms `ease-overshoot`, stagger `columnIndex × 10ms` | (off→in-scale re-runs `dotPop`) | opacity to 0 / removed instantly (no dedicated exit keyframe) |
 | Root glow ring | `opacity` 0→1, 200ms `ease` (`glow-fade`), triggered by `.note.is-root .glow` | follows root in/out via the same opacity tween | `opacity` 1→0, 200ms `ease` when leaving root |
 | Sounding overlay (`.sound`) | `opacity` 0→1 (the heavier `{mint}` stroke appears); **no pulse keyframe is defined in v1** — the static `stroke-width:3` ring is the sole indicator in **all** motion modes | — (it does not animate while sustained) | `opacity` 1→0 when the note stops sounding |
@@ -921,7 +924,7 @@ Accessibility is structural. Two commitments are load-bearing: **non-color redun
 | Distinction | Color cue | Redundant non-color cue |
 |---|---|---|
 | Root / in-scale / off | mint solid / mint outline / near-black | **radius** 15 / 14 / 6 + label present-vs-absent + glow ring on root |
-| Open vs. stopped note | same hue family | shape: open uses a transparent ring, stopped a filled dot; stroke weight |
+| Open vs. stopped note | same hue family | shape: an off **open** slot shows the string-name glyph (§12.2 column-0 rule), an off **stopped** slot the bare ring dot; in-scale/root opens read by their labeled dot; stroke weight |
 | Tape vs. octave vs. heel | `{tape}` / `{teal}` / `{violet}` | distinct band **positions + labels** ("2 (+4)", "octave ◈", "heel ⌄") and legend swatches of differing shape |
 | Active vs. inactive control | accent tint + border | text weight/color shift + active class, announced to AT |
 | Currently sounding note (playback) | accent stroke | a **static, always-on heavier stroke** (no motion required) + an `aria-live` spoken announcement. **No pulse animation ships in v1** (§7.5); were one ever added it would be additive only and gated on motion preference — it could never become the sole cue |
@@ -972,9 +975,9 @@ This is the product's heart and its hardest-working surface. It is a single inli
 - **Nut** — `rect x=58 y=62 width=5 height=150 fill=string-line` (no radius).
 - **Position-column x** — the **column index `o` runs `0 … NMAX − 1`** (`NMAX = 15`): `o = 0` is the **open string** at `x = 42`; the **14 stopped columns** are `o = 1 … 14` at `x = 96 + (o − 1) × 44`. So each string has `1 open + 14 stopped = 15` columns, and `NMAX` *is* that per-string column count, **not** a separate higher bound than the `o`-range — the apparent ambiguity is resolved here: `o`'s maximum stopped value is `NMAX − 1 = 14`. Reproduce both formulae exactly; the band rects and labels all key off them.
 - **Position guide lines** — one vertical per stopped column, `y1:62 → y2:212`, stroke `guide-line`, width `1` (1px hairline, no radius).
-- **String-name labels** — Inter 11px/600 `string-name` at `x=24`, **`y = S.y + 4`**, `text-anchor:middle` (the build uses a +4px optical-center offset on `y`, **not** `dominant-baseline`; do not add `dominant-baseline:middle` or the label will sit too high). **"open" label** — Inter 10px/400 `open-label` at `(42, 252)`.
+- **String-name labels — none in the chrome.** There is **no separate string-name label row** (the historical `x=24` row hard-overlapped the open-column dots and is deleted — issue #180); the string identifier renders **inside the column-0 slot itself** per the §12.2 column-0 rule: Inter 11px/600 `string-name`, anchored at `dotCenter(i, 0)` with the same `+4px` baseline offset the dot labels use (`text-anchor:middle`, **no** `dominant-baseline`). **"open" label** — Inter 10px/400 `open-label` at `(42, 252)`.
 
-**Vertical layout (mobile auto) — the x/y-transposed projection.** The vertical render is the horizontal layout with its two axes swapped: the neck axis (open → stopped columns) runs *down* the page and the four strings spread *across* it. Each chrome element maps through that transpose — string lines run vertically, the nut bar runs across the open end, position guides run across the strings, dots relay out to the new `cx`/`cy`. **Labels stay UPRIGHT** (`<text>` keeps a plain `{x, y}` anchor, no rotation): a naive single 90° `rotate()` on the whole group would tip every note name and string name on its side, which §3/§8 forbid — so the build transposes anchor *positions* but never rotates glyphs. The **vertical string-name labels move into the cross/neck margin, clear of the open-column dot** — the horizontal `+4` optical y-offset is calibrated for a baseline beside a horizontal row and **does not apply** in vertical; the vertical name sits in the cross margin level with the open dot, never overlapping it.
+**Vertical layout (mobile auto) — the x/y-transposed projection.** The vertical render is the horizontal layout with its two axes swapped: the neck axis (open → stopped columns) runs *down* the page and the four strings spread *across* it. Each chrome element maps through that transpose — string lines run vertically, the nut bar runs across the open end, position guides run across the strings, dots relay out to the new `cx`/`cy`. **Labels stay UPRIGHT** (`<text>` keeps a plain `{x, y}` anchor, no rotation): a naive single 90° `rotate()` on the whole group would tip every note name and string name on its side, which §3/§8 forbid — so the build transposes anchor *positions* but never rotates glyphs. The string-name glyph needs **no vertical special case** — it renders inside the column-0 slot (`dotCenter(i, 0)`, §12.2 column-0 rule), which transposes through `axisOf` like every dot.
 - **Persistent nodes are orientation-invariant.** The 60 nodes (below) are the *same* nodes in both orientations — a flip changes only each node's `cx`/`cy`, never the node set (morph, not rebuild — §7). The vertical-comfort render lays out **all 60** relaid-out, not fewer.
 
 The map holds **60 persistent note nodes** — `4 strings × NMAX columns = 4 × 15 = 60`, where the 15 columns are the 1 open + 14 stopped of the formula above. On a scale change each node is re-classified and morphs in place — never destroyed and rebuilt (§7).
@@ -983,18 +986,18 @@ The map holds **60 persistent note nodes** — `4 strings × NMAX columns = 4 ×
 
 | State | Shape | Fill | Stroke | stroke-width | r | Label |
 |---|---|---|---|---|---|---|
-| **Off** (not in scale) | circle | `off-fill` | `off-stroke` | `1` | `6` | none |
+| **Off** (not in scale) | circle | `off-fill` | `off-stroke` | `1` | `6` | none on **stopped** columns; the **open** column shows the string name instead (column-0 rule below) |
 | **In scale** | circle | `in-scale-fill` | `{mint}` | `1.5` | `14` | note name, Inter 12px/500 `scale-label` |
 | **Root** | circle | `{mint}` solid | none | `0` | `15` | note name, Inter 12px/700 `root-label` |
 | **Root glow** (ring behind root) | circle | none | `root-glow` | `3` | `19` | — |
 | **Open string** (column 0, `x=42`) | circle | per its current state | per its current state | per its current state | per its current state | per its current state |
 | **Sounding** (active during playback) | a 4th persistent `<circle class="sound">` overlaid on the dot (state dot untouched) | none | `{mint}` | `3` | = dot's current `r` (14/15) | — (label is the dot's own) |
 
-**The open string is not a special visual state — it participates fully in scale classification.** The note at column 0 is built identically to every other node and takes the normal **off / in-scale / root** treatment (and the **root glow** if the open string *is* the root). So an open string that is in the scale shows the in-scale dot (`r=14`, mint outline, note name); an open string not in the scale shows the off dot (`r=6`, `off-fill` + `off-stroke` ring); an open root shows the solid mint root dot + glow. The "transparent ring" language in §11.1 describes that **off**-state appearance generically (near-transparent fill + a thin ring) — it is **not** a permanent open-only override. There is no column-0 styling that bypasses classification.
+**The open string participates fully in scale classification — and column 0 carries the one sanctioned glyph carve-out (the "column-0 rule", issue #180).** The note at column 0 is built identically to every other node and takes the normal **off / in-scale / root** classification (and the **root glow** if the open string *is* the root); classification is never bypassed. The carve-out is purely the off-state **glyph**: a string whose open note classifies **off** renders its **string name** (`G3` / `D4` / `A4` / `E5` — Inter 11px/600 `string-name`, the §3 row) in the slot in place of the r=6 off dot — the dot hides by **opacity only** (the element persists, §7.5) and the marker's `lbl` carries the name (composing the `string-name` class). A string whose open note is **in-scale or root** shows its normal labeled dot and nothing more — the dot's spelled note name *is* the string identifier (there is no chrome label row, §12.1). This changes only the open-off marker's glyph — never its classification, never its `aria-label` (§11.3), never any stopped (`o ≥ 1`) dot. So an open string in the scale shows the in-scale dot (`r=14`, mint outline, note name); an open root shows the solid mint root dot + glow; an open string out of the scale reads as its string name. The "transparent ring" language in §11.1 describes the **stopped** off-dot appearance generically — it is **not** a permanent open-only override.
 
 State is the differentiator at a glance, but it is **always** backed by radius (6 → 14 → 15), by the presence/absence of a label, and by the glow ring on the root. The **sounding** state is purely additive: `r` and `fill` do **not** change from whatever state the note already holds — only a heavier `{mint}` stroke (width `3`, the same weight as the root glow ring) is laid over it as a static, always-on indicator (no motion required; §11.4).
 
-**Sounding overlay — SVG structure (so it is reproducible, not interpretive).** The sounding indicator is its **own persistent child** of the note `<g>`, not a mutation of the state dot and not a `paint-order` trick. Concretely: alongside the existing `glow` / `dot` / `lbl` children (§7.1, §15.1), the note `<g>` carries a fourth child **`<circle class="sound">`** with `cx`/`cy` matching the dot, `r` = the dot's current state radius (14 in-scale, 15 root; it follows the same `r` the dot holds), `fill:none`, `stroke:{mint}`, `stroke-width:3`, `opacity:0` at rest and `opacity:1` only while that note is sounding, and `pointer-events:none`. It sits **above** the dot but **below** the label in document order, so the note name stays legible through it. Toggling `opacity` (not adding/removing the node) keeps it persistent like every other note child.
+**Sounding overlay — SVG structure (so it is reproducible, not interpretive).** The sounding indicator is its **own persistent child** of the note `<g>`, not a mutation of the state dot and not a `paint-order` trick. Concretely: alongside the existing `glow` / `dot` / `lbl` children (§7.1, §15.1), the note `<g>` carries a fourth child **`<circle class="sound">`** with `cx`/`cy` matching the dot, `r` = the dot's current state radius (14 in-scale, 15 root; it follows the same `r` the dot holds) — **except the off-open name slot, where the ring takes the fixed `r=13`** (the slot holds a text glyph, not a dot; 13 sits between off 6 and in-scale 14 and frames the name) — `fill:none`, `stroke:{mint}`, `stroke-width:3`, `opacity:0` at rest and `opacity:1` only while that note is sounding, and `pointer-events:none`. It sits **above** the dot but **below** the label in document order, so the note name stays legible through it. Toggling `opacity` (not adding/removing the node) keeps it persistent like every other note child.
 
 The root always carries its note name; the root-dot text color `root-label` (`#08130f`) is invariant and is never overridden to white (§11.2).
 
@@ -1027,6 +1030,8 @@ Five swatches + labels below the map (Inter 12px `{text2}`; swatch→label gap 7
 | not in scale | 9×9 circle | `background off-fill`, `border 1px off-stroke` |
 | beginner tape | 13×16 rect, radius 3px | `background tape-swatch` |
 | landmark | 13×16 rect, radius 3px | `background linear-gradient(180deg, {teal}, {violet})` |
+
+The "not in scale" swatch describes the **stopped** off dots; on the **open** column an off string shows its name in place of the off dot (§12.2 column-0 rule), so a reader scanning column 0 for the off swatch finds the string name instead.
 
 ### 12.5 Pitch model & dot classification (self-deriving)
 
@@ -1288,6 +1293,7 @@ The existing §12 note-map SVG is the primary drill display. It reuses the §12.
 - **Graded mint→amber ramp.** Played dots are painted by `|median cents|` against a ramp clamped at ~30¢ (see §18.7 below). The ramp runs from `{mint}` (0¢ deviation) to `{amber-400}` (~30¢+), blending through intermediate tokens in the `{mint}`→`{amber}` warm-neutral arc. **No red at any point on the ramp** (§18.7 / §2.6 — `{danger}` is the reserved-but-unapplied error candidate; deviation is a description, not a failure).
 - **Active-target pulse.** The currently targeted degree has a CSS keyframe pulse (`animation`) that marks it as the live destination. Under `prefers-reduced-motion: reduce` the animation is `none` (§18.8).
 - **Discrete fingerboard-window re-frame.** As the drill advances up the neck, the visible fingerboard window shifts once per position jump (a discrete re-frame, not a continuous scroll). The re-frame fires **one §7 transition** (the shortest sanctioned discrete transition, §7.1 "discrete") on the window's position — instant under `reduce` (the §7.4 `transition: none` guard).
+- **String identifiers follow the §12.2 column-0 rule.** The drill map renders a string's name (`G3`/`D4`/`A4`/`E5`) at its open slot **iff no drill-target dot occupies that slot** — occupancy is **plan-level** (does the whole plan put a target at `columnOffset 0` on this string?), never window-visibility, so names don't flash during the window re-frame. The name glyphs are fixed chrome, pinned outside the translated window group.
 
 ### 18.3 The cents number-line meter (running state)
 

@@ -335,3 +335,67 @@ describe('DrillMap — orientation correctness', () => {
     expect(hCx).not.toBeCloseTo(vCx, 0);
   });
 });
+
+// ── §12.2 column-0 string-name scheme (issue #180) ──────────────────────────
+// The string name renders at the open slot iff no dot occupies it. DrillMap
+// draws no open dots of its own, so occupancy is a PLAN-LEVEL test over the
+// whole `dots` array (never window visibility): a string whose plan includes a
+// columnOffset-0 target shows that target dot and NO name; every other string
+// shows its name pinned in the fixed chrome (outside the .drill-window group).
+describe('DrillMap — column-0 string-name scheme (§12.2, issue #180)', () => {
+  it('renders all four names when no target sits at column 0', () => {
+    const svg = renderDrillMap([
+      makeDot({ stringIndex: 1, columnOffset: 4 }),
+      makeDot({ stringIndex: 2, columnOffset: 7 }),
+    ]);
+    const names = Array.from(svg.querySelectorAll('text.string-name'));
+    expect(names.map((n) => n.textContent).sort()).toEqual(['A4', 'D4', 'E5', 'G3']);
+  });
+
+  it('suppresses ONLY the occupied string name when the plan holds a column-0 target', () => {
+    // A-major-drill shape: the open-A target occupies (string A4 = index 1, col 0).
+    const svg = renderDrillMap([
+      makeDot({ stringIndex: 1, columnOffset: 0 }),
+      makeDot({ stringIndex: 1, columnOffset: 2 }),
+    ]);
+    const names = Array.from(svg.querySelectorAll('text.string-name'));
+    expect(names.map((n) => n.textContent).sort()).toEqual(['D4', 'E5', 'G3']);
+  });
+
+  it('anchors each name at dotCenter(i, 0) + the 4px label baseline (vertical comfort)', () => {
+    const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+    const svg = renderDrillMap([], { orientation: 'vertical', density: 'comfort' });
+    const byText = new Map(
+      Array.from(svg.querySelectorAll('text.string-name')).map((n) => [n.textContent, n]),
+    );
+    // STRINGS order is E5/A4/D4/G3 (index 0..3); spot-check the two extremes.
+    const e5 = layout.dotCenter(0, 0);
+    expect(byText.get('E5')?.getAttribute('x')).toBe(String(e5.cx));
+    expect(byText.get('E5')?.getAttribute('y')).toBe(String(e5.cy + 4));
+    const g3 = layout.dotCenter(3, 0);
+    expect(byText.get('G3')?.getAttribute('x')).toBe(String(g3.cx));
+    expect(byText.get('G3')?.getAttribute('y')).toBe(String(g3.cy + 4));
+  });
+
+  it('occupancy is plan-level, NOT window-level: a far-window col-0 target still suppresses', () => {
+    // Active target at column 12 pushes the window deep up the neck; the open-A
+    // col-0 target is far outside the visible window but STILL suppresses the
+    // A4 name — names never flash in/out with the window translate.
+    const svg = renderDrillMap([
+      makeDot({ stringIndex: 1, columnOffset: 0, state: 'played' }),
+      makeDot({ stringIndex: 1, columnOffset: 12, state: 'active' }),
+    ]);
+    const names = Array.from(svg.querySelectorAll('text.string-name'));
+    expect(names.map((n) => n.textContent).sort()).toEqual(['D4', 'E5', 'G3']);
+  });
+
+  it('names live in the fixed chrome group, never the translated .drill-window group', () => {
+    const svg = renderDrillMap([
+      makeDot({ stringIndex: 1, columnOffset: 12, state: 'active' }),
+    ]);
+    for (const name of Array.from(svg.querySelectorAll('text.string-name'))) {
+      expect(name.closest('g.chrome')).not.toBeNull();
+      expect(name.closest('g.drill-window')).toBeNull();
+    }
+  });
+});

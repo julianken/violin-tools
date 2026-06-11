@@ -173,9 +173,6 @@ describe('crossPos out-of-range guard (§12.1 / #79)', () => {
   it('stringLine throws RangeError out of range', () => {
     expect(() => layout.stringLine(4)).toThrow(RangeError);
   });
-  it('stringLabelPos throws RangeError out of range', () => {
-    expect(() => layout.stringLabelPos(4)).toThrow(RangeError);
-  });
   it('valid string indices still resolve (no throw at the 0 and 3 extremes)', () => {
     expect(() => layout.dotCenter(0, 0)).not.toThrow();
     expect(() => layout.dotCenter(3, 0)).not.toThrow();
@@ -277,12 +274,6 @@ describe('chrome helpers (§12.1 — string lines / guides / nut / labels)', () 
       expect(layout.nutRect()).toEqual({ x: 58, y: 62, width: 5, height: 150 });
     });
 
-    it('stringLabelPos(i) === {x:24, y:STRINGS[i].y+4}', () => {
-      for (let i = 0; i < STRINGS.length; i++) {
-        expect(layout.stringLabelPos(i)).toEqual({ x: 24, y: STRINGS[i]!.y + 4 });
-      }
-    });
-
     it('openLabelPos() === {x:42, y:252}', () => {
       expect(layout.openLabelPos()).toEqual({ x: 42, y: 252 });
     });
@@ -320,26 +311,10 @@ describe('chrome helpers (§12.1 — string lines / guides / nut / labels)', () 
       expect(nut.width).toBeGreaterThan(nut.height); // bars across, not down
     });
 
-    // LABEL-OVERLAP (review finding): each string-name label box must NOT fall
-    // within 15px of any dot center on that string (clear of the open-column dot
-    // at cy=30). The label sits in the cross/neck margin, never on a dot.
-    it('each stringLabelPos clears every dot on its string by > 15px (no open-dot collision)', () => {
-      const offenders: { stringIndex: number; columnOffset: number; dist: number }[] = [];
-      for (let i = 0; i < STRINGS.length; i++) {
-        const label = layout.stringLabelPos(i);
-        for (const offset of COLUMN_OFFSETS) {
-          const dot = layout.dotCenter(i, offset);
-          const dist = Math.hypot(label.x - dot.cx, label.y - dot.cy);
-          if (dist <= 15) offenders.push({ stringIndex: i, columnOffset: offset, dist });
-        }
-      }
-      expect(offenders).toEqual([]);
-    });
-
     it('keeps ALL <text> labels upright by carrying NO rotation — they are pure {x,y}', () => {
       // The helpers return only coordinates (no rotate/transform field): the
       // renderer places upright <text> at these points (§3, §8).
-      const sample = { ...layout.stringLabelPos(0), ...layout.openLabelPos() };
+      const sample = { ...layout.openLabelPos() };
       expect(Object.keys(sample).sort()).toEqual(['x', 'y']);
     });
   });
@@ -351,6 +326,93 @@ describe('chrome helpers (§12.1 — string lines / guides / nut / labels)', () 
       expect(layout.dotCenter(0, offset)).toEqual({ cx: xOf(offset), cy: STRINGS[0]!.y });
     }
     expect(COLUMN_COUNT).toBe(15);
+  });
+});
+
+// §12.2 column-0 name slot — BOX-AWARE overlap guard (issue #180, AC8).
+// The string name renders inside the open slot (dotCenter(i, 0)) and only when
+// that slot holds no dot, so the guard asserts the NAME BOX clears every slot
+// that CAN hold one: the same string's stopped columns and the other strings'
+// open slots. Box model: name box 16×13 centered on the anchor (the measured
+// Inter 11/600 box of the widest 2-char name); a dot's worst-case reach is
+// 20.5px (root glow r=19 + stroke 3/2 — §12.2). The historical >15px
+// center-distance check PASSED while prod hard-overlapped, because text boxes
+// and the glow extend past their centers — this guard measures the boxes.
+describe('§12.2 column-0 name slot — box-aware overlap guard (issue #180)', () => {
+  const NAME_HALF_W = 16 / 2;
+  const NAME_HALF_H = 13 / 2;
+  const DOT_REACH = 20.5; // root glow r 19 + strokeWidth 3 / 2 — worst case
+
+  interface Box {
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+  }
+  const nameBox = (cx: number, cy: number): Box => ({
+    x0: cx - NAME_HALF_W,
+    y0: cy - NAME_HALF_H,
+    x1: cx + NAME_HALF_W,
+    y1: cy + NAME_HALF_H,
+  });
+  const dotBox = (cx: number, cy: number): Box => ({
+    x0: cx - DOT_REACH,
+    y0: cy - DOT_REACH,
+    x1: cx + DOT_REACH,
+    y1: cy + DOT_REACH,
+  });
+  const intersects = (a: Box, b: Box): boolean =>
+    a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+  const CONFIGS = [
+    { orientation: 'horizontal', handedness: 'right', density: 'fit' },
+    { orientation: 'horizontal', handedness: 'right', density: 'comfort' },
+    { orientation: 'vertical', handedness: 'right', density: 'comfort' },
+    { orientation: 'vertical', handedness: 'right', density: 'fit' },
+    { orientation: 'vertical', handedness: 'left', density: 'comfort' },
+  ] as const;
+
+  for (const config of CONFIGS) {
+    const label = `${config.orientation}+${config.handedness}+${config.density}`;
+    it(`name box at dotCenter(i,0) clears every occupiable slot (${label})`, () => {
+      const layout = axisOf(config);
+      const offenders: { stringIndex: number; against: string }[] = [];
+      for (let i = 0; i < STRINGS.length; i++) {
+        const anchor = layout.dotCenter(i, 0);
+        const name = nameBox(anchor.cx, anchor.cy);
+        // Same string, every stopped column (the nearest dot the name can face).
+        for (const offset of STOPPED_OFFSETS) {
+          const dot = layout.dotCenter(i, offset);
+          if (intersects(name, dotBox(dot.cx, dot.cy))) {
+            offenders.push({ stringIndex: i, against: `col ${String(offset)}` });
+          }
+        }
+        // Every OTHER string's open slot (which can hold an in-scale/root dot).
+        for (let j = 0; j < STRINGS.length; j++) {
+          if (j === i) continue;
+          const dot = layout.dotCenter(j, 0);
+          if (intersects(name, dotBox(dot.cx, dot.cy))) {
+            offenders.push({ stringIndex: i, against: `string ${String(j)} open` });
+          }
+        }
+      }
+      expect(offenders).toEqual([]);
+    });
+  }
+
+  it('REGRESSION: the deleted x=24 chrome anchor fails this box math against the open dot', () => {
+    // The pre-#180 horizontal label row anchored at {x:24, y:S.y+4}. Its name
+    // box DOES intersect the open slot's worst-case dot box — the exact prod
+    // overlap (A4 label over the open-A root glow) the old >15px center test
+    // never saw. This pins that the box model actually catches the failure the
+    // guard exists for; if the box constants ever loosen enough to pass the
+    // historical geometry, this test fails first.
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    for (let i = 0; i < STRINGS.length; i++) {
+      const oldAnchor = nameBox(24, STRINGS[i]!.y + 4);
+      const openDot = layout.dotCenter(i, 0);
+      expect(intersects(oldAnchor, dotBox(openDot.cx, openDot.cy))).toBe(true);
+    }
   });
 });
 

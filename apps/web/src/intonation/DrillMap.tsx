@@ -220,14 +220,25 @@ export function DrillMap({
             />
           );
         })}
+        {/* §12.2 column-0 rule, drill form: the string name renders at the open
+            slot iff no dot occupies it. DrillMap draws no open-string dots of
+            its own, so occupancy is a PLAN-LEVEL test — does the whole plan put
+            a drill target at columnOffset 0 on this string? — never a window-
+            visibility check, so a name never flashes in/out as the drill window
+            translates. The names live in this fixed chrome group (NOT the
+            translated .drill-window group) so they stay pinned during re-frames. */}
         {STRINGS.map((string, stringIndex) => {
-          const pos = layout.stringLabelPos(stringIndex);
+          const slotOccupied = dots.some(
+            (d) => d.stringIndex === stringIndex && d.columnOffset === 0,
+          );
+          if (slotOccupied) return null;
+          const { cx, cy } = layout.dotCenter(stringIndex, 0);
           return (
             <text
               key={`drill-string-name-${string.name}`}
               className="string-name"
-              x={pos.x}
-              y={pos.y}
+              x={cx}
+              y={cy + LABEL_Y_OFFSET}
               textAnchor="middle"
             >
               {string.name}

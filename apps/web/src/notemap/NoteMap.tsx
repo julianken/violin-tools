@@ -54,6 +54,10 @@ import './notemap.css';
 const DOT_RADIUS = { off: 6, 'in-scale': 14, root: 15 } as const;
 // §12.2 — the root glow ring radius (present on every node, shown only on root).
 const GLOW_RADIUS = 19;
+// §12.2 — the sounding-ring radius on the off-open NAME slot: the slot holds a
+// text glyph, not a dot, so the ring takes the fixed 13 the spec defines for it
+// (between off 6 and in-scale 14) instead of following a dot radius.
+const OPEN_NAME_SOUND_RADIUS = 13;
 
 interface NoteMapProps {
   /** Selected root as a pitch-class integer (§12.5(b)); A = 9 by default. */
@@ -184,6 +188,11 @@ export function NoteMap({
         // §11.3 accessible name — the §13 spoken note name + state suffix
         // ("C sharp, root"), recomputed every render so it tracks (root, scale).
         name: noteMarkerName(nodePc, root, scale, state),
+        // §12.2 column-0 rule: an OFF open string renders its string name in the
+        // slot (the dot hides, the lbl carries the name). Classification, the
+        // accessible name above, and every stopped column are untouched.
+        stringName: string.name,
+        isOpenName: columnOffset === 0 && state === 'off',
       };
     }),
   );
@@ -273,20 +282,10 @@ export function NoteMap({
             />
           );
         })}
-        {STRINGS.map((string, stringIndex) => {
-          const pos = layout.stringLabelPos(stringIndex);
-          return (
-            <text
-              key={`string-name-${string.name}`}
-              className="string-name"
-              x={pos.x}
-              y={pos.y}
-              textAnchor="middle"
-            >
-              {string.name}
-            </text>
-          );
-        })}
+        {/* §12.2 column-0 rule: there is NO separate string-name label row —
+            the historical chrome row at x=24 (h) / the cross gutter (v) hard-
+            overlapped the open dots and is deleted; an off open string's marker
+            renders the name in its own slot (the markers loop below). */}
         {(() => {
           const open = layout.openLabelPos();
           return (
@@ -305,7 +304,7 @@ export function NoteMap({
           (arrows rove in pitch order, Enter/Space sounds). */}
       <g className="notes" ref={notesRef}>
         {markers.map((marker) => {
-          const { index, stringIndex, columnOffset, nodePc, state, cx, cy, name } = marker;
+          const { index, stringIndex, columnOffset, nodePc, state, cx, cy, name, stringName, isOpenName } = marker;
           const radius = DOT_RADIUS[state];
           const hasLabel = state !== 'off';
           // §7.2 — the snappy build pops every in-scale (and root) dot in via
@@ -319,7 +318,7 @@ export function NoteMap({
               // Stable identity per (string, column): the SAME element across
               // every re-render, so re-classification is in-place (§7.5).
               key={`${String(stringIndex)}-${String(columnOffset)}`}
-              className={`note ${stateClass(state)}${popAnim ? ' dot-anim' : ''}`}
+              className={`note ${stateClass(state)}${isOpenName ? ' is-open-name' : ''}${popAnim ? ' dot-anim' : ''}`}
               // §11.3 — each marker is an exposed widget member with a spoken
               // accessible name; the roving tabindex makes the whole map one tab
               // stop (initially the root). The keydown handler is shared.
@@ -352,7 +351,7 @@ export function NoteMap({
                 className={`sound${isSounding ? ' is-sounding' : ''}`}
                 cx={cx}
                 cy={cy}
-                r={radius}
+                r={isOpenName ? OPEN_NAME_SOUND_RADIUS : radius}
                 fill="none"
               />
               {/* lbl — the note name (Inter, tnum, baseline cy + 4, no
@@ -361,7 +360,11 @@ export function NoteMap({
                   the marker's own aria-label (the spoken name) is the single
                   accessible name, not duplicated by the visual glyph. */}
               <text
-                className="lbl"
+                // The name-slot lbl ALSO carries `string-name` so the §12.1
+                // chrome role (Inter 11/600 {ink-strname}) styles it directly
+                // and the class stays the single string-identifier selector
+                // across NoteMap and DrillMap.
+                className={`lbl${isOpenName ? ' string-name' : ''}`}
                 x={cx}
                 y={cy + LABEL_Y_OFFSET}
                 textAnchor="middle"
@@ -369,9 +372,11 @@ export function NoteMap({
               >
                 {/* §13 letter-correct spelling for the current key — Bb major's
                     root reads Bb, A major's 3rd reads C♯, never the sharp-only
-                    table. Off nodes carry no label (the element persists empty
-                    for S8). */}
-                {hasLabel ? spell(nodePc, root, scale) : ''}
+                    table. An OFF OPEN node carries its STRING NAME instead
+                    (§12.2 column-0 rule; styled by .is-open-name in
+                    notemap.css). Stopped off nodes carry no label (the element
+                    persists empty for S8). */}
+                {hasLabel ? spell(nodePc, root, scale) : isOpenName ? stringName : ''}
               </text>
             </g>
           );

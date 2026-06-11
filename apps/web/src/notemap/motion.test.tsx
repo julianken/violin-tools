@@ -206,13 +206,13 @@ describe('motion — hook classes / state attributes (§7.1 / §7.2)', () => {
     for (const node of notes()) {
       const sound = node.querySelector('circle.sound');
       expect(sound).not.toBeNull();
-      // It is between the dot and the label in document order (§12.2).
-      const children = Array.from(node.children).map((c) =>
-        c.getAttribute('class'),
-      );
-      const dotIdx = children.indexOf('dot');
-      const soundIdx = children.indexOf('sound');
-      const lblIdx = children.indexOf('lbl');
+      // It is between the dot and the label in document order (§12.2). Match by
+      // classList — the §12.2 column-0 name slot composes `lbl string-name`, so
+      // an exact class-string compare would miss it.
+      const children = Array.from(node.children);
+      const dotIdx = children.findIndex((c) => c.classList.contains('dot'));
+      const soundIdx = children.findIndex((c) => c.classList.contains('sound'));
+      const lblIdx = children.findIndex((c) => c.classList.contains('lbl'));
       expect(dotIdx).toBeLessThan(soundIdx);
       expect(soundIdx).toBeLessThan(lblIdx);
     }
