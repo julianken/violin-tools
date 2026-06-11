@@ -88,17 +88,20 @@ describe('NoteMap render (§12)', () => {
     }
   });
 
-  it('off nodes carry no label text; scale/root nodes do (§12.2)', () => {
+  it('off nodes carry no label text — except the §12.2 column-0 name slot; scale/root nodes do', () => {
     const { notes } = renderBoard();
     // Build a (state, hasLabelText) pair per node, then assert on the collected
     // data — no `expect` inside the loop/branch (vitest/no-conditional-expect).
     const rows = notes().map((node) => ({
-      isOff: node.classList.contains('is-off'),
+      // The one sanctioned off-node label: an OFF OPEN string's marker carries
+      // its string name in the slot (`is-open-name`, §12.2 column-0 rule).
+      isBareOff:
+        node.classList.contains('is-off') && !node.classList.contains('is-open-name'),
       hasText: (node.querySelector('text.lbl')?.textContent ?? '').length > 0,
     }));
     for (const row of rows) {
-      // An off node must have NO label text; a scale/root node must have some.
-      expect(row.hasText).toBe(!row.isOff);
+      // A bare off node has NO label text; every other node has some.
+      expect(row.hasText).toBe(!row.isBareOff);
     }
   });
 
@@ -303,16 +306,18 @@ describe('§12.1 axis-aware dot placement', () => {
 
   it('keeps ALL chrome <text> upright in vertical — no rotation/transform (§3, §8)', () => {
     // CRUCIAL: a naive 90° map transform would rotate the labels. The chrome text
-    // (string names + the "open" label) must carry NO transform attribute so the
-    // glyphs stay upright on the vertical map.
+    // (the in-slot string name + the "open" label) must carry NO transform
+    // attribute so the glyphs stay upright on the vertical map.
     const { svg } = renderBoard({
       orientation: 'vertical',
       handedness: 'right',
       density: 'comfort',
     });
+    // A major default: open G is the lone off open string, so exactly ONE
+    // string-name glyph renders — in the G string's column-0 slot (§12.2).
     const names = Array.from(svg.querySelectorAll('text.string-name'));
     const open = svg.querySelector('text.open-label');
-    expect(names).toHaveLength(4);
+    expect(names).toHaveLength(1);
     expect(open).not.toBeNull();
     for (const t of [...names, open]) {
       expect(t?.getAttribute('transform')).toBeNull();
@@ -321,6 +326,102 @@ describe('§12.1 axis-aware dot placement', () => {
     for (const lbl of Array.from(svg.querySelectorAll('g.note text.lbl'))) {
       expect(lbl.getAttribute('transform')).toBeNull();
     }
+  });
+
+  // ── §12.2 column-0 rule (issue #180): an OFF open string renders its string
+  // name in the slot; in-scale/root opens keep their labeled dot as the string
+  // identifier; there is NO separate chrome label row. ──────────────────────
+  describe('column-0 string-name slot (§12.2, issue #180)', () => {
+    const openMarker = (svg: SVGElement, stringIndex: number) =>
+      Array.from(svg.querySelectorAll('g.note')).find(
+        (n, i) => n.getAttribute('data-col') === '0' && Math.floor(i / 15) === stringIndex,
+      );
+
+    it('A major: exactly one string-name — G3 in the G string open slot, at dotCenter(G,0)', () => {
+      const { svg } = renderBoard({
+        orientation: 'vertical',
+        handedness: 'right',
+        density: 'comfort',
+      });
+      const names = Array.from(svg.querySelectorAll('text.string-name'));
+      expect(names.map((n) => n.textContent)).toEqual(['G3']);
+      // The name IS the marker's lbl, anchored at the open slot — vertical
+      // comfort dotCenter(G3, 0) = (56, 30), baseline +4 (§12.1).
+      const layout = axisOf({ orientation: 'vertical', handedness: 'right', density: 'comfort' });
+      const g3Center = layout.dotCenter(3, 0);
+      expect(names[0]?.getAttribute('x')).toBe(String(g3Center.cx));
+      expect(names[0]?.getAttribute('y')).toBe(String(g3Center.cy + 4));
+      expect(names[0]?.classList.contains('lbl')).toBe(true);
+      expect(names[0]?.closest('g.note')?.classList.contains('is-open-name')).toBe(true);
+    });
+
+    it('A major: the D/A/E open markers carry NO string-name and keep their dot labels', () => {
+      const { svg } = renderBoard();
+      for (const [stringIndex, letter] of [
+        [0, 'E'],
+        [1, 'A'],
+        [2, 'D'],
+      ] as const) {
+        const marker = openMarker(svg, stringIndex);
+        expect(marker?.classList.contains('is-open-name')).toBe(false);
+        expect(marker?.querySelector('text.lbl')?.textContent).toBe(letter);
+        expect(marker?.querySelector('text.string-name')).toBeNull();
+      }
+    });
+
+    it('D♭ major (all four opens off): four names G3/D4/A4/E5, dots persist hidden (§7.5)', () => {
+      const { svg } = renderBoard({ rootPc: 1, root: 'Db', scale: 'major' });
+      const names = Array.from(svg.querySelectorAll('text.string-name'));
+      expect(names.map((n) => n.textContent).sort()).toEqual(['A4', 'D4', 'E5', 'G3']);
+      // The §7.5 morph contract: the dot circle is HIDDEN (via .is-open-name
+      // CSS), never unmounted — every name marker still holds its circle.dot.
+      for (const name of names) {
+        const marker = name.closest('g.note');
+        expect(marker?.classList.contains('is-open-name')).toBe(true);
+        expect(marker?.querySelector('circle.dot')).not.toBeNull();
+      }
+    });
+
+    it('C major (all four opens in scale): zero names; open dots read E/A/D/G', () => {
+      const { svg } = renderBoard({ rootPc: 0, root: 'C', scale: 'major' });
+      expect(svg.querySelectorAll('text.string-name')).toHaveLength(0);
+      const openLetters = [0, 1, 2, 3].map(
+        (i) => openMarker(svg, i)?.querySelector('text.lbl')?.textContent,
+      );
+      expect(openLetters).toEqual(['E', 'A', 'D', 'G']);
+    });
+
+    it('keeps the marker aria-label untouched — open G still speaks "G, not in scale"', () => {
+      const { svg } = renderBoard();
+      const marker = openMarker(svg, 3);
+      expect(marker?.getAttribute('aria-label')).toBe('G, not in scale');
+    });
+
+    it('the name-slot sounding ring takes the fixed r=13 (§12.2); stopped off dots keep r=6', () => {
+      const { svg } = renderBoard();
+      const nameMarker = openMarker(svg, 3);
+      expect(nameMarker?.querySelector('circle.sound')?.getAttribute('r')).toBe('13');
+      // A stopped off marker's sound ring still follows its dot radius (6).
+      const stoppedOff = Array.from(svg.querySelectorAll('g.note.is-off')).find(
+        (n) => n.getAttribute('data-col') !== '0',
+      );
+      expect(stoppedOff?.querySelector('circle.sound')?.getAttribute('r')).toBe('6');
+    });
+
+    it('morphs name ↔ dot IN PLACE on a root change — same DOM element (§7.5)', () => {
+      const { svg, rerender } = renderBoard();
+      const before = openMarker(svg, 3);
+      expect(before?.classList.contains('is-open-name')).toBe(true);
+      expect(before?.querySelector('text.lbl')?.textContent).toBe('G3');
+      // C major puts open G in scale: the SAME element re-classifies — the
+      // name yields to the in-scale dot without an unmount (§7.5).
+      rerender({ rootPc: 0, root: 'C', scale: 'major' });
+      const after = openMarker(svg, 3);
+      expect(after).toBe(before);
+      expect(after?.classList.contains('is-open-name')).toBe(false);
+      expect(after?.classList.contains('is-scale')).toBe(true);
+      expect(after?.querySelector('text.lbl')?.textContent).toBe('G');
+    });
   });
 
   it('keeps the 60 nodes and their identity across an orientation prop flip', () => {

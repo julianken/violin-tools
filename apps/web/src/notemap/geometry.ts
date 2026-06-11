@@ -42,8 +42,7 @@ export const OPEN_X = 42;
 const STOPPED_BASE_X = 96;
 const STOPPED_STEP_X = 44;
 
-/** §12.1 — string-name label x and its +4px optical-center y offset. */
-export const STRING_LABEL_X = 24;
+/** §12.1 — the +4px optical-center y offset shared by every dot-slot label. */
 export const LABEL_Y_OFFSET = 4;
 
 /** §12.1 — the "open" label at `(42, 252)`. */
@@ -184,13 +183,6 @@ export interface MapLayout {
    * HORIZONTAL: `{x:58, y:62, width:5, height:150}`.
    */
   nutRect(): ChromeRect;
-  /**
-   * §12.1 string-name label anchor for string `stringIndex` (0..3). HORIZONTAL:
-   * `{x:24, y:STRINGS[i].y+4}` (the +4 optical-center offset beside a row). In
-   * VERTICAL it moves into the cross margin, clear of the open-column dot — the
-   * horizontal +4/middle-anchor calibration does not apply across the axis.
-   */
-  stringLabelPos(stringIndex: number): ChromePoint;
   /** §12.1 "open" label anchor. HORIZONTAL: `{x:42, y:252}`. */
   openLabelPos(): ChromePoint;
   /**
@@ -286,20 +278,15 @@ function neckPos(offset: number, density: ResolvedDensity): number {
 //                  open column (just inside the nut), so the open dot sits before it.
 //   NUT.x     58 = neckPos(0,'fit') 42 + 16 → the nut bar sits 2px before the line.
 //   GUIDE_Y1  62 = STRINGS[0].y 68 − 6      → guides/nut overhang the end strings 6px.
-//   STRING_LABEL_X 24, OPEN_X 42            → the name label sits 18px before the open
-//                  column on the neck axis (in the start margin), at the string's cross y.
 //   OPEN_LABEL.y 252 = crossExtent 264 − 12 → the "open" label sits 12px inside the
 //                  cross-end margin (below the last string in horizontal).
+// (The string-name label has NO chrome anchor: §12.2's column-0 rule renders it
+// inside the open marker's own slot — dotCenter(i, 0) — when the open note is off.)
 const STRING_LINE_NECK_INSET = STRING_X1 - neckPos(0, 'fit'); // 18
 const NUT_NECK_INSET = NUT.x - neckPos(0, 'fit'); // 16
 const NUT_THICKNESS = NUT.width; // 5
 const CROSS_PAD = CROSS_H_BASE - GUIDE_Y1; // 6 — guide/nut overhang past the end strings
 const CROSS_END_LABEL_MARGIN = VIEWBOX_HEIGHT - OPEN_LABEL.y; // 12 — "open" label inset
-// VERTICAL string-name label: the +4/middle-anchor horizontal calibration is for a
-// baseline beside a ROW and is meaningless on the cross axis (review finding). Place
-// the label this far to the side of its string column (in the cross margin), clear of
-// the 15px-radius open-column dot — 30 > 15 keeps the anchor and its box off the dot.
-const VERTICAL_LABEL_CROSS_OFFSET = 30;
 
 // ── §12.3 reference-overlay cross-margin relations (S17 ph B / #84) ─────────
 // The §12.3 band/label y-literals (BAND_Y 60, BAND_HEIGHT 152, HEEL_DASH_Y 212,
@@ -379,16 +366,6 @@ export function axisOf(config: AxisConfig): MapLayout {
       ? { x: nutNeck, y: crossLow, width: NUT_THICKNESS, height: crossHigh - crossLow }
       : { x: crossLow, y: nutNeck, width: crossHigh - crossLow, height: NUT_THICKNESS };
 
-  const stringLabelPos = (stringIndex: number): ChromePoint => {
-    const c = crossPos(stringIndex);
-    return orientation === 'horizontal'
-      ? // §12.1 — beside the row, with the +4 optical-center offset (middle-anchored).
-        { x: STRING_LABEL_X, y: c + LABEL_Y_OFFSET }
-      : // VERTICAL — in the cross margin to the side of the string column, level with
-        // the open dot, far enough off it that the label box clears the 15px circle.
-        { x: c - VERTICAL_LABEL_CROSS_OFFSET, y: neckPos(0, density) };
-  };
-
   const openLabelPos = (): ChromePoint =>
     orientation === 'horizontal'
       ? { x: neckPos(0, density), y: crossExtent - CROSS_END_LABEL_MARGIN }
@@ -452,7 +429,6 @@ export function axisOf(config: AxisConfig): MapLayout {
     stringLine,
     guideLine,
     nutRect,
-    stringLabelPos,
     openLabelPos,
     bandRect,
     heelDash,

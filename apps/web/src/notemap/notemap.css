@@ -81,6 +81,19 @@
 .board .note.is-off .lbl {
   opacity: 0; /* no label on off dots (§12.2) — hidden, not removed (S8 hook) */
 }
+/* §12.2 column-0 rule: an OFF OPEN string renders its string name in the slot —
+ * the r=6 dot hides (opacity only — the element persists for the §7.5 morph
+ * contract) and the lbl shows. The lbl carries the `string-name` class too, so
+ * the §12.1 chrome role above (Inter 11/600 {ink-strname}) styles the glyph:
+ * the grey is the §11.1 non-color cue that this is a STRING identifier, not a
+ * note name. Classification and the marker's accessible name are untouched;
+ * stopped off dots keep the bare-dot rule above. */
+.board .note.is-off.is-open-name .dot {
+  opacity: 0;
+}
+.board .note.is-off.is-open-name .lbl {
+  opacity: 1;
+}
 .board .note.is-scale .lbl {
   font-size: 12px;
   font-weight: 500;
