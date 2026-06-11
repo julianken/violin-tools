@@ -35,6 +35,7 @@ describe('Topbar (U7 — drawer dropped, mobile search trigger)', () => {
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub()}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     expect(
@@ -49,6 +50,7 @@ describe('Topbar (U7 — drawer dropped, mobile search trigger)', () => {
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub()}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     const search = screen.getByRole('button', { name: /search scales and tools/i });
@@ -64,6 +66,7 @@ describe('Topbar (U7 — drawer dropped, mobile search trigger)', () => {
         onOpenPalette={onOpenPalette}
         shareLink={shareLinkStub()}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: /search scales and tools/i }));
@@ -77,6 +80,7 @@ describe('Topbar (U7 — drawer dropped, mobile search trigger)', () => {
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub()}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
@@ -97,6 +101,7 @@ describe('Topbar — view-aware breadcrumb + Share suppression (§17.1)', () => 
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub()}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
@@ -115,6 +120,7 @@ describe('Topbar — view-aware breadcrumb + Share suppression (§17.1)', () => 
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub()}
         isTuner
+        isIntonation={false}
       />,
     );
     const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
@@ -131,9 +137,41 @@ describe('Topbar — view-aware breadcrumb + Share suppression (§17.1)', () => 
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub()}
         isTuner
+        isIntonation={false}
       />,
     );
     // No ghost button, no .topbar-right cluster, no ghost-status caption.
+    expect(screen.queryByRole('button', { name: 'Share scale' })).not.toBeInTheDocument();
+    expect(container.querySelector('.topbar-right')).toBeNull();
+    expect(container.querySelector('.ghost-status')).toBeNull();
+  });
+
+  it('Intonation view: breadcrumb is JUST "Intonation" (no "Scales" segment, no separator)', () => {
+    render(
+      <Topbar
+        scaleName="Intonation"
+        onOpenPalette={() => undefined}
+        shareLink={shareLinkStub()}
+        isTuner={false}
+        isIntonation
+      />,
+    );
+    const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(crumb).toHaveTextContent('Intonation');
+    expect(crumb).not.toHaveTextContent('Scales');
+    expect(crumb.querySelector('.crumb-sep')).toBeNull();
+  });
+
+  it('Intonation view: the "Share scale" cluster is suppressed entirely', () => {
+    const { container } = render(
+      <Topbar
+        scaleName="Intonation"
+        onOpenPalette={() => undefined}
+        shareLink={shareLinkStub()}
+        isTuner={false}
+        isIntonation
+      />,
+    );
     expect(screen.queryByRole('button', { name: 'Share scale' })).not.toBeInTheDocument();
     expect(container.querySelector('.topbar-right')).toBeNull();
     expect(container.querySelector('.ghost-status')).toBeNull();
@@ -153,6 +191,7 @@ describe('Topbar — Share scale ghost button (§16)', () => {
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub({ share })}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     const ghost = screen.getByRole('button', { name: 'Share scale' });
@@ -168,6 +207,7 @@ describe('Topbar — Share scale ghost button (§16)', () => {
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub({ phase: 'copying' })}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     // The accessible name flips too, so the button is announced as the busy action.
@@ -182,6 +222,7 @@ describe('Topbar — Share scale ghost button (§16)', () => {
         onOpenPalette={() => undefined}
         shareLink={shareLinkStub({ phase: 'copied', caption: 'Link copied' })}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     const status = container.querySelector('.ghost-status');
@@ -202,6 +243,7 @@ describe('Topbar — Share scale ghost button (§16)', () => {
           caption: "Couldn't copy — link is in the address bar",
         })}
         isTuner={false}
+        isIntonation={false}
       />,
     );
     expect(container.querySelector('.ghost-status')).toHaveTextContent(

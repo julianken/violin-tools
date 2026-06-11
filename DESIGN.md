@@ -316,12 +316,12 @@ icon:
       # IcMenu is absent from icons.tsx; the spec is retained here as forward-prep for a
       # possible future hamburger/tab-bar. currentColor → {text2} if it ever ships.
   glyph-char:                # element → the literal Unicode character it renders (kind B)
-    nav-intonation: "◴"      # U+25F4 — "soon" Intonation tool
+    nav-intonation: "◴"      # U+25F4 — Intonation tool (live view, C9)
     nav-vibrato:    "∿"      # U+223F — "soon" Vibrato tool (sine-wave glyph)
-    nav-tuner:      "◎"      # U+25CE — "soon" Tuner tool
+    nav-tuner:      "◎"      # U+25CE — Tuner tool (live view, S18 ph6)
     palette-scale:  "♪"      # U+266A — a Scales jump-target row (e.g. "A Major")
     palette-scalemap: "▦"    # U+25A6 — the "Scale Map (open)" tool row
-    palette-intonation: "◴"  # reuses the nav glyph in the Tools group
+    palette-intonation: "◴"  # reuses the nav glyph in the Tools group (open, C9)
     palette-tuner:  "◎"      # reuses the nav glyph in the Tools group
   box:                       # fixed icon-column widths that hold A and B identically
     nav:     "15px"          # .ni .ic span width (§4.2, §8.2)
@@ -712,7 +712,7 @@ Note dots have **no** hover/press state — they are SVG data, not buttons (§11
 | height | `32px` | `32px` | `32px` |
 | padding | `0 10px` | `0 10px` | `0 10px` |
 
-**Icons.** Each nav item carries one glyph inside a fixed **`15px`** icon span (`icon.box.nav`, §0), color = `currentColor` so it inherits the row's text token — which is why the active item's icon turns `{mint}` along with its label, while resting/soon icons sit at `{text3}`. The two drawn inline SVGs in the current build (§0 `icon.svg`) are **Scales** (`ic-scales`, the three-line neck mark) and **search** (`ic-search`, the magnifier — sidebar trigger and, below the `760px` breakpoint, the mobile top-bar search trigger that opens the palette, §10). The `ic-menu` hamburger (§0) is **forward-prep, not currently rendered**: S16 ph3 dropped the off-canvas drawer and its `.topbar-menu` trigger, so `IcMenu` is absent from `icons.tsx` (the mobile top bar carries the search trigger in its place). The three "soon" tools render **Unicode glyph characters** as plain text (§0 `icon.glyph-char`): **Intonation** = `◴`, **Vibrato** = `∿`, **Tuner** = `◎`. Do not redraw the soon-tool glyphs as custom SVG — they are characters.
+**Icons.** Each nav item carries one glyph inside a fixed **`15px`** icon span (`icon.box.nav`, §0), color = `currentColor` so it inherits the row's text token — which is why the active item's icon turns `{mint}` along with its label, while resting/soon icons sit at `{text3}`. The two drawn inline SVGs in the current build (§0 `icon.svg`) are **Scales** (`ic-scales`, the three-line neck mark) and **search** (`ic-search`, the magnifier — sidebar trigger and, below the `760px` breakpoint, the mobile top-bar search trigger that opens the palette, §10). The `ic-menu` hamburger (§0) is **forward-prep, not currently rendered**: S16 ph3 dropped the off-canvas drawer and its `.topbar-menu` trigger, so `IcMenu` is absent from `icons.tsx` (the mobile top bar carries the search trigger in its place). The live tool nav items render **Unicode glyph characters** as plain text (§0 `icon.glyph-char`): **Intonation** = `◴` (live, C9), **Vibrato** = `∿` (still "soon"), **Tuner** = `◎` (live, S18 ph6). Do not redraw these glyphs as custom SVG — they are characters.
 
 - **hover** (default only) — background → `nav-hover-bg`.
 - **soon** — carries a "soon" badge, `aria-disabled="true"`, **no hover**, not focusable as an action.
@@ -747,7 +747,7 @@ Note dots have **no** hover/press state — they are SVG data, not buttons (§11
 
 ### 8.5 Command palette row (`.presults` item)
 
-`background transparent` · `text string-name` (Inter 14px) · `radius control` · `height 40px` · `padding 0 11px` · `gap 11px` · **leading icon column `18px`** (`icon.box.palette`; the glyph is centered in the span, color `{text3}`, promoted to `{mint}` on the selected row by `.pitem.sel .pico`) · trailing `↵`/`soon`/`open` meta (Geist Mono 11px `{text3}`, `soon` → `palette-soon`). **Row glyph by group (all Unicode characters, §0 `icon.glyph-char`):** a **Scales** jump target uses `♪`; the **Scale Map (open)** tool row uses `▦`; the soon **Intonation**/**Tuner** tool rows reuse `◴`/`◎`. These are characters set as text, not drawn SVG.
+`background transparent` · `text string-name` (Inter 14px) · `radius control` · `height 40px` · `padding 0 11px` · `gap 11px` · **leading icon column `18px`** (`icon.box.palette`; the glyph is centered in the span, color `{text3}`, promoted to `{mint}` on the selected row by `.pitem.sel .pico`) · trailing `↵`/`soon`/`open` meta (Geist Mono 11px `{text3}`, `soon` → `palette-soon`). **Row glyph by group (all Unicode characters, §0 `icon.glyph-char`):** a **Scales** jump target uses `♪`; the **Scale Map (open)** tool row uses `▦`; the **Intonation (open, C9)** tool row uses `◴`; the **Tuner (open)** tool row uses `◎`. These are characters set as text, not drawn SVG.
 
 **Section dividers.** The three palette sections are separated by single `{hairline}` rules, not by gaps: the `.psearch` row carries a **`border-bottom 1px {hairline}`** and the `.pfoot` a **`border-top 1px {hairline}`**; the `.presults` list in the middle has **no rule of its own** (§4.2). Group headers inside the results (`Scales`, `Tools`) are spacing + the mono header type only — they are not ruled.
 
@@ -805,7 +805,9 @@ The shell is a flex row: a fixed-width sticky **sidebar** and a fluid **main** c
 │   ├── .sec-h    "Tools"                 (mono, uppercase)
 │   ├── .nav
 │   │   ├── .ni.active   Scales           (bg {raised}, label {text}, icon {mint})
-│   │   └── .ni.soon ×3  Intonation · Vibrato · Tuner   ({muted}, "soon" tag, no hover)
+│   │   ├── .ni.ni-button  Tuner         (live, §17.1 — bg {raised} when active, §8.2)
+│   │   ├── .ni.ni-button  Intonation    (live, C9 — bg {raised} when active, §8.2)
+│   │   └── .ni.soon ×1   Vibrato        ({muted}, "soon" tag, no hover)
 │   ├── .spacer   (flex:1 — pushes toggle to bottom)
 │   └── .theme    "☾ Dark"               (toggle; border 1px {hairline})
 └── .main  (flex:1; min-width:0)
@@ -1185,7 +1187,7 @@ The chrome counterpart to §15.1: one selected row in the command palette's resu
 - The **theme toggle's toggled/active behavior** is unspecified (§8.8): its resting + hover visuals are defined, but with no light mode there is no switch behavior, checked state, or theme swap yet. The non-functional theme toggle is present in chrome with no defined behavior. _(The "Share scale" button is **no longer inert** — #88 wired it to the adaptive Web Share + `?r=&s=` deep-link action; see the shipped list above.)_
 - The transport bar's own component spec is the **deferred §8.9 header** — present so references resolve, but unspecified until the bar is built (the audio surface itself is in the deferred list above).
 - **`radius` has no component tier (by design, flagged here so it is not silent).** The three-tier alias model (§0) is a *color*-system rule. `radius` — like `space`, `motion`, `elevation`, `layout` — is a primitive scale used by name directly (`card`, `pill`, `chip` …) with no per-component aliases; there is intentionally no `controls-card-radius` → `card` indirection. This is a deliberate scope boundary, not an omission: a future component-radius tier would be a spec change, not a tweak.
-- The "soon" tools **Intonation** (`◴`) and **Vibrato** (`∿`) are nav stubs only; their surfaces are unspecified. **The Tuner (`◎`) is no longer in this set — its surface is specified in §17** (S18 ph5); only its UI build (S18 ph6) remains.
+- The "soon" tool **Vibrato** (`∿`) is a nav stub only; its surface is unspecified. **Intonation (`◴`) is no longer in this set — it became a live view in C9 (intonation epic)**; its frame and run-header ship here, and its drill surfaces (note-map drill display, cents meter, summary panel) complete in C6–C8. **The Tuner (`◎`) is no longer in this set either — its surface is specified in §17** (S18 ph5); only its UI build (S18 ph6) remains.
 **Resolved during v1 (kept for traceability — these are in the "shipped" list above):**
 - ~~**URL-encoded deep-linking — no shareable per-scale URL; the "Share scale" button is present chrome with no defined behavior.**~~ **RESOLVED (#88 — first post-v1 feature):** the ghost button is wired to an adaptive Web Share + copy-link action backed by a query `?r=&s=` deep link (`apps/web/src/state/controls.ts` codec + `apps/web/src/shell/useShareLink.ts` + the `replaceState` sync in `apps/web/src/shell/AppShell.tsx`). See the shipped entry above. The Cloudflare Worker's SPA fallback **stays forward-prep** — the query scheme resolves at `/`, so it never exercises the fallback (that remains reserved for a future *path* scheme).
 - ~~**Reference overlays are horizontal-only; on the vertical map they are disabled, not broken (S16 ph2 — "U3b").**~~ **RESOLVED (S17 ph B, #84 — subsumes #80):** the §12.3 reference overlays (tape bands, the `low 2` slide, the heel/octave landmark bands, position labels) now **project through `axisOf`** — they are axis-correct in **both** orientations (§12.3 "Vertical projection"). The S16 Phase-2 AC bullet "ref bands/heel/`low 2` are axis-correct in both orientations" is **met by shipped behaviour**. The interim guards are removed: `RefsRow` (`apps/web/src/controls/RefsRow.tsx`) no longer disables the Refs pills on vertical, and `NoteMap` (`apps/web/src/notemap/NoteMap.tsx`) renders `<RefLayers>` in both orientations. On the vertical map the bands span the cross axis centered on the neck column, the heel dash is a neck-aligned segment at the cross-end, and the labels move to the cross gutters (tape numbers + heel/octave names left, position ordinals right, "½ string" omitted) — §12.3.

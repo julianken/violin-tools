@@ -75,9 +75,9 @@ describe('AppShell drawer drop (U7)', () => {
 
 // §17.1 — AppShell threads the view seam into the topbar. On the note-map view the
 // breadcrumb leads with "Scales /" and the "Share scale" button is present; after
-// switching to the Tuner (the sidebar nav item) the breadcrumb collapses to just
-// "Tuner" and the Scales-only Share cluster is suppressed. This proves the shell
-// wiring (the `isTuner` flag now reaches `<Topbar>`), not just the component.
+// switching to the Tuner or Intonation (the sidebar nav items) the breadcrumb
+// collapses to just the tool name and the Scales-only Share cluster is suppressed.
+// This proves the shell wiring, not just the component.
 describe('AppShell view-aware topbar (§17.1)', () => {
   it('note-map view: breadcrumb shows "Scales / <selection>" and the Share button exists', () => {
     render(<AppShell />);
@@ -96,5 +96,25 @@ describe('AppShell view-aware topbar (§17.1)', () => {
     expect(crumb).not.toHaveTextContent('Scales');
     expect(crumb.querySelector('.crumb-sep')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Share scale' })).not.toBeInTheDocument();
+  });
+
+  it('Intonation view: breadcrumb collapses to "Intonation" and the Share button is gone', () => {
+    render(<AppShell />);
+    // Switch to the Intonation view via the sidebar nav item (C9 live view).
+    fireEvent.click(screen.getByRole('button', { name: 'Intonation' }));
+    const crumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(crumb).toHaveTextContent('Intonation');
+    expect(crumb).not.toHaveTextContent('Scales');
+    expect(crumb.querySelector('.crumb-sep')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Share scale' })).not.toBeInTheDocument();
+  });
+
+  it('Intonation view: <main id="main"> is rendered and #board SVG is not', () => {
+    render(<AppShell />);
+    fireEvent.click(screen.getByRole('button', { name: 'Intonation' }));
+    // The IntonationView renders <main id="main"> so the skip-link resolves.
+    expect(document.getElementById('main')).not.toBeNull();
+    // The scale-map SVG board is gone (only one surface fills .main at a time).
+    expect(document.getElementById('board')).toBeNull();
   });
 });

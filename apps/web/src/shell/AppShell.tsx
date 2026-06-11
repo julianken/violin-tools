@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { CommandPalette } from '../components/CommandPalette/CommandPalette';
 import { usePaletteController } from '../components/CommandPalette/usePaletteController';
+import { IntonationView } from '../components/IntonationView/IntonationView';
 import { describeMap } from '../notemap/describeMap';
 import { resolveDensity } from '../notemap/mapView';
 import { useMapView } from '../notemap/useMapView';
@@ -65,12 +66,13 @@ export function AppShell() {
   // The palette open/close lifecycle + the global ⌘K / Ctrl-K toggle (§9).
   const palette = usePaletteController();
   // §17.1 — the view seam: which tool fills `.main`. "One subject, no rivals" (§1):
-  // the Tuner is the OTHER value of this seam, not a pane beside the note map. No
-  // router — it's plain lifted state like the three above. Selecting Tuner (the
-  // sidebar nav item or the palette row) sets `view='tuner'`; the `.main` content,
-  // the topbar title, and the skip-link target all branch on it.
+  // Tuner and Intonation are the OTHER values of this seam, not panes beside the
+  // note map. No router — it's plain lifted state like the three above. Selecting
+  // Tuner / Intonation (the sidebar nav item or the palette row) sets the view;
+  // the `.main` content, the topbar title, and the skip-link target all branch on it.
   const { view, setView } = useView();
   const isTuner = view === 'tuner';
+  const isIntonation = view === 'intonation';
 
   // §11.3 polite live regions: one announces the current sounding note name
   // (Enter/Space over a map marker), one carries the string-by-string map text
@@ -117,10 +119,10 @@ export function AppShell() {
       {/* Skip link to the main slot (DESIGN.md §11.3). Visually hidden until
           focused; S10 styles the {mint} :focus-visible ring (§8). View-aware
           (§17.1): on the note-map view it lands the SVG board group (`#board`); on
-          the Tuner view the board doesn't exist, so it lands the `.main` content
-          region (`#main`, which both surfaces render). */}
-      <a className="skip-link" href={isTuner ? '#main' : '#board'}>
-        {isTuner ? 'Skip to tuner' : 'Skip to note map'}
+          the Tuner or Intonation view the board doesn't exist, so it lands the
+          `.main` content region (`#main`, which all non-scale-map views render). */}
+      <a className="skip-link" href={isTuner || isIntonation ? '#main' : '#board'}>
+        {isTuner ? 'Skip to tuner' : isIntonation ? 'Skip to intonation' : 'Skip to note map'}
       </a>
       <Sidebar onOpenPalette={palette.open} view={view} onSelectView={setView} />
       <div className="main">
@@ -129,16 +131,21 @@ export function AppShell() {
             seam. The topbar also carries the mobile-only search trigger that opens
             the palette (§8.3, §10); the desktop topbar is unchanged. */}
         <Topbar
-          scaleName={isTuner ? 'Tuner' : scaleName(controls.state)}
+          scaleName={
+            isTuner ? 'Tuner' : isIntonation ? 'Intonation' : scaleName(controls.state)
+          }
           onOpenPalette={palette.open}
           shareLink={shareLink}
           isTuner={isTuner}
+          isIntonation={isIntonation}
         />
-        {/* §17.1 — the view branch: the existing scale-map <Content> vs the new
-            <TunerView>. "One subject, no rivals" (§1) — one of the two fills
-            `.main`, never both. */}
+        {/* §17.1 — the view branch: the scale-map <Content>, the <TunerView>, or
+            the <IntonationView>. "One subject, no rivals" (§1) — one of the three
+            fills `.main`, never more than one. */}
         {isTuner ? (
           <TunerView />
+        ) : isIntonation ? (
+          <IntonationView scaleName={scaleName(controls.state)} />
         ) : (
           <Content
             controls={controls}
@@ -185,10 +192,12 @@ export function AppShell() {
             setView('scale-map');
           }}
           // §17.1 — a Tools row sets the view seam: the Tuner row opens the Tuner
-          // surface; the live Scale Map row returns to the note map. The palette
-          // closes after either (handled in CommandPalette).
+          // surface; the Intonation row opens the Intonation view; the live Scale
+          // Map row returns to the note map. The palette closes after any (handled
+          // in CommandPalette).
           onSelectTool={(toolId) => {
             if (toolId === 'tool:tuner') setView('tuner');
+            else if (toolId === 'tool:intonation') setView('intonation');
             else if (toolId === 'tool:scale-map') setView('scale-map');
           }}
         />

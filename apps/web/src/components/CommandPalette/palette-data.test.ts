@@ -44,14 +44,14 @@ describe('catalogue shape (§8.5 / §9)', () => {
     expect(labels).not.toContain('A Nat. minor');
   });
 
-  it('Tools group is Scale Map (open ▦), soon Intonation (◴), open Tuner (◎)', () => {
-    // S18 ph6 (§17.1): Tuner became an `open` Tools row (a live view). Intonation
-    // stays `soon`.
+  it('Tools group is Scale Map (open ▦), open Intonation (◴), open Tuner (◎)', () => {
+    // S18 ph6 (§17.1): Tuner became an `open` Tools row (a live view).
+    // C9: Intonation also became an `open` Tools row (a live view).
     const tools = filterGroups('')[1];
     expect(tools?.heading).toBe('Tools');
     const items = (tools?.items ?? []) as ToolTarget[];
     expect(items.map((i) => i.label)).toEqual(['Scale Map', 'Intonation', 'Tuner']);
-    expect(items.map((i) => i.meta)).toEqual(['open', 'soon', 'open']);
+    expect(items.map((i) => i.meta)).toEqual(['open', 'open', 'open']);
     expect(items.map((i) => i.glyph)).toEqual(['▦', '◴', '◎']);
   });
 });
@@ -88,13 +88,13 @@ describe('selectableRows skips soon (§8.5 / §11.3)', () => {
   it('crosses group boundaries and excludes the soon stubs', () => {
     const groups = filterGroups('');
     const rows = selectableRows(groups);
-    // 84 Scales + 2 live tools (Scale Map + Tuner, S18 ph6) = 86; the 1 soon tool
-    // (Intonation) is excluded.
-    expect(rows).toHaveLength(86);
+    // 84 Scales + 3 live tools (Scale Map + Intonation + Tuner) = 87; no soon tools
+    // remain (Intonation promoted from soon to open in C9).
+    expect(rows).toHaveLength(87);
     const labels = rows.map((r) => r.label);
     expect(labels).toContain('Scale Map'); // live tool is selectable
     expect(labels).toContain('Tuner'); // S18 ph6 — Tuner is now a live, selectable view
-    expect(labels).not.toContain('Intonation'); // soon → not selectable
+    expect(labels).toContain('Intonation'); // C9 — Intonation is now a live, selectable view
     // No selectable row is a soon row.
     expect(rows.every((r) => r.meta !== 'soon')).toBe(true);
   });

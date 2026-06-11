@@ -11,7 +11,11 @@ import { IcScales, IcSearch } from './icons';
 // S18 ph6 (§17.1): the **Tuner** is now an ACTIVE nav item — it left the `soon`
 // stubs and renders like Scales (§8.2 active treatment, mint dot + label when
 // selected). Clicking Scales / Tuner sets the §17.1 view seam (the `onSelectView`
-// callback), swapping the `.main` content. Intonation + Vibrato stay `soon` stubs.
+// callback), swapping the `.main` content. Vibrato stays a `soon` stub.
+//
+// C9 (intonation epic): **Intonation** is now a LIVE nav item — it left the `soon`
+// stubs and renders like Tuner (§8.2 active treatment). Clicking it sets the view
+// seam to `'intonation'`, swapping `.main` to `<IntonationView />`.
 //
 // S16 Phase 3 (U7) drops the mobile off-canvas drawer: this element is now the
 // desktop rail only (no off-canvas drawer chrome). Below the §10 breakpoint the
@@ -21,11 +25,8 @@ import { IcScales, IcSearch } from './icons';
 
 // The remaining "soon" tools, in display order, with their Unicode glyph
 // characters (DESIGN.md §0 `icon.glyph-char`, §8.2) — set as text, never custom
-// SVG. Tuner left this list in S18 ph6 (it became a live view).
-const SOON_TOOLS = [
-  { label: 'Intonation', glyph: '◴' },
-  { label: 'Vibrato', glyph: '∿' },
-] as const;
+// SVG. Tuner left this list in S18 ph6 (live view). Intonation left in C9 (live view).
+const SOON_TOOLS = [{ label: 'Vibrato', glyph: '∿' }] as const;
 
 interface SidebarProps {
   /** Open the command palette — the search trigger calls this (§8.3, §9). */
@@ -39,6 +40,7 @@ interface SidebarProps {
 export function Sidebar({ onOpenPalette, view, onSelectView }: SidebarProps) {
   const scalesActive = view === 'scale-map';
   const tunerActive = view === 'tuner';
+  const intonationActive = view === 'intonation';
 
   return (
     <header className="side">
@@ -89,6 +91,23 @@ export function Sidebar({ onOpenPalette, view, onSelectView }: SidebarProps) {
             ◎
           </span>
           <span className="ni-label">Tuner</span>
+        </button>
+
+        {/* Intonation — the live C9 view. A button (it swaps content, it is not a
+            hash target) styled like the active nav item, mint dot + label when
+            selected (§8.2). Glyph ◴ per DESIGN.md §0 `nav-intonation`. */}
+        <button
+          type="button"
+          className={`ni ni-button${intonationActive ? ' active' : ''}`}
+          aria-current={intonationActive ? 'page' : undefined}
+          onClick={() => {
+            onSelectView('intonation');
+          }}
+        >
+          <span className="ic" aria-hidden="true">
+            ◴
+          </span>
+          <span className="ni-label">Intonation</span>
         </button>
 
         {SOON_TOOLS.map(({ label, glyph }) => (
