@@ -16,20 +16,31 @@
 // Reduced-motion honored by the child components (§18.8). aria-live announcer §18.9.
 
 import { spell } from '@violin-tools/theory';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { DrillMap } from '../../intonation/DrillMap';
 import { DrillMeter } from '../../intonation/DrillMeter';
 import { DrillSummary } from '../../intonation/DrillSummary';
 import type { DrillDot } from '../../intonation/drillTypes';
 import type { NoteResult as SummaryNoteResult } from '../../intonation/intonation.types';
-import { rampColor } from '../../intonation/rampColor';
 import { useIntonationDrill } from '../../intonation/useIntonationDrill';
+import { axisOf } from '../../notemap/geometry';
 import type { Handedness, Orientation, ResolvedDensity } from '../../notemap/mapView';
+import type { MotionBuild } from '../../notemap/motion';
 import type { ControlsApi } from '../../state/useControls';
 import { useTuner } from '../../tuner/useTuner';
 
 import { RunHeader } from './RunHeader';
+import { buildDrillDots } from './drillDots';
+
+// ── Motion build — mirrors the helper in Content.tsx (§7.1/§7.2) ──────────────
+/** Resolve the §7 motion build from the query string; SSR-safe. */
+function resolveMotionBuild(): MotionBuild {
+  if (typeof window === 'undefined') return 'stateful';
+  return new URLSearchParams(window.location.search).get('motion') === 'snappy'
+    ? 'snappy'
+    : 'stateful';
+}
 
 // ── ±5¢ in-tune threshold — §18.3 / AC6 ───────────────────────────────────────
 /** The ±5¢ threshold for the in-tune state (§18.3). Shared only within C11 scope. */
@@ -86,6 +97,17 @@ export function IntonationView({
   const drillState = useIntonationDrill(controls, tuner);
   const { phase, tunerStatus, plan, currentTargetIndex, results, liveCents, startDrill, resetDrill } = drillState;
 
+  // ── §12.1 layout (viewBox) + §7 motion build ──────────────────────────────
+  // Mirrors the Content.tsx pattern: axisOf gives the coordinate space the
+  // DrillMap dots are drawn in; the SVG must declare the same viewBox or the
+  // 760-wide chrome renders into the SVG default 300×150 viewport (clipped).
+  // resolveMotionBuild is cheap (URL read) but stable within a render cycle.
+  const layout = useMemo(
+    () => axisOf({ orientation, handedness, density }),
+    [orientation, handedness, density],
+  );
+  const motion = resolveMotionBuild();
+
   // ── inTune derivation — §18.3 ±5¢ rule (AC6) ─────────────────────────────
   const inTune = liveCents !== null && Math.abs(liveCents) <= IN_TUNE_CENTS;
 
@@ -136,6 +158,8 @@ export function IntonationView({
           orientation={orientation}
           handedness={handedness}
           density={density}
+          viewBox={layout.viewBox}
+          motion={motion}
           liveCents={liveCents}
           inTune={inTune}
           targetLetter={targetLetter}
@@ -265,6 +289,8 @@ function RunningState({
   orientation,
   handedness,
   density,
+  viewBox,
+  motion,
   liveCents,
   inTune,
   targetLetter,
@@ -276,6 +302,10 @@ function RunningState({
   orientation: Orientation;
   handedness: Handedness;
   density: ResolvedDensity;
+  /** §12.1 coordinate space — from axisOf({orientation,handedness,density}).viewBox. */
+  viewBox: string;
+  /** §7 motion build — drives data-motion on the board SVG (§18.8 re-frame guards). */
+  motion: MotionBuild;
   liveCents: number | null;
   inTune: boolean;
   targetLetter: string;
@@ -289,8 +319,27 @@ function RunningState({
         targetCount={targetCount}
       />
 
-      {/* DrillMap must be inside <svg id="board"> (§R3 / AC5). */}
-      <svg id="board" className="board" aria-hidden="true">
+      {/* DrillMap must be inside <svg id="board"> (§R3 / AC5).
+          §12.1 — viewBox sets the coordinate space the DrillMap dots are drawn
+          in (matches Content.tsx exactly: horizontal='0 0 760 264', vertical=
+          '0 0 352 850'). Without viewBox the SVG defaults to 300×150 and clips.
+          §11.3 — role="group" exposes the per-dot aria-label markers to AT
+          (the §18.9 text-redundancy backing no-color-only). aria-hidden on the
+          note-map in Content is for the full fingerboard (NoteMap), not for the
+          drill dots which carry individual semantic labels.
+          §18.8 — data-motion enables the §18.8 re-frame motion hooks
+          (.board[data-motion] .fingerboard-window selector).
+          §10/§12.1 — data-orientation drives the shell.css min-width rule so
+          the vertical SVG shrinks to fit on mobile. */}
+      <svg
+        id="board"
+        className="board"
+        viewBox={viewBox}
+        role="group"
+        aria-label="Intonation drill fingerboard"
+        data-motion={motion}
+        data-orientation={orientation}
+      >
         <DrillMap
           dots={dots}
           orientation={orientation}
@@ -326,81 +375,6 @@ function normalizeSummaryResults(
     medianCents: r.medianCents ?? 0,
     frameCount: r.frameCount,
   }));
-}
-
-// ── DrillDot mapper (§R3 / AC5) ───────────────────────────────────────────────
-
-/**
- * Build the DrillDot[] array from plan + results for DrillMap.
- *
- * DrillTarget has no .letter or position fields; we derive:
- *   - letter: spell(midiNote % 12, root, scale) per §R5
- *   - stringIndex / columnOffset: midiNote → violin string assignment
- *   - state: 'played' / 'active' / 'pending' from results vs currentTargetIndex
- *   - rampColor: from result.medianCents when played
- *
- * Violin string assignment (standard tuning, MIDI):
- *   G3=55, D4=62, A4=69, E5=76
- *   A note's string is the highest open string ≤ midiNote + the normal playing range.
- *   We assign to the lowest string where the columnOffset (semitones from open) ≤ 14.
- *   String indices: E5=0, A4=1, D4=2, G3=3 (the §12.1 cross-order index).
- */
-function buildDrillDots(
-  plan: readonly { midiNote: number; hz: number; index: number; degreeLabel: string }[],
-  results: readonly { targetIndex: number; medianCents: number | null }[],
-  currentTargetIndex: number,
-  root: Parameters<typeof spell>[1],
-  scale: Parameters<typeof spell>[2],
-): readonly DrillDot[] {
-  // Build a map from targetIndex → medianCents for played targets.
-  // medianCents may be null (degenerate but safe per noteTracker contract).
-  const resultMap = new Map<number, number | null>();
-  for (const r of results) {
-    resultMap.set(r.targetIndex, r.medianCents);
-  }
-
-  return plan.map((target, i): DrillDot => {
-    const letter = spell(target.midiNote % 12, root, scale);
-
-    // Assign to violin string: highest open string where columnOffset ≤ 14
-    // Standard open string MIDI: G3=55, D4=62, A4=69, E5=76
-    // §12.1 string indices (low→high on neck, E5=0, A4=1, D4=2, G3=3)
-    const OPEN_MIDI = [76, 69, 62, 55] as const; // E5, A4, D4, G3 → indices 0,1,2,3
-    let stringIndex = 3; // default to G3
-    let columnOffset = target.midiNote - 55;
-
-    for (let si = 0; si < OPEN_MIDI.length; si++) {
-      // OPEN_MIDI is a fixed-length tuple (4 items); si < OPEN_MIDI.length
-      // guarantees the index is in bounds. The nullish coalesce guards the
-      // noUncheckedIndexedAccess lint rule without a non-null assertion.
-      const openMidi = OPEN_MIDI[si] ?? 55;
-      const offset = target.midiNote - openMidi;
-      if (offset >= 0 && offset <= 14) {
-        stringIndex = si;
-        columnOffset = offset;
-        break;
-      }
-    }
-
-    // Clamp columnOffset to [0, 14] for safety
-    columnOffset = Math.max(0, Math.min(14, columnOffset));
-
-    const playedEntry = resultMap.get(i);
-    const isPlayed = playedEntry !== undefined;
-    const isActive = !isPlayed && i === currentTargetIndex;
-
-    const state: DrillDot['state'] = isPlayed ? 'played' : isActive ? 'active' : 'pending';
-    // medianCents may be null; fall back to 0 for the ramp so null never crashes rampColor.
-    const dotRampColor = isPlayed ? rampColor(playedEntry ?? 0) : 'var(--in-scale-fill)';
-
-    return {
-      stringIndex,
-      columnOffset,
-      letter,
-      rampColor: dotRampColor,
-      state,
-    };
-  });
 }
 
 // ── Announcer (§18.9 / AC11) ─────────────────────────────────────────────────

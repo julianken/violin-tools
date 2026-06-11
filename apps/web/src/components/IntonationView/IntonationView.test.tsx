@@ -27,6 +27,7 @@ import type { ControlsApi } from '../../state/useControls';
 import type { TunerStatus } from '../../tuner/useTuner';
 
 import { IntonationView } from './IntonationView';
+import { buildDrillDots } from './drillDots';
 
 // ── Mock useIntonationDrill ────────────────────────────────────────────────────
 
@@ -184,7 +185,7 @@ describe('idle state (AC2 / AC3 / AC4)', () => {
 // ── Running state tests ───────────────────────────────────────────────────────
 
 describe('running state (AC5 / AC6 / AC7)', () => {
-  it('AC5: DrillMap is mounted inside <svg id="board">', () => {
+  it('AC5: DrillMap is mounted inside <svg id="board"> with correct §12.1/§11.3/§18.8 attributes', () => {
     mockUseIntonationDrill.mockReturnValue(makeRunningDrillState());
     const { container } = render(<IntonationView {...makeProps()} />);
 
@@ -192,6 +193,15 @@ describe('running state (AC5 / AC6 / AC7)', () => {
     expect(board).not.toBeNull();
     // DrillMap renders a <g class="chrome"> inside the svg
     expect(board?.querySelector('g.chrome')).not.toBeNull();
+    // §12.1 — viewBox must be set so DrillMap dots are not clipped
+    expect(board?.getAttribute('viewBox')).toBeTruthy();
+    // §11.3 — role="group" (not aria-hidden) so per-dot labels are AT-exposed
+    expect(board?.getAttribute('role')).toBe('group');
+    expect(board?.getAttribute('aria-label')).toBeTruthy();
+    // §18.8 — data-motion drives the re-frame motion hook selector
+    expect(board?.hasAttribute('data-motion')).toBe(true);
+    // §10/§12.1 — data-orientation drives the shell.css min-width rule
+    expect(board?.getAttribute('data-orientation')).toBe('horizontal');
   });
 
   it('AC6: DrillMeter is mounted with inTune=false for liveCents=null', () => {
@@ -510,5 +520,91 @@ describe('DrillMap receives dots from the mapper (AC5)', () => {
     expect(() => render(<IntonationView {...makeProps()} />)).not.toThrow();
     const board = document.querySelector('svg#board');
     expect(board).not.toBeNull();
+  });
+});
+
+// ── buildDrillDots unit tests (SUGGESTION finding) ───────────────────────────
+// Direct unit tests of the string-assignment logic so a misassignment at an
+// open-string boundary fails a test rather than silently plotting a dot on the
+// wrong string with no visible failure.
+
+describe('buildDrillDots — violin string assignment', () => {
+  // Violin open-string MIDI: G3=55, D4=62, A4=69, E5=76
+  // §12.1 string indices (low→high on neck): E5=0, A4=1, D4=2, G3=3
+
+  const ROOT = 'A' as const;
+  const SCALE = 'major' as const;
+  const EMPTY_RESULTS: readonly { targetIndex: number; medianCents: number | null }[] = [];
+
+  function singleNote(midiNote: number) {
+    return [{ index: 0, midiNote, hz: 440, degreeLabel: '1' }] as const;
+  }
+
+  it('open G3 (MIDI 55) → stringIndex=3, columnOffset=0', () => {
+    const dots = buildDrillDots(singleNote(55), EMPTY_RESULTS, 0, ROOT, SCALE);
+    expect(dots[0]?.stringIndex).toBe(3);
+    expect(dots[0]?.columnOffset).toBe(0);
+  });
+
+  it('open D4 (MIDI 62) → stringIndex=2, columnOffset=0', () => {
+    const dots = buildDrillDots(singleNote(62), EMPTY_RESULTS, 0, ROOT, SCALE);
+    expect(dots[0]?.stringIndex).toBe(2);
+    expect(dots[0]?.columnOffset).toBe(0);
+  });
+
+  it('open A4 (MIDI 69) → stringIndex=1, columnOffset=0', () => {
+    const dots = buildDrillDots(singleNote(69), EMPTY_RESULTS, 0, ROOT, SCALE);
+    expect(dots[0]?.stringIndex).toBe(1);
+    expect(dots[0]?.columnOffset).toBe(0);
+  });
+
+  it('open E5 (MIDI 76) → stringIndex=0, columnOffset=0', () => {
+    const dots = buildDrillDots(singleNote(76), EMPTY_RESULTS, 0, ROOT, SCALE);
+    expect(dots[0]?.stringIndex).toBe(0);
+    expect(dots[0]?.columnOffset).toBe(0);
+  });
+
+  it('D4+14 (MIDI 76) assigns to E5 string (offset=0), not D4 string (offset=14)', () => {
+    // MIDI 76 = E5 open string — must prefer the lower string index (E5=0),
+    // not D4 (which would give offset=14). First match wins: si=0 offset=0.
+    const dots = buildDrillDots(singleNote(76), EMPTY_RESULTS, 0, ROOT, SCALE);
+    expect(dots[0]?.stringIndex).toBe(0);
+    expect(dots[0]?.columnOffset).toBe(0);
+  });
+
+  it('A4+13 (MIDI 82) → E5 string index=0, columnOffset=6', () => {
+    // MIDI 82: E5 open=76, offset=6 (≤14) → stringIndex=0
+    const dots = buildDrillDots(singleNote(82), EMPTY_RESULTS, 0, ROOT, SCALE);
+    expect(dots[0]?.stringIndex).toBe(0);
+    expect(dots[0]?.columnOffset).toBe(6);
+  });
+
+  it('state: first item is active (currentTargetIndex=0, no results)', () => {
+    const plan = [
+      { index: 0, midiNote: 69, hz: 440, degreeLabel: '1' },
+      { index: 1, midiNote: 71, hz: 493.88, degreeLabel: '2' },
+    ] as const;
+    const dots = buildDrillDots(plan, EMPTY_RESULTS, 0, ROOT, SCALE);
+    expect(dots[0]?.state).toBe('active');
+    expect(dots[1]?.state).toBe('pending');
+  });
+
+  it('state: played result maps to state="played" with rampColor from medianCents', () => {
+    const plan = [
+      { index: 0, midiNote: 69, hz: 440, degreeLabel: '1' },
+      { index: 1, midiNote: 71, hz: 493.88, degreeLabel: '2' },
+    ] as const;
+    const results = [{ targetIndex: 0, medianCents: 5 }];
+    const dots = buildDrillDots(plan, results, 1, ROOT, SCALE);
+    expect(dots[0]?.state).toBe('played');
+    // rampColor(5) should produce a CSS color string (not the pending fill var)
+    expect(dots[0]?.rampColor).not.toBe('var(--in-scale-fill)');
+    expect(dots[1]?.state).toBe('active');
+  });
+
+  it('letter: derives spelled letter via spell(), not a non-existent .letter field', () => {
+    // A4 (MIDI 69) in A major → pitch class 9 → should spell to 'A'
+    const dots = buildDrillDots(singleNote(69), EMPTY_RESULTS, 0, ROOT, SCALE);
+    expect(dots[0]?.letter).toBe('A');
   });
 });
