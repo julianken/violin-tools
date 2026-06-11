@@ -121,6 +121,51 @@ describe('AC4 — ramp fill applied, no red in output', () => {
   });
 });
 
+// ── AC3b — out-of-bounds targetIndex falls back to '#N' label ──────────────
+
+describe('AC3b — out-of-bounds targetIndex graceful fallback', () => {
+  it('renders #N fallback label when result.targetIndex is outside plan bounds', () => {
+    // A result whose targetIndex == plan.length means plan[result.targetIndex]
+    // is undefined — the component must fall back to '#N' not crash.
+    const short_plan = makePlan(2); // plan has indices 0 and 1 only
+    const results = [
+      makeResult(0, 5),    // in-bounds: plan[0] exists
+      makeResult(5, 10),   // out-of-bounds: plan[5] is undefined
+    ];
+    const { container } = render(
+      <DrillSummary
+        {...DEFAULT_PROPS}
+        results={results}
+        plan={short_plan}
+      />,
+    );
+    const rows = container.querySelectorAll('.drill-summary-row');
+    expect(rows).toHaveLength(2);
+    // The second row must show the '#5' fallback label (not undefined/crash)
+    const secondRow = rows[1];
+    expect(secondRow?.textContent).toContain('#5');
+  });
+
+  it('renders #N fallback in farthest callout when farthest.targetIndex is outside plan bounds', () => {
+    // farthest has the highest |medianCents|; its targetIndex is out of plan bounds
+    const short_plan = makePlan(2); // plan has indices 0 and 1 only
+    const results = [
+      makeResult(0, 5),    // in-bounds
+      makeResult(7, 30),   // out-of-bounds, but is the farthest (largest |medianCents|)
+    ];
+    const { container } = render(
+      <DrillSummary
+        {...DEFAULT_PROPS}
+        results={results}
+        plan={short_plan}
+      />,
+    );
+    const farthestLine = container.querySelector('.drill-summary-callout');
+    // Should contain '#7' (the fallback) rather than crashing or showing undefined
+    expect(farthestLine?.textContent).toContain('#7');
+  });
+});
+
 // ── AC5 — average + farthest callout ──────────────────────────────────────
 
 describe('AC5 — average + farthest callout', () => {

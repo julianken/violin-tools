@@ -107,6 +107,42 @@ describe('deriveTendency — ascending sub-tendency', () => {
   });
 });
 
+describe('deriveTendency — descending sub-tendency', () => {
+  it('reports descending-specific tendency when only the descending half clears threshold', () => {
+    // Descending half: indices > peakIndex (14) for a 29-element plan.
+    // Give 3+ descending results all sharply above threshold,
+    // and only 1 ascending result (not enough for ascending sub-tendency).
+    const results = [
+      // One ascending result — not enough for ascending sub-tendency.
+      makeResult(0, 12),
+      // Three descending results all above threshold.
+      makeResult(20, 18),
+      makeResult(22, 16),
+      makeResult(25, 20),
+    ];
+    const result = deriveTendency(results, PLAN_29);
+    expect(result).not.toBeNull();
+    expect(result?.toLowerCase()).toMatch(/descending/);
+  });
+});
+
+describe('deriveTendency — overall fallback (neither half qualifies alone)', () => {
+  it('falls back to overall tendency when both halves each have < 3 results', () => {
+    // peakIndex = Math.floor(3/2) = 1 for a 3-element plan.
+    // index 0 and 1 are ascending (≤ peakIndex 1); index 2 is descending (> 1).
+    // Only 1 result per half → both ascMean and descMean are null.
+    // Overall mean = 10 ≥ threshold(5) → falls through to overall-tendency line.
+    const PLAN_3 = makePlan(3);
+    const results = [
+      makeResult(0, 10), // ascending half: only 1 result → ascMean = null
+      makeResult(2, 10), // descending half: only 1 result → descMean = null
+    ];
+    const result = deriveTendency(results, PLAN_3);
+    expect(result).not.toBeNull();
+    expect(result?.toLowerCase()).toMatch(/overall/);
+  });
+});
+
 describe('deriveTendency — §13 voice: no judgmental vocabulary', () => {
   // The tendency statement must never contain words that imply the player
   // made a mistake. This is a regression guard against future LLM-generated
