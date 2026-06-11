@@ -806,7 +806,7 @@ The shell is a flex row: a fixed-width sticky **sidebar** and a fluid **main** c
 │   ├── .nav
 │   │   ├── .ni.active   Scales           (bg {raised}, label {text}, icon {mint})
 │   │   ├── .ni.ni-button  Tuner         (live, §17.1 — bg {raised} when active, §8.2)
-│   │   ├── .ni.ni-button  Intonation    (live, C9 — bg {raised} when active, §8.2)
+│   │   ├── .ni.ni-button  Intonation    (live, C9 — bg {raised} when active, §8.2; flag-gated: rendered only when flags.intonation, §18.1)
 │   │   └── .ni.soon ×1   Vibrato        ({muted}, "soon" tag, no hover)
 │   ├── .spacer   (flex:1 — pushes toggle to bottom)
 │   └── .theme    "☾ Dark"               (toggle; border 1px {hairline})
@@ -1268,7 +1268,7 @@ Technique via the transitions-dev patterns (recipe hooks, the reduced-motion gua
 
 ## 18. The Intonation drill
 
-The Intonation drill is a hands-free **scale-intonation tool** — mic → raw pitch frames → per-degree accuracy painted back onto the note map as a graded ramp — and it is the third nav surface in the product (after Scales and Tuner). It follows the player through a 2-octave Flesch-shape run without gating on accuracy: **advance is always driven by detection, never by score**. All values resolve to §0 tokens; this section is the committed surface spec the C6–C9 UI build is verified against.
+The Intonation drill is a hands-free **scale-intonation tool** — mic → raw pitch frames → per-degree accuracy painted back onto the note map as a graded ramp — and it is the third nav surface in the product (after Scales and Tuner; v1 ships it flag-gated — absent from the nav/palette until the `intonation` flag is on, §18.1). It follows the player through a 2-octave Flesch-shape run without gating on accuracy: **advance is always driven by detection, never by score**. All values resolve to §0 tokens; this section is the committed surface spec the C6–C9 UI build is verified against.
 
 ### 18.1 The view (third nav surface)
 
