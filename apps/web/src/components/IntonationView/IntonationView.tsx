@@ -133,6 +133,17 @@ export function IntonationView({
 
   return (
     <main id="main" className="content">
+      {/* §9-tree page title (kicker · toolhead › H1), the same block every view
+          opens with — Content.tsx (scale map) and TunerView (§17). It renders in
+          all three phases so the Intonation surface carries a page title like the
+          others, not just the Topbar breadcrumb. The interval-formula slot stays
+          empty (§18 has no formula). */}
+      <div className="kicker">Intonation</div>
+      <div className="toolhead">
+        <h1 className="h1">Intonation drill</h1>
+        <div className="formula" />
+      </div>
+
       {/* §18.9 aria-live announcer — present only when the Intonation view is
           active; exists EMPTY at mount so the first announcement is heard.
           data-live="intonation" scopes it away from the tuner/share live regions. */}
@@ -259,7 +270,11 @@ function StartState({
       <div className="tuner-idle-glyph" aria-hidden="true">
         ◴
       </div>
-      <h2 className="tuner-idle-h">Intonation drill</h2>
+      {/* Distinct from the §9 page H1 ("Intonation drill") so the idle screen
+          doesn't print the same words twice — the §17.6 idle-heading pattern,
+          where the Tuner's centered idle heading ("Tune your violin") differs
+          from its page H1 ("Chromatic tuner"). */}
+      <h2 className="tuner-idle-h">Drill your intonation</h2>
       <p className="tuner-idle-rationale">
         The drill listens to your violin through the microphone and tracks your
         intonation across a two-octave Flesch scale. Each degree is scored as

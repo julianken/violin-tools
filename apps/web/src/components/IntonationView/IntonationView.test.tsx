@@ -182,6 +182,36 @@ describe('idle state (AC2 / AC3 / AC4)', () => {
   });
 });
 
+// ── Page title (§9 kicker · toolhead › H1) ─────────────────────────────────────
+
+describe('page title — §9 kicker/toolhead block, matching the Tuner and scale map', () => {
+  it('renders the "Intonation" kicker + "Intonation drill" H1 in every phase', () => {
+    for (const state of [
+      makeIdleDrillState('idle'),
+      makeRunningDrillState(),
+      makeCompleteDrillState(),
+    ]) {
+      mockUseIntonationDrill.mockReturnValue(state);
+      const { unmount } = render(<IntonationView {...makeProps()} />);
+
+      // The page title is the single level-1 heading on the view.
+      expect(screen.getByRole('heading', { level: 1, name: /^Intonation drill$/ })).toBeInTheDocument();
+      expect(screen.getByText('Intonation')).toBeInTheDocument(); // the kicker
+      unmount();
+    }
+  });
+
+  it('idle heading "Drill your intonation" stays distinct from the page H1', () => {
+    mockUseIntonationDrill.mockReturnValue(makeIdleDrillState('idle'));
+    render(<IntonationView {...makeProps()} />);
+
+    // The centered idle heading (level 2) must not repeat the page H1 string.
+    const idleHeading = screen.getByRole('heading', { level: 2, name: /drill your intonation/i });
+    expect(idleHeading).toBeInTheDocument();
+    expect(idleHeading.textContent).not.toBe('Intonation drill');
+  });
+});
+
 // ── Running state tests ───────────────────────────────────────────────────────
 
 describe('running state (AC5 / AC6 / AC7)', () => {

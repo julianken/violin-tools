@@ -1281,7 +1281,9 @@ The Intonation drill occupies `'intonation'` on the view seam (`useView`), the s
 
 **Topbar** (view-aware): the breadcrumb reads "Intonation" only — the `Scales /` segment is dropped (same posture as the Tuner, §17.1). The Share-scale cluster is suppressed (it is a Scales-only action, §17.1). The mobile search trigger and the §9 shell/sidebar are unchanged.
 
-**Three states:** idle/start · running · end-of-run summary. The note map is the drill display surface in the running state; it is replaced by the summary panel at run end.
+**Page title** (§9 tree): like every other view, the surface opens with the standard `.kicker` · `.toolhead › H1` block — kicker **"Intonation"**, H1 **"Intonation drill"** (mirroring the Tuner's "Tuner" / "Chromatic tuner"). The empty interval-formula slot is unused here. This is the page-level title, distinct from the §18.4 run header and from the Topbar breadcrumb above.
+
+**Three states:** idle/start · running · end-of-run summary. The note map is the drill display surface in the running state; it is replaced by the summary panel at run end. The idle/start state shows a centered heading **"Drill your intonation"** (kept distinct from the page H1 so the words don't repeat — the §17.6 pattern where the Tuner's "Tune your violin" differs from its "Chromatic tuner" H1), the mic-permission rationale, the `{mint}`-outline **Start drill** affordance, and the on-device privacy line.
 
 **Flag-gated surface (#176):** the Intonation surface ships behind a runtime feature flag. When the flag is off (the public prod default), the `◴` nav item and the **Intonation** command-palette row are **absent** — not `soon`-badged — and a stale `'intonation'` view falls back to the scale map; nothing about the surface is visible. The flag defaults on in dev and is flipped live (no deploy) via the bucket's `flags.json` or a per-device `?ff=intonation` override (mechanism in the README "Feature flags" section).
 
