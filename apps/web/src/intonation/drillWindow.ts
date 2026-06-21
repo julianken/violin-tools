@@ -3,45 +3,51 @@
 // Pure: no React, no DOM, no audio. The DrillMap uses this module to decide
 // which column slice of the neck is visible at any moment during a drill run.
 //
-// DESIGN: The visible neck slice is a contiguous window of COLUMN_OFFSETS.
-// Today's full-neck map shows all 15 columns (offsets 0–14). During a drill
-// the player climbs the neck; the window advances discretely at position
-// boundaries so the active target stays visible.
+// DESIGN (§18.2): the visible neck slice is a contiguous window of COLUMN_OFFSETS
+// anchored at the OPEN END. The window stays anchored to the open string (the nut
+// and the open-string identifiers stay visible) for the whole of first position,
+// and only advances up the neck once the active target climbs beyond it — a
+// discrete re-frame, not a continuous scroll. Because notes are assigned to the
+// highest open string at or below their pitch (drillDots.ts), a 2-octave scale's
+// targets distribute across the four strings and almost always stay inside first
+// position, so the window seldom advances at all — but a scale whose second octave
+// climbs high on the E string (e.g. an E- or F-rooted 2-octave run reaching E6)
+// does cross into the upper neck, and then the window re-frames once.
 //
-// Position boundaries used here (violin first-position convention):
-//   Position 1: offsets 0–4   (open + semitones 1–4, i.e. up to 4th finger)
-//   Position 2: offsets 5–8
-//   Position 3: offsets 9–12
-//   Position 4+: offsets 13–14
+// First-position window (violin convention):
+//   The open string (col 0) through the 4th-finger reach. The 4th finger reaches a
+//   perfect 4th above the open string normally (col 5) and a 5th when extended
+//   (col 7); a 9-column window (open + cols 1–8) holds that span with headroom, so
+//   the nut and the active target are BOTH visible for every first-position target.
 //
-// The window size is 5 columns (fits first position with the open string) —
-// this gives the player a position-width viewport into the neck. Advancing one
-// boundary shifts the window start forward; reversing below a boundary shifts
-// it back. No jitter: the boundary that advanced the window must be re-crossed
-// in the OPPOSITE direction before a reverse re-frame is triggered.
-
-/** The number of columns in one position window (open + 4 stopped). */
-export const DRILL_WINDOW_SIZE = 5;
+// The window advances only when the active target reaches col ≥ 9 (a major 6th or
+// higher on a single string — the player has shifted out of first position). The
+// re-frame fires one §7 transition on the .drill-window translate (§18.8), instant
+// under prefers-reduced-motion (drillmap.css §7.4 guard).
+//
+// Derivation is direct: DrillMap computes windowStart = windowStartFor(activeOffset)
+// each render. The auto-follow drill advances the active target monotonically up to
+// the peak and back down (§18.6), so it crosses the single col-9 boundary at most
+// twice and never oscillates — no hysteresis state machine is needed to stay
+// jitter-free.
 
 /**
- * Position boundary thresholds.
- *
- * Each threshold is the MINIMUM column offset that belongs to a given position.
- * When the active column offset first meets or exceeds a threshold, the window
- * advances to show that position. When it drops BELOW the threshold that last
- * triggered an advance, the window retreats.
- *
- * Boundaries:
- *   0  → position 1 (the initial window — offsets 0–4)
- *   5  → position 2 (offsets 5–9)
- *   9  → position 3 (offsets 9–13)
- *   13 → position 4 (offsets 13–14, clamped)
- *
- * Only one boundary per position-start; the boundary mid-values (e.g. 5, 9, 13)
- * are the enter points. The window windowStart is always a multiple of the step
- * between boundaries — we snap to the boundary's own offset.
+ * The number of columns in the open-anchored first-position window
+ * (open + cols 1–8 = the 4th-finger reach with headroom).
  */
-export const POSITION_BOUNDARIES: readonly number[] = [0, 5, 9, 13];
+export const DRILL_WINDOW_SIZE = 9;
+
+/**
+ * Window-start anchors, as the MINIMUM active column offset that selects each.
+ *
+ *   0 → first position, anchored at the open end (windowStart 0 → cols 0–8)
+ *   9 → upper neck (the active target has climbed out of first position)
+ *
+ * `windowStartFor` snaps to the highest anchor at or below the active offset, then
+ * clamps so the window fits the 15-column neck (the col-9 anchor clamps to a
+ * windowStart of 6 → cols 6–14, the only other discrete window position).
+ */
+export const POSITION_BOUNDARIES: readonly number[] = [0, 9];
 
 /** Total column count per string (NMAX = 15, offsets 0–14). */
 const TOTAL_COLUMNS = 15;
@@ -52,76 +58,26 @@ const TOTAL_COLUMNS = 15;
  * The window is the contiguous slice `[windowStart, windowStart + DRILL_WINDOW_SIZE)`.
  * It is always clamped so `windowStart + DRILL_WINDOW_SIZE - 1 <= TOTAL_COLUMNS - 1`.
  *
- * Logic: find the highest position boundary that does not exceed `activeOffset`,
- * then set `windowStart` to that boundary. This is a pure function — it derives
- * the window from the active column, with no memory of prior state.
+ * Logic: find the highest position anchor that does not exceed `activeOffset`, then
+ * set `windowStart` to that anchor (clamped to the neck). This is a pure function —
+ * it derives the window from the active column, with no memory of prior state — so
+ * the window stays anchored at the open end (windowStart 0) for every target in
+ * first position (offsets 0–8) and only advances when the active target reaches the
+ * upper neck (offset ≥ 9).
  *
  * @param activeOffset - The column offset of the current active drill target.
  * @returns The window start offset (0-indexed, ≥ 0).
  */
 export function windowStartFor(activeOffset: number): number {
-  // Find the highest boundary ≤ activeOffset.
-  let boundary = 0;
+  // Find the highest anchor ≤ activeOffset.
+  let anchor = 0;
   for (const b of POSITION_BOUNDARIES) {
-    if (b <= activeOffset) boundary = b;
+    if (b <= activeOffset) anchor = b;
     else break;
   }
   // Clamp so the window fits within the neck.
   const maxStart = TOTAL_COLUMNS - DRILL_WINDOW_SIZE;
-  return Math.min(boundary, maxStart);
-}
-
-/**
- * Determine whether advancing `activeOffset` from `prevOffset` should trigger
- * a window re-frame — and if so, return the new `windowStart`.
- *
- * Rules (matching the issue AC):
- *   - Crossing a boundary FORWARD: the window advances only when `prevOffset`
- *     was below the new boundary and `nextOffset` first meets or exceeds it.
- *     This prevents re-firing the same forward boundary when the offset is
- *     already above it — a fresh crossing from below is required each time.
- *   - Crossing a boundary BACKWARD: the window retreats only when the active
- *     offset drops BELOW `currentWindowStart` (the boundary that last triggered
- *     an advance). Hovering at or above `currentWindowStart` after a forward
- *     advance does not fire a retreat.
- *   - No jitter: without a direction reversal that crosses the triggering
- *     boundary, the same re-frame cannot fire twice in the same direction.
- *
- * Returns `null` if no re-frame is needed; returns the new `windowStart` if
- * a re-frame should occur.
- *
- * @param prevOffset         - The active column offset before the step.
- * @param nextOffset         - The active column offset after the step.
- * @param currentWindowStart - The current window start offset.
- * @returns The new window start, or `null` if no re-frame.
- */
-export function resolveWindowAdvance(
-  prevOffset: number,
-  nextOffset: number,
-  currentWindowStart: number,
-): number | null {
-  if (nextOffset > prevOffset) {
-    // Moving forward: re-frame only if a higher window boundary is freshly
-    // crossed this step — prevOffset was below the new window start and
-    // nextOffset is at or above it.
-    const newStart = windowStartFor(nextOffset);
-    if (newStart > currentWindowStart && prevOffset < newStart) {
-      return newStart;
-    }
-    return null;
-  }
-
-  if (nextOffset < prevOffset) {
-    // Moving backward: re-frame only when the offset drops below the boundary
-    // that produced the current window (i.e. below currentWindowStart).
-    if (nextOffset < currentWindowStart) {
-      return windowStartFor(nextOffset);
-    }
-    return null;
-  }
-
-  // Stationary: no boundary crossing possible.
-  return null;
+  return Math.min(anchor, maxStart);
 }
 
 /**

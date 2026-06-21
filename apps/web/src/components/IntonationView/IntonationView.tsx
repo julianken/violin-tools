@@ -347,7 +347,7 @@ function RunningState({
           note-map in Content is for the full fingerboard (NoteMap), not for the
           drill dots which carry individual semantic labels.
           §18.8 — data-motion enables the §18.8 re-frame motion hooks
-          (.board[data-motion] .fingerboard-window selector).
+          (.board[data-motion] .drill-window selector).
           §10/§12.1 — data-orientation drives the shell.css min-width rule so
           the vertical SVG shrinks to fit on mobile. */}
       <svg

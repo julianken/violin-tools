@@ -670,4 +670,27 @@ describe('buildDrillDots — violin string assignment', () => {
     const dots = buildDrillDots(singleNote(69), EMPTY_RESULTS, 0, ROOT, SCALE);
     expect(dots[0]?.letter).toBe('A');
   });
+
+  it('dedups repeated pitches (up-down passes) to one dot per position, merging state', () => {
+    // A4 appears twice — ascending (i0) and descending (i2) — and a pitch maps
+    // deterministically to one (stringIndex, columnOffset). The two occurrences
+    // must collapse to a single dot (no duplicate React key / superimposition),
+    // and the merge keeps the highest-priority state (active beats played).
+    const plan = [
+      { index: 0, midiNote: 69, hz: 440, degreeLabel: '1' }, // A4 ascending
+      { index: 1, midiNote: 71, hz: 493.88, degreeLabel: '2' }, // B4
+      { index: 2, midiNote: 69, hz: 440, degreeLabel: '3' }, // A4 descending
+    ] as const;
+    const results = [{ targetIndex: 0, medianCents: 5 }]; // A4-ascending played
+    const dots = buildDrillDots(plan, results, 2, ROOT, SCALE); // A4-descending active
+
+    // 3 plan entries collapse to 2 neck positions (A4 at col 0, B4 at col 2).
+    expect(dots).toHaveLength(2);
+    // All positions are unique — no duplicate (stringIndex, columnOffset).
+    const keys = dots.map((d) => `${String(d.stringIndex)}-${String(d.columnOffset)}`);
+    expect(new Set(keys).size).toBe(keys.length);
+    // The merged A4 dot is 'active' (active > played).
+    const a4 = dots.find((d) => d.stringIndex === 1 && d.columnOffset === 0);
+    expect(a4?.state).toBe('active');
+  });
 });

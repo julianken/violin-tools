@@ -9,6 +9,13 @@ import { spell } from '@violin-tools/theory';
 import type { DrillDot } from '../../intonation/drillTypes';
 import { rampColor } from '../../intonation/rampColor';
 
+/** Merge priority for collapsing duplicate neck positions (higher wins). */
+const STATE_PRIORITY: Record<DrillDot['state'], number> = {
+  pending: 1,
+  played: 2,
+  active: 3,
+};
+
 /**
  * Build the DrillDot[] array from plan + results for DrillMap.
  *
@@ -23,6 +30,15 @@ import { rampColor } from '../../intonation/rampColor';
  *   A note's string is the highest open string ≤ midiNote + the normal playing range.
  *   We assign to the lowest string where the columnOffset (semitones from open) ≤ 14.
  *   String indices: E5=0, A4=1, D4=2, G3=3 (the §12.1 cross-order index).
+ *
+ * Dedup by neck position: a 2-octave Flesch plan visits every non-peak pitch twice
+ * (ascending then descending), and a pitch maps deterministically to one
+ * (stringIndex, columnOffset). Emitting one dot per plan entry would superimpose two
+ * dots at the same coordinate with the same React key — so we collapse the plan to
+ * ONE dot per neck position, keeping the highest-priority occurrence
+ * (active > played > pending) and, on a played tie, the most recent pass (later plan
+ * index = the descending occurrence). The returned dots are in ascending
+ * first-occurrence order. DrillMap then keys each dot by its unique position.
  */
 export function buildDrillDots(
   plan: readonly { midiNote: number; hz: number; index: number; degreeLabel: string }[],
@@ -38,7 +54,15 @@ export function buildDrillDots(
     resultMap.set(r.targetIndex, r.medianCents);
   }
 
-  return plan.map((target, i): DrillDot => {
+  // One merged entry per neck position, in first-occurrence order.
+  interface MergedDot {
+    dot: DrillDot;
+    priority: number;
+    planIndex: number;
+  }
+  const byPosition = new Map<string, MergedDot>();
+
+  plan.forEach((target, i) => {
     const letter = spell(target.midiNote % 12, root, scale);
 
     // Assign to violin string: highest open string where columnOffset ≤ 14
@@ -72,12 +96,25 @@ export function buildDrillDots(
     // medianCents may be null; fall back to 0 for the ramp so null never crashes rampColor.
     const dotRampColor = isPlayed ? rampColor(playedEntry ?? 0) : 'var(--in-scale-fill)';
 
-    return {
-      stringIndex,
-      columnOffset,
-      letter,
-      rampColor: dotRampColor,
-      state,
+    const candidate: MergedDot = {
+      dot: { stringIndex, columnOffset, letter, rampColor: dotRampColor, state },
+      priority: STATE_PRIORITY[state],
+      planIndex: i,
     };
+
+    const key = `${String(stringIndex)}-${String(columnOffset)}`;
+    const existing = byPosition.get(key);
+    // Keep the highest-priority occurrence; on a tie keep the most recent pass.
+    // Map.set on an existing key updates the value but preserves its insertion
+    // slot, so the array stays in first-occurrence (ascending) order.
+    if (
+      existing === undefined ||
+      candidate.priority > existing.priority ||
+      (candidate.priority === existing.priority && candidate.planIndex > existing.planIndex)
+    ) {
+      byPosition.set(key, candidate);
+    }
   });
+
+  return Array.from(byPosition.values(), (merged) => merged.dot);
 }
