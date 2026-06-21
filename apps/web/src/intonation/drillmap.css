@@ -93,10 +93,11 @@
 
 /* The .drill-window container wraps the drill dots and is translated along
  * the neck axis to expose the current window slice. The chrome (strings/nut/
- * guides) renders full-width BEHIND this container; the container clips to the
- * current window via the parent SVG's overflow:hidden + a clipPath. The
- * re-frame translate is a single §7 transition: --state-color duration +
- * --ease-standard easing. */
+ * guides) renders full-width BEHIND this container; a real <clipPath> on the
+ * static wrapper around .drill-window (authored in DrillMap.tsx) restricts the
+ * translated dots to the visible window region, so off-window columns are hidden
+ * rather than bleeding past the window. The re-frame translate is a single §7
+ * transition: --state-color duration + --ease-standard easing. */
 .board .drill-window {
   transition: transform var(--state-color) var(--ease-standard);
 }
@@ -114,7 +115,10 @@
   .board .drill-dot.is-active .drill-pulse {
     animation: none;
   }
-  .board .drill-window {
+  /* `[data-motion]`-prefixed so the reduce guard beats the base transition by
+   * specificity, not source order (the §7.4 / §18.8 cascade-winning pattern —
+   * the board always carries data-motion). */
+  .board[data-motion] .drill-window {
     transition: none;
   }
 }

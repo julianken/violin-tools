@@ -19,7 +19,6 @@ import type { DrillDot } from './drillTypes';
 import {
   DRILL_WINDOW_SIZE,
   isColumnVisible,
-  resolveWindowAdvance,
   visibleOffsets,
   windowStartFor,
 } from './drillWindow';
@@ -194,97 +193,56 @@ describe('DrillMap — pulse ring', () => {
   });
 });
 
-// ── window advance logic (pure function) ───────────────────────────────────
+// ── window-start logic (pure function) ──────────────────────────────────────
+// The window is anchored at the open end through first position and advances to
+// the upper neck only when the active target climbs to col ≥ 9. With a 9-column
+// window the only two discrete positions are windowStart 0 (cols 0–8) and the
+// clamped upper anchor windowStart 6 (cols 6–14).
 describe('drillWindow — windowStartFor', () => {
-  it('initial position (offset 0) → windowStart 0', () => {
+  it('open (offset 0) → windowStart 0', () => {
     expect(windowStartFor(0)).toBe(0);
   });
 
-  it('still in position 1 (offset 4) → windowStart 0', () => {
+  it('first position (offset 4) → windowStart 0', () => {
     expect(windowStartFor(4)).toBe(0);
   });
 
-  it('entering position 2 (offset 5) → windowStart 5', () => {
-    expect(windowStartFor(5)).toBe(5);
+  it('3rd-finger reach (offset 5) stays open-anchored → windowStart 0', () => {
+    // The regression: C4 (3rd finger on G) sits at columnOffset 5 and must NOT
+    // shove the window off the open end — the nut stays visible (issue: the
+    // drill re-framed on the very first target and overlapped the open chrome).
+    expect(windowStartFor(5)).toBe(0);
   });
 
-  it('mid position 2 (offset 7) → windowStart 5', () => {
-    expect(windowStartFor(7)).toBe(5);
+  it('4th-finger reach (offset 8, last first-position column) → windowStart 0', () => {
+    expect(windowStartFor(8)).toBe(0);
   });
 
-  it('entering position 3 (offset 9) → windowStart 9', () => {
-    expect(windowStartFor(9)).toBe(9);
+  it('entering the upper neck (offset 9) → windowStart 6 (clamped)', () => {
+    // anchor 9, maxStart = 15 - 9 = 6, so the upper window clamps to 6 → cols 6–14.
+    expect(windowStartFor(9)).toBe(6);
   });
 
-  it('entering position 4 (offset 13) → windowStart 10 (clamped to TOTAL-WINDOW_SIZE)', () => {
-    // maxStart = 15 - 5 = 10, boundary 13 > maxStart so clamps to 10.
-    expect(windowStartFor(13)).toBe(10);
+  it('high on the E string (offset 12, e.g. E6) → windowStart 6', () => {
+    expect(windowStartFor(12)).toBe(6);
   });
 
-  it('offset 14 (last column) → windowStart 10 (clamped)', () => {
-    expect(windowStartFor(14)).toBe(10);
-  });
-});
-
-describe('drillWindow — resolveWindowAdvance', () => {
-  it('returns null when activeOffset stays in the same window', () => {
-    expect(resolveWindowAdvance(0, 2, 0)).toBeNull();
-    expect(resolveWindowAdvance(2, 4, 0)).toBeNull();
-  });
-
-  it('returns new windowStart when crossing a forward boundary', () => {
-    // Crossing boundary at offset 5: prev in position 1 (windowStart 0), next in position 2.
-    const newStart = resolveWindowAdvance(4, 5, 0);
-    expect(newStart).toBe(5);
-  });
-
-  it('returns new windowStart for the middle advance (position 2→3)', () => {
-    const newStart = resolveWindowAdvance(8, 9, 5);
-    expect(newStart).toBe(9);
-  });
-
-  it('reverse: returns new windowStart when dropping back below a boundary', () => {
-    // Player retreats from position 2 back into position 1.
-    const newStart = resolveWindowAdvance(5, 4, 5);
-    expect(newStart).toBe(0);
-  });
-
-  it('no jitter: no re-frame when offset stays inside the current window', () => {
-    // Already at windowStart 5, moving within position 2 — no re-frame.
-    expect(resolveWindowAdvance(6, 7, 5)).toBeNull();
-    expect(resolveWindowAdvance(7, 8, 5)).toBeNull();
-  });
-
-  it('no jitter: forward boundary not re-fired when already above it (prevOffset ≥ newBoundary)', () => {
-    // windowStart=5; offset was already at 9 before this step — the position-3
-    // boundary (9) is not freshly crossed, so no re-frame fires.
-    expect(resolveWindowAdvance(9, 10, 5)).toBeNull();
-  });
-
-  it('no jitter: oscillating across the same boundary re-frames each fresh crossing', () => {
-    // Sequence: start at windowStart=5, offset=8.
-    // Step 1 — cross boundary 9 forward → re-frame to windowStart=9.
-    expect(resolveWindowAdvance(8, 9, 5)).toBe(9);
-    // Step 2 — drop back below boundary 9 → retreat to windowStart=5.
-    expect(resolveWindowAdvance(9, 8, 9)).toBe(5);
-    // Step 3 — cross boundary 9 forward again (fresh crossing) → re-frame to 9.
-    expect(resolveWindowAdvance(8, 9, 5)).toBe(9);
-    // Step 4 — no movement within the window → no re-frame.
-    expect(resolveWindowAdvance(9, 9, 9)).toBeNull();
+  it('offset 14 (last column) → windowStart 6 (clamped)', () => {
+    expect(windowStartFor(14)).toBe(6);
   });
 });
 
 describe('drillWindow — isColumnVisible', () => {
   it('column inside the window is visible', () => {
-    expect(isColumnVisible(2, 0)).toBe(true);
-    expect(isColumnVisible(5, 5)).toBe(true);
-    expect(isColumnVisible(9, 9)).toBe(true);
+    expect(isColumnVisible(2, 0)).toBe(true); // open window [0,8]
+    expect(isColumnVisible(8, 0)).toBe(true); // last of the open window
+    expect(isColumnVisible(14, 6)).toBe(true); // last of the upper window [6,14]
   });
 
   it('column outside the window is not visible', () => {
-    expect(isColumnVisible(5, 0)).toBe(false); // window [0,4]
-    expect(isColumnVisible(0, 5)).toBe(false); // window [5,9]
-    expect(isColumnVisible(15, 10)).toBe(false); // out of range
+    expect(isColumnVisible(9, 0)).toBe(false); // window [0,8]
+    expect(isColumnVisible(5, 6)).toBe(false); // window [6,14]
+    expect(isColumnVisible(15, 6)).toBe(false); // out of range
   });
 
   it('edge cases: first and last column in window', () => {
@@ -302,11 +260,11 @@ describe('drillWindow — visibleOffsets', () => {
     expect(offsets[DRILL_WINDOW_SIZE - 1]).toBe(DRILL_WINDOW_SIZE - 1);
   });
 
-  it('mid-range window returns the correct slice', () => {
-    const offsets = visibleOffsets(5);
+  it('upper-neck window returns the correct slice', () => {
+    const offsets = visibleOffsets(6);
     expect(offsets).toHaveLength(DRILL_WINDOW_SIZE);
-    expect(offsets[0]).toBe(5);
-    expect(offsets[DRILL_WINDOW_SIZE - 1]).toBe(5 + DRILL_WINDOW_SIZE - 1);
+    expect(offsets[0]).toBe(6);
+    expect(offsets[DRILL_WINDOW_SIZE - 1]).toBe(6 + DRILL_WINDOW_SIZE - 1);
   });
 });
 
@@ -377,25 +335,133 @@ describe('DrillMap — column-0 string-name scheme (§12.2, issue #180)', () => 
     expect(byText.get('G3')?.getAttribute('y')).toBe(String(g3.cy + 4));
   });
 
-  it('occupancy is plan-level, NOT window-level: a far-window col-0 target still suppresses', () => {
-    // Active target at column 12 pushes the window deep up the neck; the open-A
-    // col-0 target is far outside the visible window but STILL suppresses the
-    // A4 name — names never flash in/out with the window translate.
+  it('open-end chrome is absent once the window advances off the open column', () => {
+    // Active target at column 12 (high on the E string) advances the window into
+    // the upper neck (windowStart 6) — the open column scrolls off screen, so the
+    // string names, nut, and "open" label are absent rather than mislabeling the
+    // scrolled dots. (Which strings would carry a name is the SEPARATE plan-level
+    // rule above; this is the rule that the open-end chrome shows only while the
+    // open column is on screen — §18.2.)
     const svg = renderDrillMap([
       makeDot({ stringIndex: 1, columnOffset: 0, state: 'played' }),
       makeDot({ stringIndex: 1, columnOffset: 12, state: 'active' }),
     ]);
-    const names = Array.from(svg.querySelectorAll('text.string-name'));
-    expect(names.map((n) => n.textContent).sort()).toEqual(['D4', 'E5', 'G3']);
+    expect(svg.querySelectorAll('text.string-name')).toHaveLength(0);
+    expect(svg.querySelector('rect.nut')).toBeNull();
+    expect(svg.querySelector('text.open-label')).toBeNull();
   });
 
   it('names live in the fixed chrome group, never the translated .drill-window group', () => {
+    // Low active target → window anchored at the open end → names render; assert
+    // they are pinned in the fixed chrome group, outside the translated window.
     const svg = renderDrillMap([
-      makeDot({ stringIndex: 1, columnOffset: 12, state: 'active' }),
+      makeDot({ stringIndex: 1, columnOffset: 4, state: 'active' }),
     ]);
-    for (const name of Array.from(svg.querySelectorAll('text.string-name'))) {
+    const names = Array.from(svg.querySelectorAll('text.string-name'));
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
       expect(name.closest('g.chrome')).not.toBeNull();
       expect(name.closest('g.drill-window')).toBeNull();
     }
+  });
+});
+
+// ── fingerboard window — rendered geometry (regression for the open-string ───
+// overlap + left-edge cutoff). These render the component and assert the RESOLVED
+// dot positions (cx/cy plus the .drill-window translate) — the gap the original
+// tests missed by checking only the untranslated circle attribute or pure window
+// math, never the rendered geometry through the translate.
+
+/** Parse a `translate(tx, ty)` transform attribute → {tx, ty} (identity if absent). */
+function parseTranslate(transform: string | null): { tx: number; ty: number } {
+  if (transform === null) return { tx: 0, ty: 0 };
+  const m = /translate\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/.exec(transform);
+  if (m === null) return { tx: 0, ty: 0 };
+  return { tx: Number(m[1] ?? '0'), ty: Number(m[2] ?? '0') };
+}
+
+/** Resolved (translated) centers of every drill dot circle in the rendered SVG. */
+function resolvedDotCenters(svg: SVGSVGElement): { cx: number; cy: number }[] {
+  const windowG = svg.querySelector('g.drill-window');
+  const { tx, ty } = parseTranslate(windowG?.getAttribute('transform') ?? null);
+  return Array.from(svg.querySelectorAll('circle.drill-dot-circle'), (c) => ({
+    cx: Number(c.getAttribute('cx')) + tx,
+    cy: Number(c.getAttribute('cy')) + ty,
+  }));
+}
+
+/** Assert a real clipPath exists and a group references it. */
+function expectWindowClip(svg: SVGSVGElement): void {
+  const clipEl = svg.querySelector('[id^="drill-window-clip"]');
+  expect(clipEl).not.toBeNull();
+  const clipId = clipEl?.getAttribute('id') ?? '';
+  expect(svg.querySelector(`[clip-path="url(#${clipId})"]`)).not.toBeNull();
+}
+
+describe('DrillMap — fingerboard window regression (rendered geometry)', () => {
+  it('a first-position active target does not translate, overlap the open chrome, or clip a dot off-canvas', () => {
+    // Mirrors the reported bug: C harmonic minor at target 1 — active C4 sits at
+    // columnOffset 5 (3rd finger on the G string), the open D4 occupies column 0,
+    // plus a spread of pending dots. Pre-fix the window translated −230px, sliding
+    // the column-5 dots onto the pinned open-string names (overlap) and a column-4
+    // dot off the left edge (cutoff). Post-fix the window stays open-anchored.
+    const dots: DrillDot[] = [
+      makeDot({ stringIndex: 2, columnOffset: 0, state: 'pending' }), // open D4
+      makeDot({ stringIndex: 3, columnOffset: 5, state: 'active' }), // C4 (active)
+      makeDot({ stringIndex: 2, columnOffset: 6, state: 'pending' }),
+      makeDot({ stringIndex: 0, columnOffset: 4, state: 'pending' }), // the pre-fix cutoff dot
+      makeDot({ stringIndex: 0, columnOffset: 8, state: 'pending' }),
+    ];
+    const svg = renderDrillMap(dots);
+
+    // The window stays anchored at the open end → identity translate.
+    const windowG = svg.querySelector('g.drill-window');
+    expect(parseTranslate(windowG?.getAttribute('transform') ?? null)).toEqual({ tx: 0, ty: 0 });
+
+    // No dot resolves onto a pinned open-string name (no open-string overlap).
+    // Names sit at dotCenter(i,0) + a 4px label baseline, so compare against cy+4.
+    const names = Array.from(svg.querySelectorAll('text.string-name'), (n) => ({
+      x: Number(n.getAttribute('x')),
+      y: Number(n.getAttribute('y')),
+    }));
+    const dotCenters = resolvedDotCenters(svg);
+    for (const d of dotCenters) {
+      for (const n of names) {
+        const coincides = Math.abs(d.cx - n.x) < 1 && Math.abs(d.cy + 4 - n.y) < 1;
+        expect(coincides).toBe(false);
+      }
+    }
+
+    // No dot is clipped off the left edge (every resolved cx ≥ 0).
+    for (const d of dotCenters) {
+      expect(d.cx).toBeGreaterThanOrEqual(0);
+    }
+
+    // A real clipPath bounds the window.
+    expectWindowClip(svg);
+  });
+
+  it('an upper-neck active target advances the window, hides the open-end chrome, and keeps the active dot in view', () => {
+    const dots: DrillDot[] = [
+      makeDot({ stringIndex: 1, columnOffset: 0, state: 'played' }), // open A4 (off-window)
+      makeDot({ stringIndex: 0, columnOffset: 11, state: 'active' }), // high on the E string
+    ];
+    const svg = renderDrillMap(dots);
+
+    // Window advanced into the upper neck (windowStart 6) → non-identity translate.
+    const windowG = svg.querySelector('g.drill-window');
+    const { tx } = parseTranslate(windowG?.getAttribute('transform') ?? null);
+    expect(tx).toBeLessThan(0);
+
+    // Open-end chrome is absent (no open column on screen).
+    expect(svg.querySelectorAll('text.string-name')).toHaveLength(0);
+    expect(svg.querySelector('rect.nut')).toBeNull();
+    expect(svg.querySelector('text.open-label')).toBeNull();
+
+    // The clip is present and the active dot resolves into the visible band.
+    expectWindowClip(svg);
+    const layout = axisOf({ orientation: 'horizontal', handedness: 'right', density: 'fit' });
+    const activeRaw = layout.dotCenter(0, 11);
+    expect(activeRaw.cx + tx).toBeGreaterThanOrEqual(0);
   });
 });
