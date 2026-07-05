@@ -1,7 +1,8 @@
 // Cloudflare Worker — serves the public GCS website bucket over HTTPS as the
 // edge for strings-solo.com. This is the free alternative to a GCP load
 // balancer: Cloudflare provides TLS + CDN; this Worker provides index-default,
-// SPA fallback, the force-HTTPS 301, and the www->apex 301.
+// SPA fallback, the force-HTTPS 301, the www->apex 301, and a scanner block
+// (403 for empty-UA / PHP-probe / bucket-path requests).
 //
 // NOT committed with secrets and NOT deployed via Wrangler-in-CI. The
 // orchestrator deploys it in Phase C via the Cloudflare API / MCP, bound to a
@@ -15,6 +16,26 @@ const APEX = "strings-solo.com";
 export default {
   async fetch(request) {
     const url = new URL(request.url);
+
+    // Scanner block (2026-07 traffic audit: ~95% of requests were bots).
+    // Runs BEFORE the redirect so probes never even earn a 301. Each
+    // condition is unreachable by a legitimate visitor: real browsers always
+    // send a User-Agent (including the /cdn-cgi/rum beacon and verified
+    // crawlers); the site has no PHP and no /wp-* routes; and no real page
+    // ever links `/strings-solo-prod-web/*` — that's the GCS bucket prefix,
+    // which scanners hammer because the SPA fallback used to answer it 200.
+    // This is a Worker-level stand-in for a zone WAF custom rule (the
+    // out-of-band MCP token lacks the rulesets write scope — same reason the
+    // Worker owns the force-HTTPS redirect).
+    const userAgent = request.headers.get("user-agent") ?? "";
+    if (
+      userAgent === "" ||
+      url.pathname.endsWith(".php") ||
+      url.pathname.startsWith("/wp-") ||
+      url.pathname.startsWith("/strings-solo-prod-web")
+    ) {
+      return new Response("Forbidden", { status: 403 });
+    }
 
     // Force HTTPS and www -> apex in a single 301 (the www redirect is what
     // the dropped GCP URL map used to do). The Worker owns the scheme
