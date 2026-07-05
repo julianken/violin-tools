@@ -12,7 +12,7 @@ add ~$18/mo of standing cost for a low-traffic static SPA, so they are deferred
             HTTPS                         HTTPS (anonymous, public-read)
   user  ───────────►  Cloudflare edge  ─────────────────────────────►  GCS bucket
                       (TLS + CDN +                                       strings-solo-prod-web
-                       Worker: index/SPA/https/www->apex)                (static site + assets)
+                       Worker: index/SPA/https/www->apex/scanner-403)    (static site + assets)
 ```
 
 - **TLS + CDN + DNS:** Cloudflare (free). A small **Worker** (`cloudflare/worker.js`)
@@ -23,7 +23,12 @@ add ~$18/mo of standing cost for a low-traffic static SPA, so they are deferred
   "Always Use HTTPS" toggle is not enabled (the out-of-band MCP token lacks
   zone-settings scope; flipping it in the dashboard would be harmless
   defense-in-depth). TLS is end-to-end: the Worker fetches the origin over
-  `https://storage.googleapis.com/...`.
+  `https://storage.googleapis.com/...`. The Worker also **403-blocks scanner
+  traffic** (empty User-Agent, `*.php` / `/wp-*` probes, and direct
+  `/strings-solo-prod-web/*` bucket-path requests — none reachable by a real
+  visitor; 2026-07 audit measured ~95% of requests as bot noise). This is a
+  Worker-level stand-in for a zone WAF custom rule, which the out-of-band MCP
+  token cannot write (same scope gap as the HTTPS toggle above).
 - **Origin:** a single **public-read** GCS bucket (`storage.tf`). Public-read is
   intentional — a public static site with no secrets, no user data, no backend
   (see repo `SECURITY.md` / `README.md`). `public_access_prevention=enforced` is
